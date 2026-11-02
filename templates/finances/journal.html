@@ -7,7 +7,8 @@
   <div class="col-md-3"><label class="form-label small" for="fin">Au</label><input class="form-control" type="date" id="fin" name="fin" value="{{ fin|date:'Y-m-d' }}"></div>
   <div class="col-md-3"><label class="form-label small" for="mode">Mode</label><select class="form-select" id="mode" name="mode"><option value="">Tous</option>
     {% for code, lib in modes %}<option value="{{ code }}" {% if code == mode %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></div>
-  <div class="col-md-3 d-flex align-items-end"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+  <div class="col-md-3 d-flex align-items-end gap-2"><button class="btn btn-outline-primary w-100">Afficher</button>
+    <button class="btn btn-outline-secondary w-100" formaction="{% url 'export_journal' %}">Excel</button></div>
 </form>
 <div class="row g-2 mb-3">
   <div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="small text-muted">Total encaissé</div><strong>{{ total|fcfa }}</strong></div></div></div>

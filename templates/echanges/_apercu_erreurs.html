@@ -1,0 +1,2 @@
+{% if erreurs %}<div class="alert alert-danger">{{ erreurs }} ligne{{ erreurs|pluralize }} en erreur : corrigez le fichier puis envoyez-le à nouveau. Rien n'a été enregistré.</div>
+{% else %}<div class="alert alert-success">Fichier valide. Vérifiez l'aperçu, puis confirmez pour enregistrer.</div>{% endif %}

@@ -3,21 +3,20 @@ from datetime import timedelta
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
-from notes.services import inscriptions_classe
-from scolarite.models import Classe, Etablissement, Exercice, Inscription, Niveau
 from comptes.roles import est_administration, peut_encaisser, role_requis
+from scolarite.models import Classe, Etablissement, Exercice, Inscription, Niveau
 from scolarite.views import admin_requis
 
 from .forms import AnnulationForm, PaiementForm, ReductionForm, RemboursementForm
 from .lettres import montant_en_lettres
 from .models import Paiement, Reduction, Remboursement, Rubrique, Tarif
-from .services import compte, comptes
+from .services import compte, comptes, paiements_periode, situation_classe
 
 
 def _exercice(request):
@@ -204,23 +203,8 @@ def situation(request):
         return render(request, "finances/situation.html", ctx)
     classe = get_object_or_404(Classe, pk=c_id)
     rubrique = get_object_or_404(Rubrique, pk=r_id) if r_id else None
-    inscriptions = list(inscriptions_classe(classe, exercice).select_related("classe__niveau"))
-    cs = comptes(inscriptions, exercice)
-    lignes = []
-    for ins in inscriptions:
-        c = cs[ins.id]
-        if rubrique:
-            l = c.ligne(rubrique.id)
-            du, verse, reste = (l.du, l.verse, l.reste) if l else (0, 0, 0)
-        else:
-            du, verse, reste = c.total_du, c.total_verse, c.total_reste
-        if filtre == "insolvables" and reste == 0:
-            continue
-        if filtre == "solvables" and (reste > 0 or du == 0):
-            continue
-        lignes.append({"ins": ins, "du": du, "verse": verse, "reste": reste})
-    ctx.update(classe=classe, rubrique=rubrique, lignes=lignes,
-               totaux={k: sum(l[k] for l in lignes) for k in ("du", "verse", "reste")})
+    lignes, totaux = situation_classe(classe, exercice, rubrique, filtre)
+    ctx.update(classe=classe, rubrique=rubrique, lignes=lignes, totaux=totaux)
     return render(request, "finances/situation.html", ctx)
 
 
@@ -234,14 +218,8 @@ def journal(request):
     debut = parse_date(request.GET.get("debut") or "") or aujourd_hui - timedelta(days=6)
     fin = parse_date(request.GET.get("fin") or "") or aujourd_hui
     mode = request.GET.get("mode", "")
-    qs = (Paiement.objects.filter(exercice=exercice, date__range=(debut, fin))
-          .select_related("inscription__eleve", "inscription__classe", "rubrique", "saisi_par").order_by("date", "numero_recu"))
-    if mode:
-        qs = qs.filter(mode=mode)
-    valides = qs.filter(annule=False)
-    par_mode = [(dict(Paiement.MODES)[m], n, t) for m, n, t in
-                valides.order_by("mode").values("mode").annotate(n=Count("id"), t=Sum("montant")).values_list("mode", "n", "t")]
+    qs, total, par_mode = paiements_periode(exercice, debut, fin, mode)
     return render(request, "finances/journal.html", {
         "debut": debut, "fin": fin, "mode": mode, "modes": Paiement.MODES, "paiements": qs,
-        "total": valides.aggregate(t=Sum("montant"))["t"] or 0, "par_mode": par_mode,
+        "total": total, "par_mode": par_mode,
     })

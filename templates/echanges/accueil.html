@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titre %}Import / export Excel{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">Import et export Excel</h1>
+<div class="row g-3">
+  {% if est_admin %}
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header fw-semibold">Élèves</div><div class="card-body">
+    <p class="small text-muted">Importez une liste d'élèves (création ou mise à jour selon le matricule), avec aperçu avant enregistrement.</p>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a class="btn btn-primary" href="{% url 'import_eleves' %}">Importer des élèves</a>
+      <a class="btn btn-outline-secondary" href="{% url 'modele_eleves' %}">Télécharger le modèle</a></div>
+    <form class="row g-2" method="get" action="{% url 'export_eleves' %}">
+      <div class="col-8"><select class="form-select" name="classe" aria-label="Classe à exporter"><option value="">Toutes les classes</option>
+        {% for c in classes %}<option value="{{ c.pk }}">{{ c }}</option>{% endfor %}</select></div>
+      <div class="col-4"><button class="btn btn-outline-primary w-100">Exporter</button></div>
+    </form></div></div></div>
+  {% endif %}
+  {% if est_admin or est_enseignant %}
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header fw-semibold">Notes</div><div class="card-body">
+    <p class="small text-muted">Téléchargez la liste de la classe, saisissez les notes dans Excel, puis importez-la. Une case vide ne supprime aucune note.</p>
+    <form class="row g-2" method="get">
+      <div class="col-md-7"><select class="form-select" name="attribution" required aria-label="Classe et matière"><option value="">Classe et matière…</option>
+        {% for a in attributions %}<option value="{{ a.pk }}">{{ a.classe }} — {{ a.matiere }}</option>{% endfor %}</select></div>
+      <div class="col-md-5"><select class="form-select" name="sequence" required aria-label="Séquence"><option value="">Séquence…</option>
+        {% for s in sequences %}<option value="{{ s.pk }}">{{ s.libelle }}{% if s.verrouillee %} (verrouillée){% endif %}</option>{% endfor %}</select></div>
+      <div class="col-6"><button class="btn btn-outline-secondary w-100" formaction="{% url 'modele_notes' %}">Télécharger la liste</button></div>
+      <div class="col-6"><button class="btn btn-primary w-100" formaction="{% url 'import_notes' %}">Importer les notes</button></div>
+    </form>
+    <hr>
+    <form class="row g-2" method="get" action="{% url 'export_resultats' %}">
+      <div class="col-md-5"><select class="form-select" name="classe" required aria-label="Classe"><option value="">Classe…</option>
+        {% for c in classes %}<option value="{{ c.pk }}">{{ c }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><select class="form-select" name="periode" required aria-label="Période"><option value="">Période…</option>
+        {% for p in periodes %}<option value="{{ p.code }}">{{ p.libelle }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><button class="btn btn-outline-primary w-100">Exporter les résultats</button></div>
+    </form></div></div></div>
+  {% endif %}
+  {% if peut_encaisser %}
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header fw-semibold">Écolage</div><div class="card-body">
+    <form class="row g-2 mb-3" method="get" action="{% url 'export_situation' %}">
+      <div class="col-md-4"><select class="form-select" name="classe" required aria-label="Classe"><option value="">Classe…</option>
+        {% for c in classes %}<option value="{{ c.pk }}">{{ c }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><select class="form-select" name="filtre" aria-label="Filtre"><option value="tous">Tous</option><option value="insolvables">Insolvables</option><option value="solvables">Solvables</option></select></div>
+      <div class="col-md-4"><button class="btn btn-outline-primary w-100">Situation de la classe</button></div>
+    </form>
+    <form class="row g-2" method="get" action="{% url 'export_journal' %}">
+      <div class="col-md-4"><input class="form-control" type="date" name="debut" value="{{ il_y_a_7_jours|date:'Y-m-d' }}" aria-label="Du"></div>
+      <div class="col-md-4"><input class="form-control" type="date" name="fin" value="{{ aujourd_hui|date:'Y-m-d' }}" aria-label="Au"></div>
+      <div class="col-md-4"><button class="btn btn-outline-primary w-100">Journal des encaissements</button></div>
+    </form></div></div></div>
+  {% endif %}
+</div>
+{% endblock %}

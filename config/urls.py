@@ -12,5 +12,6 @@ urlpatterns = [
     path("discipline/", include("discipline.urls")),
     path("finances/", include("finances.urls")),
     path("comptes/", include("comptes.urls")),
+    path("excel/", include("echanges.urls")),
     path("", include("scolarite.urls")),
 ]

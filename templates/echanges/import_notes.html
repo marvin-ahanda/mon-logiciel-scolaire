@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titre %}Importer des notes{% endblock %}
+{% block contenu %}
+<a class="btn btn-link px-0 mb-2" href="{% url 'echanges' %}">← Import / export</a>
+<h1 class="h3 mb-1">Importer des notes</h1>
+<p class="text-muted">{{ attribution.classe }} — {{ attribution.matiere }} (coef. {{ attribution.coefficient }}) — {{ sequence.libelle }}</p>
+{% if sequence.verrouillee %}<div class="alert alert-secondary">Séquence fermée : import impossible.</div>{% else %}
+<div class="card mb-3"><div class="card-body">
+  <form class="row g-2 align-items-end" method="post" enctype="multipart/form-data">{% csrf_token %}
+    <div class="col-md-8"><label class="form-label" for="fichier">Classeur Excel (.xlsx) avec les colonnes Matricule et Note</label>
+      <input class="form-control" type="file" id="fichier" name="fichier" accept=".xlsx" required></div>
+    <div class="col-md-4 d-flex gap-2"><button class="btn btn-primary">Vérifier le fichier</button>
+      <a class="btn btn-outline-secondary" href="{% url 'modele_notes' %}?attribution={{ attribution.pk }}&sequence={{ sequence.pk }}">Liste de la classe</a></div>
+  </form></div></div>
+{% endif %}
+{% if apercu %}
+{% include "echanges/_apercu_erreurs.html" %}
+<div class="card"><div class="card-header">Aperçu : {{ changements }} note{{ changements|pluralize }} à enregistrer</div>
+<div class="table-responsive" style="max-height:60vh"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Ligne</th><th>Matricule</th><th>Élève</th><th class="text-end">Note actuelle</th><th class="text-end">Nouvelle note</th><th>Problème</th></tr></thead>
+  <tbody>{% for l in apercu %}
+    <tr class="{% if l.erreurs %}table-danger{% elif l.nouvelle and l.nouvelle != l.actuelle %}table-success{% endif %}"><td>{{ l.ligne }}</td><td>{{ l.matricule }}</td><td>{{ l.eleve }}</td>
+      <td class="text-end">{{ l.actuelle|default:"—" }}</td><td class="text-end">{% if l.nouvelle %}{{ l.nouvelle }}{% else %}<span class="text-muted">inchangée</span>{% endif %}</td>
+      <td class="small text-danger">{{ l.erreurs|join:" ; " }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% if not erreurs and changements %}<div class="card-footer"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirmer">
+  <button class="btn btn-success">Confirmer l'enregistrement de {{ changements }} note{{ changements|pluralize }}</button></form></div>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

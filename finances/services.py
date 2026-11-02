@@ -98,3 +98,40 @@ def compte(inscription):
 def total_verse_par_inscription(inscription_ids):
     return dict(Paiement.objects.filter(inscription_id__in=inscription_ids, annule=False).order_by().values("inscription_id")
                 .annotate(t=Sum("montant")).values_list("inscription_id", "t"))
+
+
+def situation_classe(classe, exercice, rubrique=None, filtre="tous"):
+    """Situation financière d'une classe : lignes {ins, du, verse, reste} et totaux.
+
+    filtre : « tous », « insolvables » (reste > 0) ou « solvables » (dû entièrement réglé).
+    """
+    from notes.services import inscriptions_classe
+    inscriptions = list(inscriptions_classe(classe, exercice).select_related("classe__niveau"))
+    cs = comptes(inscriptions, exercice)
+    lignes = []
+    for ins in inscriptions:
+        c = cs[ins.id]
+        if rubrique:
+            l = c.ligne(rubrique.id)
+            du, verse, reste = (l.du, l.verse, l.reste) if l else (0, 0, 0)
+        else:
+            du, verse, reste = c.total_du, c.total_verse, c.total_reste
+        if filtre == "insolvables" and reste == 0:
+            continue
+        if filtre == "solvables" and (reste > 0 or du == 0):
+            continue
+        lignes.append({"ins": ins, "du": du, "verse": verse, "reste": reste})
+    return lignes, {k: sum(l[k] for l in lignes) for k in ("du", "verse", "reste")}
+
+
+def paiements_periode(exercice, debut, fin, mode=""):
+    """Paiements d'une période (annulés compris), les valides et les totaux par mode."""
+    from django.db.models import Count
+    qs = (Paiement.objects.filter(exercice=exercice, date__range=(debut, fin))
+          .select_related("inscription__eleve", "inscription__classe", "rubrique", "saisi_par").order_by("date", "numero_recu"))
+    if mode:
+        qs = qs.filter(mode=mode)
+    valides = qs.filter(annule=False)
+    par_mode = [(dict(Paiement.MODES)[m], n, t) for m, n, t in
+                valides.order_by("mode").values("mode").annotate(n=Count("id"), t=Sum("montant")).values_list("mode", "n", "t")]
+    return qs, valides.aggregate(t=Sum("montant"))["t"] or 0, par_mode
