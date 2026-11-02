@@ -1,7 +1,7 @@
 """Crée un jeu de données fictif pour essayer l'application.
 
 Usage : python manage.py donnees_demo
-Comptes créés : admin / Demo-Admin-2025 (administration), prof.maths / Demo-Prof-2025 (enseignant).
+Connexion : choisir son nom dans la liste, puis saisir son code d'accès (codes fictifs affichés en fin d'exécution).
 À ne pas utiliser en production.
 """
 
@@ -10,9 +10,11 @@ from decimal import Decimal
 
 from django.contrib.auth.models import Group, User
 
+from comptes.models import AccesPersonnel
 from comptes.roles import ADMINISTRATION, CAISSE, SURVEILLANCE
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from datetime import date, timedelta
 
@@ -28,6 +30,7 @@ from scolarite.models import (Attribution, Classe, Cycle, Eleve, Enseignant, Eta
 
 NOMS = ["ABENA", "BELLA", "ESSOMBA", "FOUDA", "KAMGA", "MBARGA", "NANA", "NGONO", "NJOYA", "OWONA", "TCHOUA", "YOMBI"]
 PRENOMS = ["Aline", "Bruno", "Carine", "Daniel", "Estelle", "Franck", "Grâce", "Hervé", "Inès", "Joël", "Laure", "Marc"]
+CODES_PROFS = ["fr4p25", "an4p25", "ma4p25", "sv4p25", "hg4p25", "ep4p25", "nf4p25"]   # un code personnel par enseignant
 MATIERES = [("FR", "Français", 4, 1), ("ANG", "Anglais", 3, 1), ("MATH", "Mathématiques", 4, 1),
             ("SVT", "Sciences de la vie et de la Terre", 2, 2), ("HG", "Histoire-Géographie", 2, 2),
             ("EPS", "Éducation physique et sportive", 1, 3), ("INFO", "Informatique", 1, 3)]
@@ -50,10 +53,19 @@ class Command(BaseCommand):
         niveaux = [Niveau.objects.create(libelle=l, cycle=cycle, ordre=i) for i, l in enumerate(["6e", "5e"], 1)]
         classes = [Classe.objects.create(libelle=f"{n.libelle} {s}", niveau=n, effectif_max=60,
                                          section_anglophone=(n.libelle == "5e" and s == "B")) for n in niveaux for s in "AB"]
-        User.objects.create_superuser("admin", password="Demo-Admin-2025", first_name="Admin", last_name="Démo")
+        codes = {}
+
+        def personnel(ident, code, **champs):
+            u = (User.objects.create_superuser if champs.pop("superutilisateur", False) else User.objects.create_user)(
+                ident, password=code, **champs)
+            AccesPersonnel.objects.create(utilisateur=u, code_genere_le=timezone.now())
+            codes[f"{champs.get('last_name', '')} {champs.get('first_name', '')}".strip()] = code
+            return u
+
+        personnel("admin", "ad2m25", first_name="Joël", last_name="OWONA", superutilisateur=True)
         profs = []
         for i, (code, lib, coef, gr) in enumerate(MATIERES):
-            u = User.objects.create_user(f"prof.{code.lower()}", password="Demo-Prof-2025", last_name=f"Prof {lib}")
+            u = personnel(f"prof.{code.lower()}", f"{CODES_PROFS[i]}", first_name=PRENOMS[i], last_name=NOMS[i])
             profs.append(Enseignant.objects.create(matricule=f"ENS{i + 1:03}", nom=NOMS[i], prenom=PRENOMS[i], utilisateur=u))
         anglais = {"FR": "French", "ANG": "English", "MATH": "Mathematics", "SVT": "Biology", "HG": "History-Geography",
                    "EPS": "Physical education", "INFO": "Computer science"}
@@ -142,13 +154,11 @@ class Command(BaseCommand):
             for statut, ins_prix in [("N", 15000), ("A", 10000)]:
                 for r, prix in zip(rubriques, [ins_prix, 40000, 35000]):
                     Tarif.objects.create(exercice=ex, rubrique=r, niveau=niv, statut=statut, montant=prix)
-        caissier = User.objects.create_user("caisse", password="Demo-Caisse-2025", first_name="Caissier", last_name="Démo")
+        caissier = personnel("caisse", "ca5s25", first_name="Laure", last_name="TCHOUA")
         caissier.groups.add(Group.objects.get(name=CAISSE))
-        directeur = User.objects.create_user("dir.etudes", password="Demo-Directeur-2025", first_name="Directeur",
-                                             last_name="des études", is_staff=True)
+        directeur = personnel("dir.etudes", "de7t25", first_name="Inès", last_name="NJOYA", is_staff=True)
         directeur.groups.add(Group.objects.get(name=ADMINISTRATION))
-        surveillant = User.objects.create_user("surveillant", password="Demo-Surveillant-2025", first_name="Surveillant",
-                                               last_name="général")
+        surveillant = personnel("surveillant", "su8g25", first_name="Marc", last_name="YOMBI")
         surveillant.groups.add(Group.objects.get(name=SURVEILLANCE))
         for ins in Inscription.objects.filter(exercice=ex).select_related("classe"):
             jour = debut
@@ -199,4 +209,4 @@ class Command(BaseCommand):
         CreditSMS.objects.create(quantite=500, note="Crédit de démonstration", ajoute_par=directeur)
         self.stdout.write(self.style.SUCCESS(
             f"Données de démonstration créées : {len(classes)} classes, {n} élèves, {len(profs)} enseignants.\n"
-            "Comptes : admin / Demo-Admin-2025 ; dir.etudes / Demo-Directeur-2025 ; caisse / Demo-Caisse-2025 ; surveillant / Demo-Surveillant-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))
+            "Codes d'accès (fictifs) :\n" + "\n".join(f"  {nom} : {code}" for nom, code in sorted(codes.items()))))

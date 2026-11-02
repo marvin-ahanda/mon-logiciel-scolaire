@@ -11,7 +11,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 
 | Domaine | Ce qui est disponible |
 |---|---|
-| Connexion | Comptes administration et enseignants, changement de mot de passe |
+| Connexion | Liste des noms du personnel (A à Z) et code d'accès personnel de 6 caractères généré automatiquement ; blocage de 15 min après 5 codes erronés |
 | Exercices | Création, un seul exercice actif, 6 séquences créées automatiquement (2 par trimestre) |
 | Séquences | Verrouillage et déverrouillage : une séquence fermée refuse toute saisie |
 | Classes | Niveaux, cycles, section anglophone, classe d'examen, effectif maximal |
@@ -48,12 +48,28 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 - **Caissier** : encaisse ; ne peut ni réduire ni rembourser. Il peut annuler ses propres paiements le jour même
   (heure réelle d'enregistrement, motif obligatoire) ; au-delà, l'annulation revient à l'administration.
 - **Surveillant général** : discipline au quotidien ; le paramétrage (sanctions, barème) reste à l'administration.
-- **Enseignant** : compte créé depuis la fiche de l'enseignant.
+- **Enseignant** : accès créé depuis la fiche de l'enseignant (case « Créer son accès au logiciel »).
 
-Les comptes Administration, Caissier et Surveillant général se gèrent dans *Paramètres → Comptes utilisateurs et rôles*
-(création, changement de rôle, désactivation, nouveau mot de passe). Garde-fous : on ne peut ni retirer
+Les comptes Administration, Caissier et Surveillant général se gèrent dans *Paramètres → Personnel et codes d'accès*
+(création, changement de rôle, désactivation, nouveau code). Garde-fous : on ne peut ni retirer
 ses propres droits, ni désactiver le dernier compte d'administration actif. Techniquement, les rôles sont
 des groupes Django (« Administration », « Caisse », « Surveillance ») ; un superutilisateur a toujours tous les droits.
+
+### Connexion par nom et code d'accès
+
+Sur la page de connexion, chaque membre du personnel choisit son nom dans une liste déroulante (classée de A à Z,
+accents ignorés ; les homonymes sont distingués par leur identifiant interne), puis saisit son **code d'accès**.
+
+- À la création d'un membre du personnel (ou d'un enseignant avec accès), un code de **6 caractères alphanumériques**
+  est généré au hasard (lettres minuscules et chiffres, au moins une lettre et un chiffre ; sans i, l ni o, trop proches de 1 et 0).
+  Exemple : `6e0k39`. La saisie en majuscules est acceptée.
+- Le code est affiché **une seule fois**, sur une fiche imprimable à remettre à la personne. Il est ensuite enregistré
+  haché, comme un mot de passe : personne, pas même l'administration, ne peut le relire.
+- Code perdu : *Personnel et codes d'accès → Code d'accès → Générer un nouveau code* ; l'ancien cesse aussitôt de fonctionner.
+- Après 5 codes erronés pour un même nom, l'accès est bloqué 15 minutes (un nouveau code le débloque immédiatement).
+  Avec 6 caractères, ce blocage est indispensable : il empêche de deviner un code par essais successifs.
+- Dépannage (administrateur ayant perdu son code) : `python manage.py code_acces <identifiant interne>`.
+- L'administration avancée (`/admin/`) passe par la même page de connexion.
 
 ## Règles reprises de l'original
 
@@ -133,9 +149,21 @@ python3 -m venv .venv
 
 Ouvrez ensuite http://127.0.0.1:8000.
 
+`createsuperuser` demande un identifiant et un mot de passe : ce mot de passe sert de code à la première connexion.
+Générez ensuite un vrai code avec `python manage.py code_acces <identifiant>` et renseignez vos nom et prénom
+dans *Personnel et codes d'accès* pour apparaître correctement dans la liste.
+
 **Données de démonstration** (base vide uniquement, données fictives) : `python manage.py donnees_demo`,
-puis connexion avec `admin` / `Demo-Admin-2025` ou `dir.etudes` / `Demo-Directeur-2025` (administration),
-`caisse` / `Demo-Caisse-2025` (caissier), `surveillant` / `Demo-Surveillant-2025` (surveillant général) ou `prof.math` / `Demo-Prof-2025` (enseignant).
+puis connexion en choisissant le nom et en saisissant le code (fictif) :
+
+| Nom | Rôle | Code |
+|---|---|---|
+| OWONA Joël | Administration (principal) | `ad2m25` |
+| NJOYA Inès | Administration (directrice des études) | `de7t25` |
+| TCHOUA Laure | Caissier | `ca5s25` |
+| YOMBI Marc | Surveillant général | `su8g25` |
+| ESSOMBA Carine | Enseignante (mathématiques) | `ma4p25` |
+| ABENA Aline, BELLA Bruno, FOUDA Daniel… | Enseignants | `fr4p25`, `an4p25`, `sv4p25`… (affichés par la commande) |
 
 **Tests :** `python manage.py test`
 
@@ -144,7 +172,8 @@ puis connexion avec `admin` / `Demo-Admin-2025` ou `dir.etudes` / `Demo-Directeu
 1. *Administration avancée* : renseigner l'établissement, les cycles et les niveaux.
 2. *Paramètres → Exercices* : créer l'exercice (ex. 2025-2026) et l'activer.
 3. *Classes*, puis pour chaque classe *Matières et coefficients*.
-4. *Enseignants* (avec identifiant et mot de passe) et *Élèves* (avec leur classe).
+4. *Personnel et codes d'accès* (administration, caisse, surveillance), *Enseignants* (avec accès) — imprimer et remettre
+   chaque fiche de code — puis *Élèves* (avec leur classe).
 5. *Administration avancée → Barèmes de distinction* : définir les seuils.
 6. *Écolage → Rubriques* puis *Tarifs* (bouton de reconduction depuis l'exercice précédent).
 7. *Discipline* : définir les sanctions (points perdus), les types d'infractions et le barème de la note de discipline.
