@@ -8,6 +8,7 @@
   <h2 class="h5 m-0">{{ classe }} — {{ periode.libelle }} ({{ exercice }})</h2>
   <div class="no-print d-flex gap-2">
     <a class="btn btn-outline-primary btn-sm" href="{% url 'bulletins' %}?classe={{ classe.pk }}&periode={{ periode.code }}">Bulletins de la classe</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'export_resultats' %}?classe={{ classe.pk }}&periode={{ periode.code }}">Exporter en Excel</a>
     <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Imprimer</button>
   </div>
 </div>

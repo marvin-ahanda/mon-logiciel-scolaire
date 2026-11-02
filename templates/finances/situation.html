@@ -16,7 +16,8 @@
 {% if classe %}
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h2 class="h5 m-0">{{ classe }} — {{ rubrique|default:"toutes rubriques" }} — {% if filtre == "insolvables" %}insolvables{% elif filtre == "solvables" %}solvables{% else %}tous{% endif %} ({{ lignes|length }})</h2>
-  <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Imprimer</button>
+  <div class="no-print d-flex gap-2"><a class="btn btn-outline-secondary btn-sm" href="{% url 'export_situation' %}?classe={{ classe.pk }}&rubrique={{ r_id }}&filtre={{ filtre }}">Exporter en Excel</a>
+  <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Imprimer</button></div>
 </div>
 <div class="card"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
   <thead class="table-light"><tr><th>Matricule</th><th>Élève</th><th>Téléphone parent</th><th class="text-end">Dû</th><th class="text-end">Versé</th><th class="text-end">Reste</th><th class="no-print"></th></tr></thead>

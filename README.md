@@ -19,6 +19,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Élèves | Fiche avec photo, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
+| Import / export Excel | Import des élèves et des notes (modèles fournis, aperçu ligne par ligne, enregistrement tout ou rien) ; export des élèves, des résultats, de la situation financière et du journal des encaissements |
 | Discipline | Appel du jour (heures d'absence non justifiées et justifiées avec motif, retards), infractions liées à des sanctions, suivi disciplinaire par période, note de discipline sur les bulletins |
 | Écolage | Rubriques et tarifs par niveau et statut (ancien / nouvel élève), caisse avec reçus numérotés (montant en lettres, 2 exemplaires), espèces, Orange Money, MTN Mobile Money, Campost ; réductions, remboursements, annulation tracée ; insolvables / solvables par classe et rubrique ; journal des encaissements |
 | Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe), **en français ou en anglais** : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
@@ -70,6 +71,12 @@ des groupes Django (« Administration », « Caisse », « Surveillance ») ; un
   redimensionnées à 400 px et réencodées en JPEG (métadonnées EXIF/GPS supprimées), sous un nom aléatoire.
   Données de mineurs : elles ne sont servies que par une vue protégée (administration, caisse, surveillance,
   enseignants de la classe), jamais comme fichiers publics. Option d'affichage sur les bulletins.
+- **Import Excel** : fichiers `.xlsx` uniquement (2 Mo, 3 000 lignes au plus), formules lues comme valeurs, en-têtes
+  reconnus sans tenir compte des majuscules ni des accents. Élèves : création ou mise à jour selon le matricule,
+  avec contrôle des classes, de l'effectif maximal et des changements de classe. Notes : une case vide laisse la
+  note inchangée ; séquence verrouillée et droits de l'enseignant respectés. Rien n'est enregistré tant qu'une
+  ligne est en erreur. **Export** : les textes commençant par `=`, `+`, `-` ou `@` sont neutralisés (pas d'injection
+  de formules à l'ouverture dans Excel).
 - **Appréciations** : [0;3[ Nul · [3;4,5[ Très faible · [4,5;7,5[ Faible · [7,5;9[ Insuffisant · [9;10[ Médiocre ·
   [10;12[ Passable · [12;14[ Assez bien · [14;16[ Bien · [16;18[ Très bien · [18;20] Excellent.
 - **Compétences** : [0;10] Non acquis · ]10;14] En cours d'acquisition · ]14;17] Acquis · ]17;20] Expert.
@@ -142,5 +149,4 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
-import et export Excel.
+Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées.

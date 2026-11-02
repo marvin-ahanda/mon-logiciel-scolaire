@@ -1,4 +1,8 @@
 {% extends "scolarite/liste.html" %}
+{% block actions %}<div class="d-flex gap-2">
+  <a class="btn btn-outline-secondary" href="{% url 'export_eleves' %}{% if classe_choisie %}?classe={{ classe_choisie }}{% endif %}">Exporter en Excel</a>
+  <a class="btn btn-outline-secondary" href="{% url 'import_eleves' %}">Importer depuis Excel</a>
+  <a class="btn btn-primary" href="{{ url_creation }}">+ Ajouter</a></div>{% endblock %}
 {% block filtres %}
 <form class="row g-2 mb-3" method="get">
   <div class="col-sm-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher (nom, prénom, matricule)"></div>

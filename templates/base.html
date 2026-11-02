@@ -66,6 +66,9 @@
         <li class="nav-item"><a class="nav-link" href="{% url 'resultats' %}">Résultats</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'bulletins' %}">Bulletins</a></li>
         {% endif %}
+        {% if est_admin or est_enseignant or est_caissier %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'echanges' %}">Excel</a></li>
+        {% endif %}
       </ul>
       <span class="navbar-text me-3 small d-none d-xxl-inline">
         Exercice : <strong>{{ exercice_actif|default:"aucun" }}</strong>

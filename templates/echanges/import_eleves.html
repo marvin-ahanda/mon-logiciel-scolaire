@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titre %}Importer des élèves{% endblock %}
+{% block contenu %}
+<a class="btn btn-link px-0 mb-2" href="{% url 'echanges' %}">← Import / export</a>
+<h1 class="h3 mb-3">Importer des élèves</h1>
+<div class="card mb-3"><div class="card-body">
+  <form class="row g-2 align-items-end" method="post" enctype="multipart/form-data">{% csrf_token %}
+    <div class="col-md-8"><label class="form-label" for="fichier">Classeur Excel (.xlsx, 2 Mo et 3 000 lignes au plus)</label>
+      <input class="form-control" type="file" id="fichier" name="fichier" accept=".xlsx" required></div>
+    <div class="col-md-4 d-flex gap-2"><button class="btn btn-primary">Vérifier le fichier</button>
+      <a class="btn btn-outline-secondary" href="{% url 'modele_eleves' %}">Modèle</a></div>
+  </form></div></div>
+{% if apercu %}
+{% include "echanges/_apercu_erreurs.html" %}
+<div class="card"><div class="card-header">Aperçu — {{ nom_fichier }} ({{ apercu|length }} ligne{{ apercu|length|pluralize }})</div>
+<div class="table-responsive" style="max-height:60vh"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Ligne</th><th>Action</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Sexe</th><th>Né(e) le</th><th>Classe</th><th>Statut</th><th>Problème</th></tr></thead>
+  <tbody>{% for l in apercu %}
+    <tr class="{% if l.erreurs %}table-danger{% endif %}"><td>{{ l.ligne }}</td><td>{{ l.action }}</td><td>{{ l.donnees.matricule }}</td><td>{{ l.donnees.nom }}</td>
+      <td>{{ l.donnees.prenom }}</td><td>{{ l.donnees.sexe|default:"" }}</td><td>{{ l.date_affichee }}</td><td>{{ l.classe }}</td>
+      <td>{% if l.donnees.statut == "A" %}Ancien{% else %}Nouveau{% endif %}</td><td class="small text-danger">{{ l.erreurs|join:" ; " }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% if not erreurs %}<div class="card-footer"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirmer">
+  <button class="btn btn-success">Confirmer l'import de {{ apercu|length }} élève{{ apercu|length|pluralize }}</button></form></div>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
