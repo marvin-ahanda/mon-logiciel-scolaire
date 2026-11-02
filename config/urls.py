@@ -9,5 +9,6 @@ urlpatterns = [
          success_url="/", extra_context={"titre": "Changer mon mot de passe", "url_retour": "/"}), name="password_change"),
     path("admin/", admin.site.urls),
     path("notes/", include("notes.urls")),
+    path("discipline/", include("discipline.urls")),
     path("", include("scolarite.urls")),
 ]

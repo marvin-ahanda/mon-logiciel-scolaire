@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "django.contrib.humanize",
     "scolarite",
     "notes",
+    "discipline",
 ]
 
 MIDDLEWARE = [

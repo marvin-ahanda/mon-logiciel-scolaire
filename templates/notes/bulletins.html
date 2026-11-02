@@ -49,6 +49,13 @@
     {% if periode.type == "annee" %}<tr>
     <td colspan="2">Moyennes trimestrielles : {% for m in r.moyennes_trimestres %}T{{ forloop.counter }} : <strong>{{ m|default_if_none:"—" }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
     <td>Décision proposée : <strong>{{ r.decision|default:"—" }}</strong></td></tr>{% endif %}</table>
+  {% if r.discipline %}{% with b=r.discipline %}
+  <table class="mt-2"><tr><th colspan="4">Discipline</th><th colspan="3">Points perdus</th><th rowspan="2">Note de discipline</th></tr>
+    <tr><th>Abs. non justifiées</th><th>Abs. justifiées</th><th>Retards</th><th>Autres cas</th><th>Ponctualité</th><th>Assiduité</th><th>Autres cas</th></tr>
+    <tr><td class="num">{{ b.heures_non_justifiees }} h</td><td class="num">{{ b.heures_justifiees }} h</td><td class="num">{{ b.retards }}</td>
+      <td>{{ b.incidents|join:", "|default:"—" }}</td><td class="num">{% if b.points_ponctualite %}−{{ b.points_ponctualite }}{% else %}0{% endif %}</td><td class="num">{% if b.points_assiduite %}−{{ b.points_assiduite }}{% else %}0{% endif %}</td>
+      <td class="num">{% if b.points_autres_cas %}−{{ b.points_autres_cas }}{% else %}0{% endif %}</td><td class="num"><strong>{{ b.note }} / 20</strong> · {{ b.appreciation }}</td></tr></table>
+  {% endwith %}{% endif %}
   <table class="mt-2"><tr><th>Visa du parent</th><th>Professeur principal</th><th>Le chef d'établissement{% if etablissement.nom_chef %}<br><span class="fw-normal">{{ etablissement.nom_chef }}</span>{% endif %}</th></tr>
     <tr><td class="signature"></td><td class="signature"></td><td class="signature"></td></tr></table>
   <p class="small mt-1 mb-0">NE : non évalué · NC : non classé.{% if periode.type != "sequence" %} Note de la période = moyenne des notes {% if periode.type == "trimestre" %}séquentielles du trimestre{% else %}trimestrielles{% endif %} disponibles.{% endif %}</p>

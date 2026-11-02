@@ -19,6 +19,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Élèves | Fiche, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
+| Discipline | Appel du jour (heures d'absence non justifiées et justifiées avec motif, retards), infractions liées à des sanctions, suivi disciplinaire par période, note de discipline sur les bulletins |
 | Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe) : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
 
 Droits d'accès : l'administration (`is_staff`) gère tout. Un enseignant saisit uniquement les notes
@@ -39,7 +40,11 @@ de ses matières, et consulte résultats et bulletins des classes où il enseign
 - **Compétences** : [0;10] Non acquis · ]10;14] En cours d'acquisition · ]14;17] Acquis · ]17;20] Expert.
 - **Distinctions** (barèmes par exercice, dans l'administration avancée) : tableau d'honneur, encouragements,
   félicitations, avertissement = moyenne dans [borne inf. ; borne sup.[ ; blâme = moyenne < seuil.
-  La condition sur la note de conduite viendra avec le module discipline.
+  Pour le tableau d'honneur, les encouragements et les félicitations, condition facultative
+  « note de conduite strictement supérieure à » (comme dans l'original).
+- **Note de discipline** = 20 − (retards × points par retard + heures d'absence non justifiées × points par heure
+  + points des sanctions), jamais négative ; barème réglable par exercice. Rubriques de l'original :
+  ponctualité, assiduité, autres cas. ⚠️ La formule exacte de l'original n'a pas pu être confirmée dans le binaire.
 
 ## Installation (développement)
 
@@ -77,6 +82,7 @@ puis connexion avec `admin` / `Demo-Admin-2025` ou `prof.math` / `Demo-Prof-2025
 3. *Classes*, puis pour chaque classe *Matières et coefficients*.
 4. *Enseignants* (avec identifiant et mot de passe) et *Élèves* (avec leur classe).
 5. *Administration avancée → Barèmes de distinction* : définir les seuils.
+6. *Discipline* : définir les sanctions (points perdus), les types d'infractions et le barème de la note de discipline.
 
 ## Mise en production
 
@@ -96,6 +102,5 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-Discipline (absences, retards, sanctions, note de conduite),
-finances et écolage, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
+Finances et écolage, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
 bulletins bilingues (français / anglais), photos des élèves, import et export Excel.
