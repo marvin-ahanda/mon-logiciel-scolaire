@@ -24,4 +24,5 @@ urlpatterns = [
     path("eleves/", views.EleveListe.as_view(), name="eleves"),
     path("eleves/nouveau/", views.EleveCreer.as_view(), name="eleve_creer"),
     path("eleves/<int:pk>/", views.EleveModifier.as_view(), name="eleve_modifier"),
+    path("eleves/<int:pk>/photo/", views.photo_eleve, name="photo_eleve"),
 ]

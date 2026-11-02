@@ -2,13 +2,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Q
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, ListView, UpdateView
 
-from comptes.roles import est_administration, est_caissier, est_surveillant
+from comptes.roles import enseignant_de_l_eleve, est_administration, est_caissier, est_surveillant
 
 from .forms import AttributionForm, ClasseForm, EleveForm, EnseignantForm, ExerciceForm, MatiereForm
 from .models import Attribution, Classe, Eleve, Enseignant, Exercice, Inscription, Matiere, Sequence
@@ -279,6 +280,12 @@ class EleveModifier(EleveFormMixin, FormulaireGenerique, UpdateView):
     titre = "Modifier l'élève"
     url_retour = "eleves"
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        if self.object.photo:
+            ctx["apercu_photo"] = reverse("photo_eleve", args=[self.object.pk])
+        return ctx
+
 
 # --- Attributions (matières d'une classe : enseignant, coefficient, groupe) --------------------
 
@@ -326,3 +333,18 @@ def attribution_modifier(request, pk):
         "form": form, "titre": f"{a.matiere} — {a.classe}", "url_retour": reverse("attributions", args=[a.classe_id]),
         "suppression": True,
     })
+
+
+# --- Photos (accès protégé : données personnelles de mineurs) -------------------------------------
+
+@login_required
+def photo_eleve(request, pk):
+    eleve = get_object_or_404(Eleve, pk=pk)
+    u = request.user
+    autorise = (est_administration(u) or est_caissier(u) or est_surveillant(u) or enseignant_de_l_eleve(u, eleve))
+    if not autorise or not eleve.photo:
+        raise Http404()        # 404 plutôt que 403 : ne révèle pas l'existence d'une photo
+    reponse = FileResponse(eleve.photo.open("rb"), content_type="image/jpeg")
+    reponse["Cache-Control"] = "private, max-age=600"
+    reponse["X-Content-Type-Options"] = "nosniff"
+    return reponse

@@ -48,6 +48,17 @@ def est_enseignant(user):
     return user.is_authenticated and getattr(user, "enseignant", None) is not None
 
 
+def enseignant_de_l_eleve(user, eleve):
+    """Vrai si l'utilisateur enseigne dans la classe de l'élève pour l'exercice actif."""
+    from scolarite.models import Attribution, Exercice
+    ens = getattr(user, "enseignant", None) if user.is_authenticated else None
+    exercice = Exercice.actif_courant()
+    if ens is None or exercice is None:
+        return False
+    return Attribution.objects.filter(exercice=exercice, enseignant=ens,
+                                      classe__inscriptions__eleve=eleve, classe__inscriptions__exercice=exercice).exists()
+
+
 def peut_encaisser(user):
     return est_administration(user) or est_caissier(user)
 

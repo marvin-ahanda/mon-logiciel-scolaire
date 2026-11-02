@@ -10,6 +10,9 @@
     <div class="col-auto"><label class="col-form-label small" for="langue">Langue du bulletin</label></div>
     <div class="col-auto"><select class="form-select form-select-sm" id="langue" name="langue">
       {% for code, lib in langues %}<option value="{{ code }}" {% if code == choix_langue %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></div>
+    <div class="col-auto"><input type="hidden" name="photo" value="0">
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="photo" name="photo" value="1" {% if avec_photos %}checked{% endif %}>
+      <label class="form-check-label small" for="photo">Insérer la photo de l'élève</label></div></div>
     {% if est_admin %}
     <div class="col-auto"><label class="col-form-label small" for="ecolage_min">Filtre écolage : versements strictement supérieurs à</label></div>
     <div class="col-auto"><input class="form-control form-control-sm" id="ecolage_min" name="ecolage_min" inputmode="numeric" value="{{ ecolage_min|default_if_none:'' }}" style="width:9rem"></div>
@@ -35,6 +38,7 @@
   </div>
   <h2 class="text-center my-2">{% if periode.type == "sequence" %}{{ L.titre_sequence }}{% elif periode.type == "trimestre" %}{{ L.titre_trimestre }}{% else %}{{ L.titre_annee }}{% endif %}</h2>
   <table class="mb-2"><tr>
+    {% if avec_photos %}<td rowspan="2" class="photo-cellule">{% if r.eleve.photo %}<img src="{% url 'photo_eleve' r.eleve.pk %}" alt="{{ r.eleve }}" class="photo-bulletin">{% endif %}</td>{% endif %}
     <td>{{ L.nom_prenom }}{{ L.dp }} <strong>{{ r.eleve }}</strong></td><td>{{ L.matricule }}{{ L.dp }} <strong>{{ r.eleve.matricule }}</strong></td>
     <td>{{ L.sexe }}{{ L.dp }} {{ r.eleve.sexe }}</td></tr><tr>
     <td>{{ L.ne_le }}{{ L.dp }} {{ r.eleve.date_naissance|date:"d/m/Y"|default:"—" }} {{ L.a }} {{ r.eleve.lieu_naissance|default:"—" }}</td>

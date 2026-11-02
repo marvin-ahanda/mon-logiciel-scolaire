@@ -1,8 +1,10 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.core.files.uploadedfile import UploadedFile
 
 from .models import Attribution, Classe, Eleve, Enseignant, Exercice, Inscription, Matiere
+from .photos import preparer_photo
 
 
 class BootstrapMixin:
@@ -83,6 +85,7 @@ class EnseignantForm(BootstrapMixin, forms.ModelForm):
 
 
 class EleveForm(BootstrapMixin, forms.ModelForm):
+    supprimer_photo = forms.BooleanField(required=False, label="Supprimer la photo actuelle")
     classe = forms.ModelChoiceField(queryset=Classe.objects.all(), required=False,
                                     help_text="Classe pour l'exercice actif.")
     redoublant = forms.BooleanField(required=False)
@@ -92,8 +95,15 @@ class EleveForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Eleve
         fields = ["matricule", "nom", "prenom", "sexe", "date_naissance", "lieu_naissance",
-                  "nom_pere", "nom_mere", "telephone_parent"]
-        widgets = {"date_naissance": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+                  "nom_pere", "nom_mere", "telephone_parent", "photo"]
+        widgets = {"date_naissance": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+                   "photo": forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp"})}
+
+    def clean_photo(self):
+        photo = self.cleaned_data.get("photo")
+        if isinstance(photo, UploadedFile):
+            return preparer_photo(photo)
+        return photo
 
     def __init__(self, *args, exercice=None, **kwargs):
         self.exercice = exercice
@@ -122,7 +132,12 @@ class EleveForm(BootstrapMixin, forms.ModelForm):
         return data
 
     def save(self, commit=True):
+        ancienne = Eleve.objects.get(pk=self.instance.pk).photo.name if self.instance.pk else ""
+        if self.cleaned_data.get("supprimer_photo") and not isinstance(self.files.get("photo"), UploadedFile):
+            self.instance.photo = None
         eleve = super().save(commit=commit)
+        if ancienne and ancienne != (eleve.photo.name or ""):
+            eleve.photo.storage.delete(ancienne)            # pas de fichier orphelin
         classe = self.cleaned_data.get("classe")
         if self.exercice:
             ins = Inscription.objects.filter(eleve=eleve, exercice=self.exercice).first()

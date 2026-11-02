@@ -152,7 +152,8 @@ def bulletins(request):
         return reponse
     choix_langue = request.GET.get("langue", "auto")
     langue = langue_du_bulletin(choix_langue, ctx["classe"])
-    ctx.update(langue=langue, choix_langue=choix_langue, langues=LANGUES, L=libelles(langue))
+    ctx.update(langue=langue, choix_langue=choix_langue, langues=LANGUES, L=libelles(langue),
+               avec_photos=request.GET.get("photo", "1") == "1")
     ins = request.GET.get("eleve")
     if ins:
         ctx["resultats"] = [r for r in ctx["resultats"] if str(r.inscription_id) == ins]

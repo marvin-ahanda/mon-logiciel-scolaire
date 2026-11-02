@@ -32,3 +32,7 @@ body { background: #f4f6f9; }
   .bulletin.recu { page-break-after: auto; break-after: auto; margin-bottom: 1.2cm; }
   .bulletin.recu + .bulletin.recu { border-top: 1px dashed #333; padding-top: 1cm; }
 }
+
+/* --- Photos des élèves --- */
+.bulletin td.photo-cellule { width: 2.4cm; padding: .1rem; text-align: center; }
+.photo-bulletin { width: 2.2cm; height: 2.75cm; object-fit: cover; display: block; margin: auto; }
