@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}Plans de financement{% endblock %}
+{% block contenu %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h1 class="h3 m-0">Élèves sur plan de financement</h1>
+  <div class="no-print d-flex gap-2">
+    <a class="btn btn-sm {% if en_retard %}btn-outline-secondary{% else %}btn-secondary{% endif %}" href="?">Tous</a>
+    <a class="btn btn-sm {% if en_retard %}btn-danger{% else %}btn-outline-danger{% endif %}" href="?retard=1">En retard seulement</a>
+    <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">Imprimer</button></div>
+</div>
+<p class="text-muted">Un plan s'accorde depuis le compte de l'élève (réservé à l'administration). Total en retard : <strong>{{ total_retard|fcfa }}</strong>.</p>
+<div class="card"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+  <thead class="table-light"><tr><th>Élève</th><th>Classe</th><th class="text-end">Montant du plan</th><th class="text-end">Versé depuis</th><th class="text-end">Retard</th><th>Prochaine échéance</th><th class="text-end">Reste total</th><th class="no-print"></th></tr></thead>
+  <tbody>{% for l in lignes %}
+    <tr class="{% if l.retard %}table-danger{% endif %}"><td>{{ l.ins.eleve }}</td><td>{{ l.ins.classe }}</td><td class="text-end">{{ l.total|fcfa }}</td>
+      <td class="text-end">{{ l.verse|fcfa }}</td><td class="text-end fw-semibold">{% if l.retard %}{{ l.retard|fcfa }}{% else %}—{% endif %}</td>
+      <td>{% if l.prochaine %}{{ l.prochaine.date|date:"d/m/Y" }} ({{ l.prochaine.montant|fcfa }}){% else %}—{% endif %}</td>
+      <td class="text-end">{{ l.reste|fcfa }}</td><td class="no-print text-end"><a class="small" href="{% url 'compte_eleve' l.ins.pk %}">Compte</a></td></tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucun élève {% if en_retard %}en retard{% else %}sur plan de financement{% endif %}.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

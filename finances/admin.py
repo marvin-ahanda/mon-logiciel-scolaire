@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import LibelleCaisse, MouvementCaisse, Paiement, Reduction, Remboursement, Rubrique, Tarif
+from .models import Echeance, LibelleCaisse, MouvementCaisse, Paiement, PlanFinancement, Reduction, Remboursement, Rubrique, Tarif
 
 
 @admin.register(Rubrique)
@@ -64,3 +64,14 @@ class MouvementCaisseAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+class EcheanceInline(admin.TabularInline):
+    model = Echeance
+    extra = 0
+
+
+@admin.register(PlanFinancement)
+class PlanFinancementAdmin(admin.ModelAdmin):
+    list_display = ["inscription", "motif", "deja_verse", "cree_le"]
+    inlines = [EcheanceInline]

@@ -99,3 +99,11 @@ class MouvementCaisseForm(BootstrapMixin, forms.ModelForm):
         if data.get("mode") in (Paiement.ORANGE, Paiement.MTN) and not data.get("reference"):
             self.add_error("reference", "La référence de transaction est obligatoire pour un paiement mobile.")
         return data
+
+
+class PlanFinancementForm(forms.Form):
+    nombre = forms.IntegerField(label="Nombre d'échéances", min_value=2, max_value=12, initial=3,
+                                widget=forms.NumberInput(attrs={"class": "form-control"}))
+    premiere_date = forms.DateField(label="Date de la première échéance",
+                                    widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}, format="%Y-%m-%d"))
+    motif = forms.CharField(label="Motif", max_length=200, required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
