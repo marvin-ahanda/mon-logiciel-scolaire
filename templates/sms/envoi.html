@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titre %}SMS aux parents{% endblock %}
+{% block contenu %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+  <h1 class="h3 m-0">SMS aux parents</h1>
+  <div class="d-flex gap-2 align-items-center"><span class="badge {% if solde > 0 %}text-bg-success{% else %}text-bg-danger{% endif %} fs-6">Crédit : {{ solde }} SMS</span>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'sms_journal' %}">Journal et crédits</a></div>
+</div>
+{% include "sms/_bandeau.html" %}
+<div class="card mb-3"><div class="card-body">
+<form class="row g-2" method="get">
+  <div class="col-md-3"><label class="form-label small" for="objet">Message</label><select class="form-select" id="objet" name="objet">
+    {% for code, lib in objets %}<option value="{{ code }}" {% if code == objet %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><label class="form-label small" for="classe">Classe</label><select class="form-select" id="classe" name="classe" required>
+    <option value="">Classe…</option>{% if objet != "resultats" and objet != "absences" %}<option value="toutes" {% if c_id == "toutes" %}selected{% endif %}>Toutes les classes</option>{% endif %}
+    {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><label class="form-label small" for="periode">Période (résultats, absences)</label><select class="form-select" id="periode" name="periode">
+    <option value="">—</option>{% for p in periodes %}<option value="{{ p.code }}" {% if p.code == p_code %}selected{% endif %}>{{ p.libelle }}</option>{% endfor %}</select></div>
+  <div class="col-md-3 d-flex align-items-end"><button class="btn btn-outline-primary w-100" name="action" value="apercu">Aperçu</button></div>
+  <div class="col-12"><label class="form-label small" for="texte">Texte (message libre)</label>
+    <textarea class="form-control" id="texte" name="texte" rows="2" maxlength="450" placeholder="Ex. : Réunion des parents le samedi 15 à 9 h.">{{ texte }}</textarea></div>
+</form>
+<p class="small text-muted mt-2 mb-0">Le nom de l'établissement est ajouté en tête. Évitez « ç », « ° », « ê »… : un seul de ces caractères fait passer le SMS
+  à 70 caractères au lieu de 160 (donc plus de SMS facturés). Rappel d'écolage : seuls les élèves ayant un reste à payer ; absences : seuls les élèves concernés.</p>
+</div></div>
+{% if destinataires is not None %}
+<div class="card"><div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <span>{{ nb_valides }} destinataire{{ nb_valides|pluralize }} valide{{ nb_valides|pluralize }} sur {{ destinataires|length }} · {{ nb_sms }} SMS au total</span>
+  {% if nb_valides %}<form method="post">{% csrf_token %}
+    {% for k, v in request.GET.items %}{% if k != "action" %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+    <button class="btn btn-primary" name="action" value="envoyer" onclick="return confirm('Envoyer {{ nb_sms }} SMS à {{ nb_valides }} parent(s) ?')">Envoyer {{ nb_sms }} SMS</button></form>{% endif %}
+</div>
+<div class="table-responsive" style="max-height:60vh"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Élève</th><th>Téléphone</th><th>Message</th><th class="text-end">SMS</th></tr></thead>
+  <tbody>{% for x in destinataires %}
+    <tr class="{% if not x.valide %}table-warning{% endif %}"><td>{{ x.eleve }}</td><td class="text-nowrap">{{ x.telephone|default:x.raison }}</td>
+      <td class="small">{{ x.texte }}</td><td class="text-end">{{ x.parties }}</td></tr>
+  {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Aucun destinataire concerné.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+{% endblock %}

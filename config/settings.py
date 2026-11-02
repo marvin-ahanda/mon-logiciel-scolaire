@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "finances",
     "echanges",
     "emploi",
+    "sms",
 ]
 
 MIDDLEWARE = [

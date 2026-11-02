@@ -22,6 +22,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Caisse générale | Autres entrées (reçus) et sorties (bons de caisse) avec libellés, tiers et élève facultatif ; journal de caisse avec solde |
 | Plan de financement | Échéancier mensuel accordé par l'administration ; suivi des échéances payées, en retard, à venir ; liste des élèves en retard |
 | Dettes antérieures | Arriérés des années précédentes sur le compte de l'élève et dans la caisse ; règlement encaissé dans l'exercice actif ; état des débiteurs, y compris les élèves partis |
+| SMS aux parents | Résultats, rappels d'écolage, absences, message libre, notification au paiement ; aperçu avant envoi ; crédits SMS ; journal des envois |
 | Cartes scolaires | Cartes au format carte bancaire (85,6 × 54 mm), 10 par page A4, avec photo, bilingues ; par classe ou pour un élève |
 | Emploi du temps | Créneaux horaires (avec pauses), grille par classe (matière, enseignant, salle), emploi du temps de chaque enseignant, impression ; conflits d'enseignant et de salle refusés |
 | Import / export Excel | Import des élèves et des notes (modèles fournis, aperçu ligne par ligne, enregistrement tout ou rien) ; export des élèves, des résultats, de la situation financière et du journal des encaissements |
@@ -81,6 +82,11 @@ des groupes Django (« Administration », « Caisse », « Surveillance ») ; un
   écolage + autres entrées − sorties, opérations annulées exclues.
 - **Dettes antérieures** : calculées avec les tarifs de chaque année ; un exercice est antérieur si sa désignation
   (au format « AAAA-AAAA ») précède celle de l'exercice actif. Tout paiement est encaissé dans l'exercice actif.
+- **SMS** : numéros camerounais normalisés (+237, 9 chiffres commençant par 6 ou 2) ; décompte exact des SMS
+  (160 caractères en alphabet GSM, 70 en Unicode) ; caractères hors alphabet GSM remplacés automatiquement
+  (« Grâce » → « Grace ») pour éviter le surcoût Unicode. Crédits SMS comme dans l'original : envoi refusé
+  d'avance si le crédit ne couvre pas tous les messages ; seuls les SMS réellement envoyés sont décomptés.
+  La notification de paiement part après l'enregistrement du paiement ; un échec d'envoi ne l'annule jamais.
 - **Emploi du temps** : un enseignant ou une salle ne peut pas être à deux endroits sur le même créneau ;
   la grille d'une classe est enregistrée d'un bloc (rien n'est modifié en cas de conflit). Modifiable par
   l'administration ; consultable par les enseignants (chacun voit le sien) et la surveillance. Les créneaux
@@ -157,10 +163,17 @@ Variables d'environnement :
 Les photos sont stockées dans `media/` (ou `OTOURIX_MEDIA_ROOT`) : **ne publiez jamais ce dossier** sur le
 serveur web, et incluez-le dans vos sauvegardes avec la base de données.
 
+**SMS** : par défaut (`OTOURIX_SMS_BACKEND=journal`), **aucun SMS n'est envoyé**, les messages sont seulement
+enregistrés. Pour envoyer réellement : `OTOURIX_SMS_BACKEND=http`, `OTOURIX_SMS_URL=https://…` (adresse de l'API
+du fournisseur), `OTOURIX_SMS_TOKEN` (jeton, à garder secret) et `OTOURIX_SMS_EXPEDITEUR` (11 caractères au plus).
+La passerelle HTTP envoie `{"to", "from", "text"}` en JSON avec `Authorization: Bearer` : adaptez
+`sms/passerelles.py` au format exact de votre fournisseur (BulkSms, IyamSms, Orange, MTN…) et testez d'abord
+avec un seul numéro.
+
 Puis `python manage.py collectstatic` et un serveur d'application (par ex. gunicorn derrière nginx,
 ou waitress sous Windows). Ne réutilisez jamais un compte administrateur de base de données
 pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-SMS aux parents, statistiques avancées.
+statistiques avancées.

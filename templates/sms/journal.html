@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titre %}Journal des SMS{% endblock %}
+{% block contenu %}
+<a class="btn btn-link px-0 mb-2" href="{% url 'sms_envoi' %}">← SMS aux parents</a>
+<h1 class="h3 mb-2">Journal des SMS et crédits</h1>
+{% include "sms/_bandeau.html" %}
+<div class="row g-3 mb-3">
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Compte SMS : <strong>{{ solde }}</strong> SMS disponibles</div><div class="card-body">
+    <form method="post">{% csrf_token %}
+      <div class="mb-2"><label class="form-label small" for="{{ form.quantite.id_for_label }}">SMS achetés</label>{{ form.quantite }}{% for e in form.quantite.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="mb-2"><label class="form-label small" for="{{ form.note.id_for_label }}">Note</label>{{ form.note }}</div>
+      <button class="btn btn-outline-primary w-100">Recharger le compte</button></form>
+    {% if credits %}<ul class="small mt-3 mb-0 ps-3">{% for c in credits %}<li>{{ c.ajoute_le|date:"d/m/Y" }} : +{{ c.quantite }}{% if c.note %} — {{ c.note }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+  </div></div></div>
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header d-flex justify-content-between align-items-center">
+    <span>Messages</span>
+    <form method="get"><select class="form-select form-select-sm" name="statut" onchange="this.form.submit()" aria-label="Statut">
+      <option value="">Tous les statuts</option>{% for code, lib in statuts %}<option value="{{ code }}" {% if code == statut %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></form></div>
+    <div class="table-responsive" style="max-height:65vh"><table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Date</th><th>Objet</th><th>Élève / téléphone</th><th>Message</th><th>Statut</th></tr></thead>
+      <tbody>{% for m in messages_sms %}
+        <tr><td class="text-nowrap small">{{ m.envoye_le|date:"d/m/Y H:i" }}</td><td class="small">{{ m.get_objet_display }}</td>
+          <td class="small">{{ m.eleve|default:"" }}<div class="text-muted">{{ m.telephone }}</div></td><td class="small">{{ m.texte }}</td>
+          <td><span class="badge {% if m.statut == 'envoyé' %}text-bg-success{% elif m.statut == 'échec' %}text-bg-danger{% else %}text-bg-secondary{% endif %}"
+            {% if m.erreur %}title="{{ m.erreur }}"{% endif %}>{{ m.get_statut_display }}</span></td></tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Aucun message.</td></tr>{% endfor %}</tbody>
+    </table></div></div></div>
+</div>
+{% endblock %}

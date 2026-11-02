@@ -84,6 +84,8 @@ def compte_eleve(request, pk):
             else:
                 p = Paiement.enregistrer(inscription=ins, saisi_par=request.user, **form_p.cleaned_data)
                 messages.success(request, f"Paiement enregistré : reçu n° {p.numero_recu}.")
+                if request.POST.get("notifier"):
+                    transaction.on_commit(lambda: _notifier_paiement(request, p))
                 return redirect("recu", pk=p.pk)
     elif action == "reduction" and form_r.is_valid():
         with transaction.atomic():
@@ -132,6 +134,21 @@ def compte_eleve(request, pk):
         "form_annulation": AnnulationForm(), "peut_decider": admin, "form_plan": form_plan, **_contexte_plan(ins, c),
         **_contexte_dettes(ins),
     })
+
+
+def _notifier_paiement(request, paiement):
+    """SMS au parent après un paiement ; un échec d'envoi n'annule jamais le paiement."""
+    from sms.services import CreditInsuffisant, envoyer, message_paiement
+    dest = message_paiement(paiement, compte(paiement.inscription).total_reste)
+    if not dest.valide:
+        messages.warning(request, f"SMS non envoyé : {dest.raison}.")
+        return
+    try:
+        ok, echecs = envoyer([dest], "paiement", request.user)
+        if echecs:
+            messages.warning(request, "Le SMS au parent n'a pas pu être envoyé (voir le journal des SMS).")
+    except CreditInsuffisant as e:
+        messages.warning(request, f"SMS non envoyé : {e}")
 
 
 def _contexte_dettes(ins):
