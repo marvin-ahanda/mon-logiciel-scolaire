@@ -152,4 +152,11 @@ def bulletins(request):
     ins = request.GET.get("eleve")
     if ins:
         ctx["resultats"] = [r for r in ctx["resultats"] if str(r.inscription_id) == ins]
+    seuil = (request.GET.get("ecolage_min") or "").strip()
+    if seuil.isdigit() and est_administration(request.user):
+        from finances.services import total_verse_par_inscription
+        verses = total_verse_par_inscription([r.inscription_id for r in ctx["resultats"]])
+        exclus = [r for r in ctx["resultats"] if verses.get(r.inscription_id, 0) <= int(seuil)]
+        ctx["resultats"] = [r for r in ctx["resultats"] if verses.get(r.inscription_id, 0) > int(seuil)]
+        ctx.update(ecolage_min=int(seuil), exclus_ecolage=exclus)
     return render(request, "notes/bulletins.html", ctx)

@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}Journal des encaissements{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">Journal des encaissements</h1>
+<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-3"><label class="form-label small" for="debut">Du</label><input class="form-control" type="date" id="debut" name="debut" value="{{ debut|date:'Y-m-d' }}"></div>
+  <div class="col-md-3"><label class="form-label small" for="fin">Au</label><input class="form-control" type="date" id="fin" name="fin" value="{{ fin|date:'Y-m-d' }}"></div>
+  <div class="col-md-3"><label class="form-label small" for="mode">Mode</label><select class="form-select" id="mode" name="mode"><option value="">Tous</option>
+    {% for code, lib in modes %}<option value="{{ code }}" {% if code == mode %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></div>
+  <div class="col-md-3 d-flex align-items-end"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+</form>
+<div class="row g-2 mb-3">
+  <div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="small text-muted">Total encaissé</div><strong>{{ total|fcfa }}</strong></div></div></div>
+  {% for lib, n, t in par_mode %}<div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="small text-muted">{{ lib }} ({{ n }})</div><strong>{{ t|fcfa }}</strong></div></div></div>{% endfor %}
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Date</th><th>Reçu</th><th>Élève</th><th>Classe</th><th>Rubrique</th><th>Mode</th><th>Caissier</th><th class="text-end">Montant</th></tr></thead>
+  <tbody>{% for p in paiements %}
+    <tr class="{% if p.annule %}text-muted text-decoration-line-through{% endif %}"><td>{{ p.date|date:"d/m/Y" }}</td><td><a href="{% url 'recu' p.pk %}">n° {{ p.numero_recu }}</a></td>
+      <td>{{ p.inscription.eleve }}</td><td>{{ p.inscription.classe }}</td><td>{{ p.rubrique }}</td>
+      <td>{{ p.get_mode_display }}{% if p.reference %} <span class="small">({{ p.reference }})</span>{% endif %}</td>
+      <td>{{ p.saisi_par.username|default:"—" }}</td><td class="text-end">{{ p.montant|fcfa }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucun paiement sur la période.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+<p class="small text-muted mt-2">Les paiements annulés sont barrés et exclus des totaux.</p>
+{% endblock %}

@@ -4,6 +4,14 @@
 <div class="no-print">
   <h1 class="h3 mb-3">Bulletins</h1>
   {% include "notes/_choix.html" %}
+  {% if est_admin %}<form class="row g-2 align-items-center mb-2" method="get">
+    <input type="hidden" name="classe" value="{{ classe.pk }}"><input type="hidden" name="periode" value="{{ periode.code }}">
+    <div class="col-auto"><label class="col-form-label small" for="ecolage_min">Filtre écolage : versements strictement supérieurs à</label></div>
+    <div class="col-auto"><input class="form-control form-control-sm" id="ecolage_min" name="ecolage_min" inputmode="numeric" value="{{ ecolage_min|default_if_none:'' }}" style="width:9rem"></div>
+    <div class="col-auto"><button class="btn btn-sm btn-outline-secondary">Appliquer</button></div>
+  </form>
+  {% if exclus_ecolage %}<div class="alert alert-warning small">{{ exclus_ecolage|length }} bulletin(s) retenu(s) par le filtre écolage :
+    {% for r in exclus_ecolage %}{{ r.eleve }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>{% endif %}{% endif %}
   <div class="d-flex gap-2 mb-3">
     <button class="btn btn-primary" onclick="window.print()">Imprimer {{ resultats|length }} bulletin(s)</button>
     <a class="btn btn-outline-secondary" href="{% url 'resultats' %}?classe={{ classe.pk }}&periode={{ periode.code }}">Voir les résultats</a>

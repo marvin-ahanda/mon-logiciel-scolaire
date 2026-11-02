@@ -86,6 +86,8 @@ class EleveForm(BootstrapMixin, forms.ModelForm):
     classe = forms.ModelChoiceField(queryset=Classe.objects.all(), required=False,
                                     help_text="Classe pour l'exercice actif.")
     redoublant = forms.BooleanField(required=False)
+    statut = forms.ChoiceField(choices=Inscription.STATUTS, initial=Inscription.NOUVEAU, required=False,
+                               label="Statut dans l'établissement", help_text="Détermine les tarifs d'écolage (nouvel élève par défaut).")
 
     class Meta:
         model = Eleve
@@ -101,6 +103,7 @@ class EleveForm(BootstrapMixin, forms.ModelForm):
             if ins:
                 self.fields["classe"].initial = ins.classe_id
                 self.fields["redoublant"].initial = ins.redoublant
+                self.fields["statut"].initial = ins.statut
 
     def clean(self):
         data = super().clean()
@@ -124,13 +127,15 @@ class EleveForm(BootstrapMixin, forms.ModelForm):
         if self.exercice:
             ins = Inscription.objects.filter(eleve=eleve, exercice=self.exercice).first()
             if classe:
+                statut = self.cleaned_data.get("statut") or Inscription.NOUVEAU
                 if ins:
-                    ins.classe, ins.redoublant = classe, self.cleaned_data.get("redoublant", False)
+                    ins.classe, ins.redoublant, ins.statut = classe, self.cleaned_data.get("redoublant", False), statut
                     ins.save()
                 else:
-                    Inscription.objects.create(eleve=eleve, exercice=self.exercice, classe=classe,
+                    Inscription.objects.create(eleve=eleve, exercice=self.exercice, classe=classe, statut=statut,
                                                redoublant=self.cleaned_data.get("redoublant", False))
-            elif ins and not ins.notes.exists():
+            elif ins and not (ins.notes.exists() or ins.paiement_set.exists() or ins.reduction_set.exists()
+                              or ins.remboursement_set.exists()):
                 ins.delete()
         return eleve
 

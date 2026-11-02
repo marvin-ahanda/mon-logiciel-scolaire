@@ -20,6 +20,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
 | Discipline | Appel du jour (heures d'absence non justifiées et justifiées avec motif, retards), infractions liées à des sanctions, suivi disciplinaire par période, note de discipline sur les bulletins |
+| Écolage | Rubriques et tarifs par niveau et statut (ancien / nouvel élève), caisse avec reçus numérotés (montant en lettres, 2 exemplaires), espèces, Orange Money, MTN Mobile Money, Campost ; réductions, remboursements, annulation tracée ; insolvables / solvables par classe et rubrique ; journal des encaissements |
 | Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe) : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
 
 Droits d'accès : l'administration (`is_staff`) gère tout. Un enseignant saisit uniquement les notes
@@ -35,6 +36,10 @@ de ses matières, et consulte résultats et bulletins des classes où il enseign
   **note annuelle** = moyenne des notes trimestrielles disponibles. ⚠️ Règle d'usage camerounais :
   la formule exacte de l'original n'a pas pu être confirmée dans le binaire.
 - **Décision proposée** (bulletin annuel) : admis si la moyenne annuelle atteint la moyenne de passage de l'exercice (10 par défaut).
+- **Écolage** : tarif selon le niveau et le statut de l'élève ; un paiement ou une réduction ne peut pas dépasser
+  le reste à verser de la rubrique ; un remboursement ne peut pas dépasser le montant versé. Une erreur de
+  paiement s'annule avec un motif (l'original gardait un historique des « paiements modifiés »).
+  Filtre écolage des bulletins : n'imprimer que pour les élèves dont les versements dépassent un montant.
 - **Appréciations** : [0;3[ Nul · [3;4,5[ Très faible · [4,5;7,5[ Faible · [7,5;9[ Insuffisant · [9;10[ Médiocre ·
   [10;12[ Passable · [12;14[ Assez bien · [14;16[ Bien · [16;18[ Très bien · [18;20] Excellent.
 - **Compétences** : [0;10] Non acquis · ]10;14] En cours d'acquisition · ]14;17] Acquis · ]17;20] Expert.
@@ -71,7 +76,7 @@ python3 -m venv .venv
 Ouvrez ensuite http://127.0.0.1:8000.
 
 **Données de démonstration** (base vide uniquement, données fictives) : `python manage.py donnees_demo`,
-puis connexion avec `admin` / `Demo-Admin-2025` ou `prof.math` / `Demo-Prof-2025`.
+puis connexion avec `admin` / `Demo-Admin-2025`, `caisse` / `Demo-Caisse-2025` ou `prof.math` / `Demo-Prof-2025`.
 
 **Tests :** `python manage.py test`
 
@@ -82,7 +87,8 @@ puis connexion avec `admin` / `Demo-Admin-2025` ou `prof.math` / `Demo-Prof-2025
 3. *Classes*, puis pour chaque classe *Matières et coefficients*.
 4. *Enseignants* (avec identifiant et mot de passe) et *Élèves* (avec leur classe).
 5. *Administration avancée → Barèmes de distinction* : définir les seuils.
-6. *Discipline* : définir les sanctions (points perdus), les types d'infractions et le barème de la note de discipline.
+6. *Écolage → Rubriques* puis *Tarifs* (bouton de reconduction depuis l'exercice précédent).
+7. *Discipline* : définir les sanctions (points perdus), les types d'infractions et le barème de la note de discipline.
 
 ## Mise en production
 
@@ -102,5 +108,5 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-Finances et écolage, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
+Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
 bulletins bilingues (français / anglais), photos des élèves, import et export Excel.

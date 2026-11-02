@@ -24,3 +24,10 @@ body { background: #f4f6f9; }
   .bulletin { border: 0; padding: 0; margin: 0; max-width: none; page-break-after: always; break-after: page; }
   .bulletin:last-child { page-break-after: auto; break-after: auto; }
 }
+
+/* --- Reçus : deux exemplaires sur la même page --- */
+.bulletin.recu { max-width: 18cm; }
+@media print {
+  .bulletin.recu { page-break-after: auto; break-after: auto; margin-bottom: 1.2cm; }
+  .bulletin.recu + .bulletin.recu { border-top: 1px dashed #333; padding-top: 1cm; }
+}

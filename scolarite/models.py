@@ -188,10 +188,15 @@ class Eleve(models.Model):
 class Inscription(models.Model):
     """Appartenance d'un élève à une classe pour un exercice."""
 
+    ANCIEN, NOUVEAU = "A", "N"
+    STATUTS = [(ANCIEN, "Ancien élève"), (NOUVEAU, "Nouvel élève")]
+
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="inscriptions")
     classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name="inscriptions")
     exercice = models.ForeignKey(Exercice, on_delete=models.PROTECT, related_name="inscriptions")
     redoublant = models.BooleanField(default=False)
+    statut = models.CharField("statut dans l'établissement", max_length=1, choices=STATUTS, default=NOUVEAU,
+                              help_text="Détermine les tarifs d'écolage applicables.")
     date_inscription = models.DateField(auto_now_add=True)
 
     class Meta:
