@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titre %}Statistiques par classe{% endblock %}
+{% block contenu %}
+{% include "statistiques/_onglets.html" %}
+{% include "notes/_choix.html" %}
+{% if classe %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+  <h2 class="h5 m-0">{{ classe }} — {{ periode.libelle }} ({{ exercice }})</h2>
+  <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Imprimer</button>
+</div>
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Moyennes calculées</div><strong>{{ global.n }}</strong> / {{ stats.effectif }}</div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Moyenne de classe</div><strong>{{ global.moyenne|default:"—" }}</strong></div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Plus forte / plus faible</div><strong>{{ global.max|default:"—" }}</strong> / {{ global.min|default:"—" }}</div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Moyennes ≥ 10</div><strong>{{ global.reussite }}</strong></div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Taux de réussite</div><strong>{% if global.taux is not None %}{{ global.taux }} %{% else %}—{% endif %}</strong></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+    <h3 class="h6">Répartition des moyennes</h3>
+    {% if global.n %}
+    <div class="histogramme" role="img" aria-label="Histogramme : nombre d'élèves par tranche de moyenne (détail dans le tableau)">
+      {% for l in repartition %}
+      <div class="histo-col" title="{{ l.libelle }} : {{ l.total }} élève{{ l.total|pluralize }} ({{ l.pourcentage }} %)">
+        <span class="histo-valeur">{% if l.total %}{{ l.total }}{% endif %}</span>
+        <div class="histo-barre" style="height: {{ l.largeur|stringformat:'s'|cut:',' }}%"></div>
+        <span class="histo-libelle">{{ l.libelle }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="text-muted">Aucune moyenne calculée pour cette période.</p>{% endif %}
+  </div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead class="table-light"><tr><th>Moyenne</th>{% for s, lib in sexes %}<th class="text-end">{{ lib }}</th>{% endfor %}<th class="text-end">Total</th><th class="text-end">%</th></tr></thead>
+    <tbody>{% for l in repartition %}<tr><td>{{ l.libelle }}</td>{% for n in l.par_sexe.values %}<td class="text-end">{{ n }}</td>{% endfor %}<td class="text-end fw-semibold">{{ l.total }}</td><td class="text-end">{{ l.pourcentage|default_if_none:"—" }}</td></tr>{% endfor %}</tbody>
+  </table></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-header fw-semibold">Résultats par sexe</div><div class="table-responsive"><table class="table table-sm mb-0">
+  <thead class="table-light"><tr><th></th><th class="text-end">Classés</th><th class="text-end">Moyenne</th><th class="text-end">Min</th><th class="text-end">Max</th><th class="text-end">≥ 10</th><th class="text-end">Réussite</th></tr></thead>
+  <tbody>{% for s, lib in sexes %}{% for cle, r in par_sexe.items %}{% if cle == s %}<tr><td>{{ lib }}</td>{% include "statistiques/_resume.html" %}</tr>{% endif %}{% endfor %}{% endfor %}
+    <tr class="fw-semibold"><td>Ensemble</td>{% with r=global %}{% include "statistiques/_resume.html" %}{% endwith %}</tr></tbody>
+</table></div></div>
+
+<div class="card"><div class="card-header fw-semibold">Statistiques par matière</div><div class="table-responsive"><table class="table table-sm table-hover mb-0">
+  <thead class="table-light"><tr><th>Matière</th><th>Enseignant</th><th class="text-end">Coef.</th><th class="text-end">Notes</th><th class="text-end">Moyenne</th><th class="text-end">Min</th><th class="text-end">Max</th><th class="text-end">≥ 10</th><th class="text-end">Réussite</th><th class="text-end">Moy. garçons</th><th class="text-end">Moy. filles</th></tr></thead>
+  <tbody>{% for m in matieres %}<tr><td>{{ m.attribution.matiere }}</td><td class="small">{{ m.attribution.enseignant|default:"—" }}</td><td class="text-end">{{ m.attribution.coefficient }}</td>
+    {% with r=m.tous %}{% include "statistiques/_resume.html" %}{% endwith %}
+    <td class="text-end">{{ m.par_sexe.M.moyenne|default_if_none:"—" }}</td><td class="text-end">{{ m.par_sexe.F.moyenne|default_if_none:"—" }}</td></tr>
+  {% empty %}<tr><td colspan="11" class="text-center text-muted py-3">Aucune matière attribuée à cette classe.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+<p class="small text-muted mt-2">Seules les moyennes des élèves classés sont prises en compte. Réussite : moyenne ou note ≥ 10.</p>
+{% endif %}
+{% endblock %}

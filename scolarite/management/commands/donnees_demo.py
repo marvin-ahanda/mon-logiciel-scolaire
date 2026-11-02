@@ -59,6 +59,7 @@ class Command(BaseCommand):
                    "EPS": "Physical education", "INFO": "Computer science"}
         matieres = [Matiere.objects.create(code=c, libelle=l, libelle_en=anglais[c]) for c, l, _, _ in MATIERES]
         n = 0
+        rnd_age = random.Random(7)                      # générateur séparé : le reste des données ne change pas
         for classe in classes:
             attributions = [Attribution.objects.create(exercice=ex, classe=classe, matiere=m, enseignant=p, coefficient=coef, groupe=gr)
                             for m, p, (_, _, coef, gr) in zip(matieres, profs, MATIERES)]
@@ -66,7 +67,8 @@ class Command(BaseCommand):
                 n += 1
                 tel = rnd.choice([f"+237 6{rnd.randrange(50, 99)} {rnd.randrange(10, 99)} {rnd.randrange(10, 99)} {rnd.randrange(10, 99)}"] * 8 + ["", "12 34"])
                 e = Eleve.objects.create(matricule=f"DEMO{n:04}", nom=rnd.choice(NOMS), prenom=rnd.choice(PRENOMS),
-                                         sexe=rnd.choice("MF"), lieu_naissance="Yaoundé", telephone_parent=tel)
+                                         sexe=rnd.choice("MF"), lieu_naissance="Yaoundé", telephone_parent=tel,
+                                         date_naissance=date(2015 - classe.niveau.ordre, 9, 1) - timedelta(days=rnd_age.randrange(0, 900)))
                 ins = Inscription.objects.create(eleve=e, classe=classe, exercice=ex, statut=rnd.choice("AAN"))
                 niveau = rnd.uniform(6, 16)
                 progression = rnd.uniform(-0.4, 0.6)       # évolution au fil de l'année

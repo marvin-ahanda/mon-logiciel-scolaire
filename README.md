@@ -23,6 +23,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Plan de financement | Échéancier mensuel accordé par l'administration ; suivi des échéances payées, en retard, à venir ; liste des élèves en retard |
 | Dettes antérieures | Arriérés des années précédentes sur le compte de l'élève et dans la caisse ; règlement encaissé dans l'exercice actif ; état des débiteurs, y compris les élèves partis |
 | SMS aux parents | Résultats, rappels d'écolage, absences, message libre, notification au paiement ; aperçu avant envoi ; crédits SMS ; journal des envois |
+| Statistiques | Réservées à l'administration : répartition des moyennes par tranche et par sexe (histogramme et tableau), statistiques par matière, comparaison des classes et des niveaux, effectifs par classe, sexe et âge |
 | Cartes scolaires | Cartes au format carte bancaire (85,6 × 54 mm), 10 par page A4, avec photo, bilingues ; par classe ou pour un élève |
 | Emploi du temps | Créneaux horaires (avec pauses), grille par classe (matière, enseignant, salle), emploi du temps de chaque enseignant, impression ; conflits d'enseignant et de salle refusés |
 | Import / export Excel | Import des élèves et des notes (modèles fournis, aperçu ligne par ligne, enregistrement tout ou rien) ; export des élèves, des résultats, de la situation financière et du journal des encaissements |
@@ -174,6 +175,7 @@ Puis `python manage.py collectstatic` et un serveur d'application (par ex. gunic
 ou waitress sous Windows). Ne réutilisez jamais un compte administrateur de base de données
 pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
-## Feuille de route (modules de l'original non encore repris)
+## Feuille de route
 
-statistiques avancées.
+Tous les modules identifiés dans l'original sont repris. Pistes possibles : export PDF des bulletins,
+application mobile pour les parents, sauvegardes automatiques.
