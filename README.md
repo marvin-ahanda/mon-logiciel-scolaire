@@ -18,8 +18,8 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Matières | Par classe : enseignant, coefficient, groupe (1er, 2e, 3e) |
 | Élèves | Fiche, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
-| Résultats | Moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
-| Bulletins séquentiels | Bulletin A4 imprimable (un élève ou toute la classe), appréciations, compétences, distinctions |
+| Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
+| Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe) : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
 
 Droits d'accès : l'administration (`is_staff`) gère tout. Un enseignant saisit uniquement les notes
 de ses matières, et consulte résultats et bulletins des classes où il enseigne.
@@ -28,6 +28,12 @@ de ses matières, et consulte résultats et bulletins des classes où il enseign
 
 - **Moyenne** = Σ(note × coefficient) / Σ(coefficients des matières évaluées), arrondie à 2 décimales.
   Une matière non évaluée est exclue de la moyenne (comportement « ELEVE NON EVALUE » de l'original).
+- **Classement** : un élève n'est classé que si le total des coefficients des matières où il est évalué
+  atteint le seuil de sa classe (« Classer si total de coefficients est supérieur ou égal à » dans l'original).
+- **Note trimestrielle d'une matière** = moyenne des notes séquentielles disponibles du trimestre ;
+  **note annuelle** = moyenne des notes trimestrielles disponibles. ⚠️ Règle d'usage camerounais :
+  la formule exacte de l'original n'a pas pu être confirmée dans le binaire.
+- **Décision proposée** (bulletin annuel) : admis si la moyenne annuelle atteint la moyenne de passage de l'exercice (10 par défaut).
 - **Appréciations** : [0;3[ Nul · [3;4,5[ Très faible · [4,5;7,5[ Faible · [7,5;9[ Insuffisant · [9;10[ Médiocre ·
   [10;12[ Passable · [12;14[ Assez bien · [14;16[ Bien · [16;18[ Très bien · [18;20] Excellent.
 - **Compétences** : [0;10] Non acquis · ]10;14] En cours d'acquisition · ]14;17] Acquis · ]17;20] Expert.
@@ -90,6 +96,6 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-Bulletins trimestriels et annuels, discipline (absences, retards, sanctions, note de conduite),
+Discipline (absences, retards, sanctions, note de conduite),
 finances et écolage, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
 bulletins bilingues (français / anglais), photos des élèves, import et export Excel.

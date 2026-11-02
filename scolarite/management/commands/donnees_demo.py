@@ -34,6 +34,7 @@ class Command(BaseCommand):
         Etablissement.objects.create(nom="Collège de démonstration Otourix", devise="Travail – Discipline – Réussite",
                                      ville="Yaoundé", telephone="+237 600 000 000", nom_chef="M. Le Principal")
         ex = Exercice.objects.create(libelle="2025-2026", actif=True)
+        sequences = list(ex.sequences.all())
         cycle = Cycle.objects.create(libelle="Premier cycle")
         niveaux = [Niveau.objects.create(libelle=l, cycle=cycle, ordre=i) for i, l in enumerate(["6e", "5e"], 1)]
         classes = [Classe.objects.create(libelle=f"{n.libelle} {s}", niveau=n, effectif_max=60) for n in niveaux for s in "AB"]
@@ -53,11 +54,13 @@ class Command(BaseCommand):
                                          sexe=rnd.choice("MF"), lieu_naissance="Yaoundé")
                 ins = Inscription.objects.create(eleve=e, classe=classe, exercice=ex)
                 niveau = rnd.uniform(6, 16)
-                for a in attributions:
-                    if rnd.random() < 0.95:   # quelques élèves non évalués
-                        v = max(0, min(20, rnd.gauss(niveau, 2.5)))
-                        Note.objects.create(inscription=ins, attribution=a, sequence=ex.sequences.get(numero=1),
-                                            valeur=Decimal(str(round(v * 4) / 4)))
+                progression = rnd.uniform(-0.4, 0.6)       # évolution au fil de l'année
+                for seq in sequences:
+                    for a in attributions:
+                        if rnd.random() < 0.95:   # quelques élèves non évalués
+                            v = max(0, min(20, rnd.gauss(niveau + progression * (seq.numero - 1), 2.5)))
+                            Note.objects.create(inscription=ins, attribution=a, sequence=seq,
+                                                valeur=Decimal(str(round(v * 4) / 4)))
         for t, inf, sup in [("TH", "12", "14"), ("ENC", "14", "16"), ("FEL", "16", "20.01"), ("AVT", "8", "10")]:
             BaremeDistinction.objects.create(exercice=ex, type=t, borne_inf=Decimal(inf), borne_sup=Decimal(sup))
         BaremeDistinction.objects.create(exercice=ex, type="BLA", borne_sup=Decimal("8"))

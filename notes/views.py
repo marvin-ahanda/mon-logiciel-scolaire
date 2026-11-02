@@ -4,13 +4,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from scolarite.models import Attribution, Classe, Etablissement, Exercice, Sequence
 
 from .models import Note
 from .services import (attributions_saisissables, enseignant_de, est_administration, inscriptions_classe,
-                       peut_saisir, resultats_sequence)
+                       periode_depuis_code, periodes_exercice, peut_saisir, resultats_periode)
 
 
 def _exercice_ou_redirection(request):
@@ -110,28 +111,33 @@ def _classes_consultables(user, exercice):
     return Classe.objects.filter(attributions__exercice=exercice, attributions__enseignant=ens).distinct() if ens else Classe.objects.none()
 
 
-def _choix_classe_sequence(request, gabarit):
+def _choix_classe_periode(request, gabarit):
     exercice = _exercice_ou_redirection(request)
     if not exercice:
         return None, redirect("accueil")
-    c_id, s_id = request.GET.get("classe"), request.GET.get("sequence")
-    ctx = {"classes": _classes_consultables(request.user, exercice), "sequences": exercice.sequences.all(),
-           "c_id": c_id, "s_id": s_id}
-    if not (c_id and s_id):
+    c_id, code = request.GET.get("classe"), request.GET.get("periode")
+    if not code and request.GET.get("sequence"):          # anciens liens ?sequence=<id>
+        code = f"s{request.GET['sequence']}"
+    ctx = {"classes": _classes_consultables(request.user, exercice), "periodes": periodes_exercice(exercice),
+           "c_id": c_id, "p_code": code}
+    if not (c_id and code):
         return None, render(request, gabarit, ctx)
     classe = get_object_or_404(Classe, pk=c_id)
-    sequence = get_object_or_404(Sequence, pk=s_id, exercice=exercice)
+    periode = periode_depuis_code(exercice, code)
+    if periode is None:
+        raise Http404("Période inconnue.")
     if not _peut_consulter_classe(request.user, classe, exercice):
         raise PermissionDenied("Vous n'intervenez pas dans cette classe.")
-    resultats, stats, attributions = resultats_sequence(classe, sequence)
-    ctx.update(classe=classe, sequence=sequence, resultats=resultats, stats=stats, attributions=attributions,
+    resultats, stats, attributions, entetes_details = resultats_periode(classe, exercice, periode)
+    ctx.update(classe=classe, periode=periode, sequence=periode.sequence, resultats=resultats, stats=stats,
+               attributions=attributions, entetes_details=entetes_details,
                etablissement=Etablissement.courant(), exercice=exercice)
     return ctx, None
 
 
 @login_required
 def resultats(request):
-    ctx, reponse = _choix_classe_sequence(request, "notes/resultats.html")
+    ctx, reponse = _choix_classe_periode(request, "notes/resultats.html")
     if reponse:
         return reponse
     ctx["classement"] = sorted(ctx["resultats"], key=lambda r: (r.rang is None, r.rang or 0, str(r.eleve)))
@@ -140,7 +146,7 @@ def resultats(request):
 
 @login_required
 def bulletins(request):
-    ctx, reponse = _choix_classe_sequence(request, "notes/bulletins_choix.html")
+    ctx, reponse = _choix_classe_periode(request, "notes/bulletins_choix.html")
     if reponse:
         return reponse
     ins = request.GET.get("eleve")

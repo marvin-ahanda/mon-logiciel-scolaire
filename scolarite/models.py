@@ -40,6 +40,9 @@ class Etablissement(models.Model):
 class Exercice(models.Model):
     libelle = models.CharField("désignation", max_length=50, unique=True, help_text="Ex. : 2025-2026")
     actif = models.BooleanField(default=False)
+    moyenne_passage = models.DecimalField("moyenne de passage", max_digits=4, decimal_places=2, default=10,
+                                          validators=[MinValueValidator(0), MaxValueValidator(20)],
+                                          help_text="Moyenne annuelle à partir de laquelle le passage est proposé sur le bulletin annuel.")
     cree_le = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -122,6 +125,10 @@ class Classe(models.Model):
     section_anglophone = models.BooleanField("section anglophone", default=False)
     classe_examen = models.BooleanField("classe d'examen", default=False)
     effectif_max = models.PositiveSmallIntegerField("effectif maximal", null=True, blank=True)
+    coef_min_classement = models.PositiveSmallIntegerField(
+        "coefficients minimum pour être classé", default=0,
+        help_text="Un élève n'est classé que si le total des coefficients des matières où il est évalué "
+                  "atteint ce seuil (0 = toujours classé s'il a au moins une note).")
 
     class Meta:
         ordering = ["niveau__ordre", "libelle"]

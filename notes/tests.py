@@ -240,3 +240,85 @@ class AccesAdministrationTests(DonneesMixin, TestCase):
         u = User.objects.get(username="ngono")
         self.assertTrue(u.check_password("Tres-Long-2025!"))
         self.assertEqual(u.enseignant.matricule, "E9")
+
+
+class PeriodesCalculTests(TestCase):
+    def test_moyenne_simple_et_notes_composees(self):
+        from .calculs import moyenne_simple, notes_composees
+        self.assertEqual(moyenne_simple([D("12"), None, D("15")]), D("13.50"))
+        self.assertIsNone(moyenne_simple([None, None]))
+        self.assertEqual(notes_composees({(1, 1): [D("10"), D("11")], (1, 2): [None, None]}), {(1, 1): D("10.50")})
+
+    def test_seuil_de_classement(self):
+        attributions = [attr(1, 4), attr(2, 2)]
+        notes = {(1, 1): D("12"), (1, 2): D("14"), (2, 2): D("18")}   # élève 2 : seulement 2 coefficients évalués
+        res, stats = calculer_sequence([(1, "A"), (2, "B")], attributions, notes, coef_min=4)
+        a, b = res
+        self.assertEqual((a.moyenne, a.rang), (D("12.67"), 1))
+        self.assertIsNone(b.moyenne)
+        self.assertEqual(b.moyenne_non_classee, D("18.00"))
+        self.assertIsNone(b.rang)
+        self.assertEqual(stats.effectif_classe, 1)
+
+
+class TrimestreAnneeTests(DonneesMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        seq = {s.numero: s for s in self.ex.sequences.all()}
+        e0 = self.ins[0]
+        # Maths : T1 = (10+12)/2 = 11 ; T2 = 14 (seule S3) ; T3 = (16+18)/2 = 17 -> annuel (11+14+17)/3 = 14
+        for n, v in [(1, "10"), (2, "12"), (3, "14"), (5, "16"), (6, "18")]:
+            Note.objects.create(inscription=e0, attribution=self.maths, sequence=seq[n], valeur=D(v))
+        # Français : T1 = 8 (seule S1), rien ensuite -> annuel 8
+        Note.objects.create(inscription=e0, attribution=self.fr, sequence=seq[1], valeur=D("8"))
+        # Élève 1 : maths 9 aux six séquences
+        for n in range(1, 7):
+            Note.objects.create(inscription=self.ins[1], attribution=self.maths, sequence=seq[n], valeur=D("9"))
+
+    def resultats(self, code):
+        from .services import periode_depuis_code, resultats_periode
+        return resultats_periode(self.classe, self.ex, periode_depuis_code(self.ex, code))
+
+    def test_trimestre_1(self):
+        res, stats, _, entetes = self.resultats("t1")
+        self.assertEqual(entetes, ["Séquence 1", "Séquence 2"])
+        r0 = res[0]
+        maths = next(l for l in r0.lignes if l.attribution_id == self.maths.id)
+        self.assertEqual((maths.details, maths.note), ([D("10"), D("12")], D("11.00")))
+        # (11*4 + 8*3) / 7 = 68/7 = 9.714 -> 9.71
+        self.assertEqual(r0.moyenne, D("9.71"))
+
+    def test_annee(self):
+        res, stats, _, entetes = self.resultats("a")
+        self.assertEqual(entetes, ["Trim. 1", "Trim. 2", "Trim. 3"])
+        r0, r1 = res[0], res[1]
+        maths = next(l for l in r0.lignes if l.attribution_id == self.maths.id)
+        self.assertEqual(maths.details, [D("11.00"), D("14.00"), D("17.00")])
+        self.assertEqual(maths.note, D("14.00"))
+        # Annuel élève 0 : (14*4 + 8*3) / 7 = 80/7 = 11.43
+        self.assertEqual(r0.moyenne, D("11.43"))
+        self.assertEqual(r0.moyennes_trimestres, [D("9.71"), D("14.00"), D("17.00")])
+        self.assertEqual(r0.decision, "Admis(e) en classe supérieure")
+        self.assertEqual((r1.moyenne, r1.decision), (D("9.00"), "Redouble"))
+        self.assertEqual(res[2].decision, "")      # élève sans note
+
+    def test_bulletins_trimestriel_et_annuel(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse("bulletins"), {"classe": self.classe.pk, "periode": "t1", "eleve": self.ins[0].id})
+        self.assertContains(r, "BULLETIN DE NOTES TRIMESTRIEL")
+        self.assertContains(r, "9,71")
+        r = self.client.get(reverse("bulletins"), {"classe": self.classe.pk, "periode": "a", "eleve": self.ins[0].id})
+        self.assertContains(r, "BULLETIN DE NOTES ANNUEL")
+        self.assertContains(r, "Admis(e) en classe supérieure")
+        self.assertContains(r, "11,43")
+
+    def test_periode_inconnue(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse("resultats"), {"classe": self.classe.pk, "periode": "t9"})
+        self.assertEqual(r.status_code, 404)
+
+    def test_resultats_annuels_page(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse("resultats"), {"classe": self.classe.pk, "periode": "a"})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Décision proposée")

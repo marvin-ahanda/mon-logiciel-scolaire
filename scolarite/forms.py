@@ -17,13 +17,13 @@ class BootstrapMixin:
 class ExerciceForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Exercice
-        fields = ["libelle"]
+        fields = ["libelle", "moyenne_passage"]
 
 
 class ClasseForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Classe
-        fields = ["libelle", "niveau", "section_anglophone", "classe_examen", "effectif_max"]
+        fields = ["libelle", "niveau", "section_anglophone", "classe_examen", "effectif_max", "coef_min_classement"]
 
 
 class MatiereForm(BootstrapMixin, forms.ModelForm):
