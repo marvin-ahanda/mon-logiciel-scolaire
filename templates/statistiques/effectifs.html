@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titre %}Effectifs par sexe et âge{% endblock %}
+{% block contenu %}
+{% include "statistiques/_onglets.html" %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+  <h2 class="h5 m-0">Effectifs {{ exercice }} — âge au {{ ref|date:"d/m/Y" }}</h2>
+  <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Imprimer</button>
+</div>
+{% if lignes %}
+<div class="card"><div class="table-responsive"><table class="table table-sm table-bordered mb-0 text-center align-middle tableau-effectifs">
+  <thead class="table-light">
+    <tr><th rowspan="2" class="text-start">Classe</th>{% for a in colonnes %}<th colspan="2">{% if a == "inconnu" %}Âge inconnu{% else %}{{ a }} ans{% endif %}</th>{% endfor %}<th colspan="3">Total</th></tr>
+    <tr>{% for a in colonnes %}<th class="small">G</th><th class="small">F</th>{% endfor %}<th class="small">G</th><th class="small">F</th><th class="small">G+F</th></tr>
+  </thead>
+  <tbody>{% for l in lignes %}<tr><td class="text-start">{{ l.classe }}</td>{% for g, f in l.cellules %}<td>{{ g|default:"" }}</td><td>{{ f|default:"" }}</td>{% endfor %}
+    <td>{{ l.garcons }}</td><td>{{ l.filles }}</td><td class="fw-semibold">{{ l.garcons|add:l.filles }}</td></tr>{% endfor %}</tbody>
+  <tfoot class="fw-semibold table-light"><tr><td class="text-start">Total</td>{% for g, f in totaux %}<td>{{ g }}</td><td>{{ f }}</td>{% endfor %}
+    <td>{{ total_garcons }}</td><td>{{ total_filles }}</td><td>{{ total_garcons|add:total_filles }}</td></tr></tfoot>
+</table></div></div>
+<p class="small text-muted mt-2">G : garçons, F : filles. L'âge est calculé au 1er janvier de l'année scolaire.</p>
+{% else %}<p class="text-muted">Aucun élève inscrit pour cet exercice.</p>{% endif %}
+{% endblock %}

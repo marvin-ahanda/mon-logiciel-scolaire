@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block titre %}Comparaison des classes{% endblock %}
+{% block contenu %}
+{% include "statistiques/_onglets.html" %}
+<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-4"><select class="form-select" name="periode" aria-label="Période">
+    {% for p in periodes %}<option value="{{ p.code }}" {% if p.code == p_code %}selected{% endif %}>{% if p.type == "annee" %}Bilan annuel{% else %}{{ p.libelle }}{% endif %}</option>{% endfor %}
+  </select></div>
+  <div class="col-md-2"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+</form>
+{% if periode %}
+<h2 class="h5">{{ periode.libelle }} ({{ exercice }}) — moyenne générale par classe <span class="small text-muted fw-normal">(échelle de 0 à 20)</span></h2>
+{% if lignes %}
+<div class="card mb-3"><div class="card-body">
+  <div class="barres-h" role="img" aria-label="Moyenne générale de chaque classe (détail dans le tableau)">
+    {% for l in lignes %}
+    <div class="barre-h" title="{{ l.classe }} : moyenne {{ l.moyenne|default:'—' }}, réussite {{ l.taux|default:'—' }} % ({{ l.n }} classés sur {{ l.effectif }})">
+      <span class="barre-h-libelle">{{ l.classe }}</span>
+      <span class="barre-h-piste"><span class="barre-h-trace" style="width: {{ l.largeur|stringformat:'s' }}%"></span></span>
+      <span class="barre-h-valeur">{{ l.moyenne|default:"—" }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div></div>
+<div class="card mb-3"><div class="table-responsive"><table class="table table-sm table-hover mb-0">
+  <thead class="table-light"><tr><th>Classe</th><th class="text-end">Effectif</th><th class="text-end">Classés</th><th class="text-end">Moyenne</th><th class="text-end">Min</th><th class="text-end">Max</th><th class="text-end">≥ 10</th><th class="text-end">Réussite</th><th class="no-print"></th></tr></thead>
+  <tbody>{% for l in lignes %}<tr><td>{{ l.classe }}</td><td class="text-end">{{ l.effectif }}</td>{% with r=l %}{% include "statistiques/_resume.html" %}{% endwith %}
+    <td class="no-print"><a class="small" href="{% url 'stats_classe' %}?classe={{ l.classe.pk }}&periode={{ periode.code }}">Détail</a></td></tr>{% endfor %}</tbody>
+  <tbody class="table-group-divider">{% for n in niveaux %}<tr class="text-muted"><td>Niveau {{ n.niveau }}</td><td></td>{% with r=n %}{% include "statistiques/_resume.html" %}{% endwith %}<td class="no-print"></td></tr>{% endfor %}
+    <tr class="fw-semibold"><td>Établissement</td><td></td>{% with r=etablissement %}{% include "statistiques/_resume.html" %}{% endwith %}<td class="no-print"></td></tr></tbody>
+</table></div></div>
+{% else %}<p class="text-muted">Aucun élève inscrit pour cet exercice.</p>{% endif %}
+{% endif %}
+{% endblock %}

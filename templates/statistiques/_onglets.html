@@ -1,0 +1,6 @@
+<h1 class="h3 mb-3">Statistiques</h1>
+<ul class="nav nav-tabs mb-3 no-print">
+  <li class="nav-item"><a class="nav-link {% if onglet == 'classe' %}active{% endif %}" href="{% url 'stats_classe' %}">Par classe</a></li>
+  <li class="nav-item"><a class="nav-link {% if onglet == 'comparaison' %}active{% endif %}" href="{% url 'stats_comparaison' %}">Comparaison des classes</a></li>
+  <li class="nav-item"><a class="nav-link {% if onglet == 'effectifs' %}active{% endif %}" href="{% url 'stats_effectifs' %}">Effectifs par sexe et âge</a></li>
+</ul>

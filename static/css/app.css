@@ -1,5 +1,6 @@
 body { background: #f4f6f9; }
 .navbar .nav-link, .navbar .navbar-text { white-space: nowrap; }
+@media (min-width: 1400px) { .navbar-expand-xxl .navbar-nav .nav-link { padding-left: .4rem; padding-right: .4rem; font-size: .95rem; } }
 .table-notes input { max-width: 7rem; text-align: right; }
 .note-faible { color: #b02a37; font-weight: 600; }
 .carte-stat .valeur { font-size: 1.8rem; font-weight: 600; }
@@ -69,3 +70,20 @@ body { background: #f4f6f9; }
   .planche-cartes:last-of-type { break-after: auto; }
   .carte-scolaire { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* --- Statistiques : histogramme (série unique) et barres horizontales --- */
+.histogramme { display: flex; align-items: flex-end; gap: 2px; height: 220px; padding-top: 1.2rem; border-bottom: 1px solid #ced4da; }
+.histo-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; position: relative; cursor: default; }
+.histo-col:hover .histo-barre { background: #1f5fae; }
+.histo-barre { width: 70%; max-width: 48px; min-height: 0; background: #2a78d6; border-radius: 4px 4px 0 0; }
+.histo-valeur { font-size: .8rem; color: #212529; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+.histo-libelle { position: absolute; bottom: -1.5rem; font-size: .7rem; color: #6c757d; white-space: nowrap; }
+.histogramme { margin-bottom: 1.8rem; }
+.barres-h { display: grid; gap: 6px; }
+.barre-h { display: grid; grid-template-columns: minmax(4rem, 8rem) 1fr 3.5rem; align-items: center; gap: .5rem; cursor: default; }
+.barre-h-libelle { font-size: .875rem; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barre-h-piste { height: 16px; }
+.barre-h-trace { display: block; height: 100%; background: #2a78d6; border-radius: 0 4px 4px 0; }
+.barre-h:hover .barre-h-trace { background: #1f5fae; }
+.barre-h-valeur { font-size: .875rem; text-align: right; font-variant-numeric: tabular-nums; color: #212529; }
+@media print { .histo-barre, .barre-h-trace { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

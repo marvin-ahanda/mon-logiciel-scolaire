@@ -9,7 +9,7 @@
 </head>
 <body>
 {% if user.is_authenticated %}
-<nav class="navbar navbar-expand-xl navbar-dark bg-primary no-print">
+<nav class="navbar navbar-expand-xxl navbar-dark bg-primary no-print">
   <div class="container-fluid">
     <a class="navbar-brand fw-semibold" href="{% url 'accueil' %}">OtourixSchool</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-label="Menu">
@@ -32,9 +32,17 @@
         </li>
         <li class="nav-item"><a class="nav-link" href="{% url 'enseignants' %}">Enseignants</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'eleves' %}">Élèves</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'sms_envoi' %}">SMS</a></li>
-
-
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Pilotage</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'stats_classe' %}">Statistiques par classe</a></li>
+            <li><a class="dropdown-item" href="{% url 'stats_comparaison' %}">Comparaison des classes</a></li>
+            <li><a class="dropdown-item" href="{% url 'stats_effectifs' %}">Effectifs par sexe et âge</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'sms_envoi' %}">SMS aux parents</a></li>
+            <li><a class="dropdown-item" href="{% url 'sms_journal' %}">Journal des SMS</a></li>
+          </ul>
+        </li>
         {% endif %}
         {% if est_admin or est_surveillant %}
         <li class="nav-item dropdown">
@@ -70,9 +78,14 @@
         </li>
         {% endif %}
         {% if est_admin or est_enseignant %}
-        <li class="nav-item"><a class="nav-link" href="{% url 'saisie' %}">Saisie des notes</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'resultats' %}">Résultats</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'bulletins' %}">Bulletins</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Notes</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'saisie' %}">Saisie des notes</a></li>
+            <li><a class="dropdown-item" href="{% url 'resultats' %}">Résultats et classements</a></li>
+            <li><a class="dropdown-item" href="{% url 'bulletins' %}">Bulletins</a></li>
+          </ul>
+        </li>
         {% endif %}
         {% if est_admin or est_enseignant or est_surveillant %}
         <li class="nav-item"><a class="nav-link" href="{% if est_enseignant and not est_admin and not est_surveillant %}{% url 'emploi_enseignant' %}{% else %}{% url 'emploi_classe' %}{% endif %}">Emploi du temps</a></li>
