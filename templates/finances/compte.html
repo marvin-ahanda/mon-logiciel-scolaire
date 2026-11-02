@@ -1,0 +1,71 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}Compte — {{ ins.eleve }}{% endblock %}
+{% block contenu %}
+<a class="btn btn-link px-0 mb-2" href="{% url 'caisse' %}?classe={{ ins.classe_id }}">← Caisse</a>
+<h1 class="h3 mb-1">{{ ins.eleve }}</h1>
+<p class="text-muted">Matricule {{ ins.eleve.matricule }} · {{ ins.classe }} · {{ ins.get_statut_display }} · exercice {{ ins.exercice }}</p>
+<div class="row g-3">
+  <div class="col-xl-7">
+    <div class="card mb-3"><div class="card-header">Compte d'écolage</div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Rubrique</th><th class="text-end">Montant</th><th class="text-end">Réductions</th><th class="text-end">Versé</th><th class="text-end">Reste</th></tr></thead>
+        <tbody>{% for l in compte.lignes %}
+          <tr><td>{{ l.rubrique }}{% if l.rubrique.echeance %}<div class="small text-muted">{{ l.rubrique.echeance }}</div>{% endif %}</td>
+            <td class="text-end">{{ l.tarif|fcfa }}</td><td class="text-end">{% if l.reductions %}−{{ l.reductions|fcfa }}{% else %}—{% endif %}</td>
+            <td class="text-end">{{ l.verse|fcfa }}</td>
+            <td class="text-end {% if l.reste %}text-danger fw-semibold{% else %}text-success{% endif %}">{% if l.reste %}{{ l.reste|fcfa }}{% else %}soldé{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucun tarif applicable (niveau {{ ins.classe.niveau }}, {{ ins.get_statut_display|lower }}).</td></tr>{% endfor %}</tbody>
+        <tfoot class="table-light fw-semibold"><tr><td>Total</td><td class="text-end">{{ compte.total_tarif|fcfa }}</td><td class="text-end">{% if compte.total_reductions %}−{{ compte.total_reductions|fcfa }}{% else %}—{% endif %}</td>
+          <td class="text-end">{{ compte.total_verse|fcfa }}</td><td class="text-end">{{ compte.total_reste|fcfa }}</td></tr>
+          {% if compte.rembourse %}<tr><td colspan="4">Remboursé</td><td class="text-end">{{ compte.rembourse|fcfa }}</td></tr>{% endif %}</tfoot>
+      </table></div></div>
+
+    <div class="card mb-3"><div class="card-header">Chronologie des paiements</div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Reçu</th><th>Date</th><th>Rubrique</th><th>Mode</th><th class="text-end">Montant</th><th></th></tr></thead>
+        <tbody>{% for p in paiements %}
+          <tr class="{% if p.annule %}text-muted text-decoration-line-through{% endif %}"><td>n° {{ p.numero_recu }}</td><td>{{ p.date|date:"d/m/Y" }}</td><td>{{ p.rubrique }}</td>
+            <td>{{ p.get_mode_display }}{% if p.reference %} <span class="small">({{ p.reference }})</span>{% endif %}</td><td class="text-end">{{ p.montant|fcfa }}</td>
+            <td class="text-end text-decoration-none">{% if p.annule %}<span class="badge text-bg-secondary" title="{{ p.motif_annulation }} — {{ p.annule_par }}, {{ p.annule_le|date:'d/m/Y H:i' }}">annulé</span>
+              {% else %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'recu' p.pk %}">Reçu</a>
+              <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#annul{{ p.pk }}">Annuler</button>{% endif %}</td></tr>
+          {% if not p.annule %}<tr class="collapse" id="annul{{ p.pk }}"><td colspan="6">
+            <form class="d-flex gap-2" method="post" action="{% url 'annuler_paiement' p.pk %}">{% csrf_token %}
+              <input class="form-control form-control-sm" name="motif" required maxlength="200" placeholder="Motif de l'annulation (obligatoire)" aria-label="Motif">
+              <button class="btn btn-sm btn-danger">Confirmer l'annulation</button></form></td></tr>{% endif %}
+        {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Aucun paiement.</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+
+    {% if reductions or remboursements %}<div class="card mb-3"><div class="card-header">Réductions et remboursements</div>
+      <ul class="list-group list-group-flush">
+        {% for r in reductions %}<li class="list-group-item small">{{ r.date|date:"d/m/Y" }} — réduction {{ r.montant|fcfa }} sur {{ r.rubrique }} : {{ r.motif }}</li>{% endfor %}
+        {% for r in remboursements %}<li class="list-group-item small">{{ r.date|date:"d/m/Y" }} — remboursement {{ r.montant|fcfa }} : {{ r.motif }}</li>{% endfor %}
+      </ul></div>{% endif %}
+  </div>
+
+  <div class="col-xl-5">
+    <div class="card mb-3"><div class="card-header fw-semibold">Effectuer un paiement</div><div class="card-body">
+      {% if compte.total_reste %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="paiement">
+        {% for f in form_p %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+          {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
+          {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-primary w-100 mt-1">Enregistrer et imprimer le reçu</button></form>
+      {% else %}<p class="mb-0 text-success">Compte soldé : aucun paiement attendu.</p>{% endif %}
+    </div></div>
+    <div class="card mb-3"><div class="card-header">Réduction des frais</div><div class="card-body">
+      {% if compte.total_reste %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="reduction">
+        {% for f in form_r %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+          {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-outline-primary w-100">Enregistrer la réduction</button></form>
+      {% else %}<p class="mb-0 text-muted small">Aucun reste à payer.</p>{% endif %}
+    </div></div>
+    <div class="card"><div class="card-header">Remboursement</div><div class="card-body">
+      <p class="small text-muted">Remboursable : {{ compte.remboursable|fcfa }}</p>
+      {% if compte.remboursable %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="remboursement">
+        {% for f in form_rb %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+          {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-outline-danger w-100" onclick="return confirm('Enregistrer ce remboursement ?')">Enregistrer le remboursement</button></form>{% endif %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

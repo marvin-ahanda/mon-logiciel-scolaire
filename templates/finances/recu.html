@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}Reçu n° {{ p.numero_recu }}{% endblock %}
+{% block contenu %}
+<div class="no-print d-flex gap-2 mb-3">
+  <button class="btn btn-primary" onclick="window.print()">Imprimer le reçu</button>
+  <a class="btn btn-outline-secondary" href="{% url 'compte_eleve' p.inscription_id %}">Retour au compte</a>
+</div>
+{% if p.annule %}<div class="alert alert-danger">Ce paiement a été annulé le {{ p.annule_le|date:"d/m/Y" }} : {{ p.motif_annulation }}</div>{% endif %}
+{% for copie in copies %}
+<section class="bulletin recu">
+  <div class="entete">
+    <div><strong>{{ etablissement.nom|default:"Établissement" }}</strong><br>{{ etablissement.ville }}{% if etablissement.telephone %} · Tél. {{ etablissement.telephone }}{% endif %}</div>
+    <div class="text-end"><strong>REÇU N° {{ p.numero_recu }}</strong><br>Année scolaire {{ p.exercice }}<br><span class="small">{{ copie }}</span></div>
+  </div>
+  {% if p.annule %}<p class="text-center fw-bold text-danger">ANNULÉ</p>{% endif %}
+  <table>
+    <tr><td style="width:35%">Reçu de</td><td><strong>{{ p.inscription.eleve }}</strong> (matricule {{ p.inscription.eleve.matricule }}) — classe {{ p.inscription.classe }}</td></tr>
+    <tr><td>La somme de</td><td><strong>{{ p.montant|fcfa }}</strong></td></tr>
+    <tr><td>En lettres</td><td><em>{{ en_lettres }}</em></td></tr>
+    <tr><td>Au titre de</td><td>{{ p.rubrique }}</td></tr>
+    <tr><td>Mode de paiement</td><td>{{ p.get_mode_display }}{% if p.reference %} — réf. {{ p.reference }}{% endif %}</td></tr>
+    <tr><td>Date</td><td>{{ p.date|date:"d/m/Y" }}</td></tr>
+    <tr><td>Reste pour la rubrique</td><td>{{ ligne.reste|fcfa }}</td></tr>
+    <tr><td>Reste total de l'écolage</td><td>{{ compte.total_reste|fcfa }}</td></tr>
+  </table>
+  <div class="d-flex justify-content-between mt-3"><span>Caissier : {{ p.saisi_par.get_full_name|default:p.saisi_par.username|default:"—" }}</span><span>Signature et cachet</span></div>
+  <div class="signature"></div>
+</section>
+{% endfor %}
+{% endblock %}

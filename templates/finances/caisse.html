@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}Caisse{% endblock %}
+{% block contenu %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h1 class="h3 m-0">Caisse — frais de scolarité</h1>
+  <div class="text-muted">Encaissé aujourd'hui : <strong>{{ encaisse_jour|fcfa }}</strong> ({{ nb_jour }} reçu{{ nb_jour|pluralize }})</div>
+</div>
+{% if sans_tarif %}<div class="alert alert-warning">Aucun tarif n'est défini pour l'exercice actif.
+  Créez les <a href="{% url 'admin:finances_rubrique_changelist' %}">rubriques</a> puis les <a href="{% url 'tarifs' %}">tarifs</a>.</div>{% endif %}
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Nom, prénom ou matricule de l'élève" autofocus aria-label="Recherche"></div>
+  <div class="col-md-4"><select class="form-select" name="classe" aria-label="Classe"><option value="">Toutes les classes</option>
+    {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Rechercher</button></div>
+</form>
+{% if q or c_id %}
+<div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+  <thead class="table-light"><tr><th>Matricule</th><th>Élève</th><th>Classe</th><th>Statut</th><th class="text-end">Dû</th><th class="text-end">Versé</th><th class="text-end">Reste</th><th></th></tr></thead>
+  <tbody>{% for ins, c in resultats %}
+    <tr><td>{{ ins.eleve.matricule }}</td><td>{{ ins.eleve }}</td><td>{{ ins.classe }}</td><td>{{ ins.get_statut_display }}</td>
+      <td class="text-end">{{ c.total_du|fcfa }}</td><td class="text-end">{{ c.total_verse|fcfa }}</td>
+      <td class="text-end {% if c.total_reste %}text-danger fw-semibold{% else %}text-success{% endif %}">{{ c.total_reste|fcfa }}</td>
+      <td class="text-end"><a class="btn btn-sm btn-primary" href="{% url 'compte_eleve' ins.pk %}">Ouvrir le compte</a></td></tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucun élève trouvé.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+{% endblock %}

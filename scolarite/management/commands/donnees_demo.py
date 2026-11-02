@@ -15,6 +15,8 @@ from django.db import transaction
 from datetime import date, timedelta
 
 from discipline.models import Absence, Incident, Infraction, ParametresDiscipline, Retard, Sanction
+from finances.models import Paiement, Reduction, Rubrique, Tarif
+from finances.services import compte
 from notes.models import BaremeDistinction, Note
 from scolarite.models import (Attribution, Classe, Cycle, Eleve, Enseignant, Etablissement, Exercice, Inscription,
                               Matiere, Niveau)
@@ -55,7 +57,7 @@ class Command(BaseCommand):
                 n += 1
                 e = Eleve.objects.create(matricule=f"DEMO{n:04}", nom=rnd.choice(NOMS), prenom=rnd.choice(PRENOMS),
                                          sexe=rnd.choice("MF"), lieu_naissance="Yaoundé")
-                ins = Inscription.objects.create(eleve=e, classe=classe, exercice=ex)
+                ins = Inscription.objects.create(eleve=e, classe=classe, exercice=ex, statut=rnd.choice("AAN"))
                 niveau = rnd.uniform(6, 16)
                 progression = rnd.uniform(-0.4, 0.6)       # évolution au fil de l'année
                 for seq in sequences:
@@ -89,6 +91,26 @@ class Command(BaseCommand):
                     Incident.objects.create(inscription=ins, sequence=seq, infraction=rnd.choice(infractions),
                                             date=debut + timedelta(days=(seq.numero - 1) * 42 + rnd.randrange(0, 40)))
         BaremeDistinction.objects.create(exercice=ex, type="BLA", borne_sup=Decimal("8"))
+        # Écolage
+        rubriques = [Rubrique.objects.create(libelle=l, ordre=i, echeance=e) for i, (l, e) in enumerate(
+            [("Inscription", "à l'inscription"), ("1re tranche", "avant le 31 octobre"), ("2e tranche", "avant le 31 janvier")], 1)]
+        for niv in niveaux:
+            for statut, ins_prix in [("N", 15000), ("A", 10000)]:
+                for r, prix in zip(rubriques, [ins_prix, 40000, 35000]):
+                    Tarif.objects.create(exercice=ex, rubrique=r, niveau=niv, statut=statut, montant=prix)
+        caissier = User.objects.create_user("caisse", password="Demo-Caisse-2025", first_name="Caissier", last_name="Démo", is_staff=True)
+        for ins in Inscription.objects.filter(exercice=ex).select_related("classe"):
+            jour = debut
+            for r in rubriques:
+                du = Tarif.objects.get(exercice=ex, rubrique=r, niveau=ins.classe.niveau, statut=ins.statut).montant
+                part = rnd.choice([1, 1, 1, 0.5, 0])
+                if part:
+                    jour += timedelta(days=rnd.randrange(1, 30))
+                    mode = rnd.choice(["ESP", "ESP", "OM", "MTN", "CAM"])
+                    Paiement.enregistrer(inscription=ins, rubrique=r, montant=int(du * part), date=jour, mode=mode,
+                                         reference=f"TX{rnd.randrange(10**8):08}" if mode in ("OM", "MTN") else "", saisi_par=caissier)
+            if rnd.random() < 0.08 and compte(ins).ligne(rubriques[2].id).reste >= 10000:
+                Reduction.objects.create(inscription=ins, rubrique=rubriques[2], montant=10000, motif="Enfant du personnel", saisi_par=caissier)
         self.stdout.write(self.style.SUCCESS(
             f"Données de démonstration créées : {len(classes)} classes, {n} élèves, {len(profs)} enseignants.\n"
-            "Comptes : admin / Demo-Admin-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))
+            "Comptes : admin / Demo-Admin-2025 ; caisse / Demo-Caisse-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))

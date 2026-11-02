@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titre %}Tarifs{% endblock %}
+{% block contenu %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+  <h1 class="h3 m-0">Tarifs de l'écolage — {{ exercice }}</h1>
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reconduire">
+    <button class="btn btn-outline-secondary btn-sm">Reconduire les tarifs de l'exercice précédent</button></form>
+</div>
+<p class="text-muted">Montants en francs CFA. Case vide = rubrique non due pour ce niveau et ce statut.</p>
+{% if not rubriques %}<div class="alert alert-warning">Créez d'abord les <a href="{% url 'admin:finances_rubrique_changelist' %}">rubriques</a> (inscription, tranches…).</div>{% else %}
+<form method="post">{% csrf_token %}
+<div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Niveau</th><th>Statut</th>{% for r in rubriques %}<th>{{ r }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for l in lignes %}{% for s in l.statuts %}
+    <tr>{% if forloop.first %}<th rowspan="{{ l.statuts|length }}">{{ l.niveau }}</th>{% endif %}<td>{{ s.libelle }}</td>
+      {% for c in s.cellules %}<td><input class="form-control form-control-sm text-end" name="{{ c.nom }}" value="{{ c.valeur }}" inputmode="numeric" style="min-width:7rem" aria-label="{{ c.rubrique }} — {{ l.niveau }} — {{ s.libelle }}"></td>{% endfor %}</tr>
+  {% endfor %}{% endfor %}</tbody>
+</table></div>
+<div class="card-footer"><button class="btn btn-primary">Enregistrer les tarifs</button></div></div>
+</form>{% endif %}
+{% endblock %}
