@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
@@ -13,10 +14,10 @@ from comptes.roles import est_administration, peut_encaisser, role_requis
 from scolarite.models import Classe, Etablissement, Exercice, Inscription, Niveau
 from scolarite.views import admin_requis
 
-from .forms import AnnulationForm, PaiementForm, ReductionForm, RemboursementForm
+from .forms import AnnulationForm, MouvementCaisseForm, PaiementForm, ReductionForm, RemboursementForm
 from .lettres import montant_en_lettres
-from .models import Paiement, Reduction, Remboursement, Rubrique, Tarif
-from .services import compte, comptes, paiements_periode, situation_classe
+from .models import LibelleCaisse, MouvementCaisse, Paiement, Reduction, Remboursement, Rubrique, Tarif
+from .services import compte, comptes, journal_caisse, paiements_periode, situation_classe
 
 
 def _exercice(request):
@@ -223,3 +224,69 @@ def journal(request):
         "debut": debut, "fin": fin, "mode": mode, "modes": Paiement.MODES, "paiements": qs,
         "total": total, "par_mode": par_mode,
     })
+
+
+# --- Caisse générale ---------------------------------------------------------------------------------
+
+@role_requis(peut_encaisser)
+def caisse_generale(request):
+    exercice = _exercice(request)
+    if not exercice:
+        return redirect("accueil")
+    sens = request.GET.get("sens", LibelleCaisse.ENTREE)
+    if sens not in (LibelleCaisse.ENTREE, LibelleCaisse.SORTIE):
+        sens = LibelleCaisse.ENTREE
+    form = MouvementCaisseForm(request.POST or None, sens=sens, exercice=exercice)
+    if request.method == "POST" and form.is_valid():
+        d = dict(form.cleaned_data)
+        d["inscription"] = d.pop("matricule", None)
+        m = MouvementCaisse.enregistrer(exercice, saisi_par=request.user, **d)
+        messages.success(request, f"{'Reçu' if m.est_entree else 'Bon de caisse'} n° {m.numero} enregistré.")
+        return redirect("mouvement_caisse", pk=m.pk)
+    recents = (MouvementCaisse.objects.filter(exercice=exercice).select_related("libelle", "saisi_par", "inscription__eleve")[:30])
+    return render(request, "finances/caisse_generale.html", {
+        "form": form, "sens": sens, "recents": [(m, m.annulable_par(request.user)) for m in recents],
+        "sans_libelle": not LibelleCaisse.objects.filter(sens=sens, actif=True).exists(), "form_annulation": AnnulationForm(),
+    })
+
+
+@role_requis(peut_encaisser)
+def mouvement_caisse(request, pk):
+    m = get_object_or_404(MouvementCaisse.objects.select_related("libelle", "exercice", "saisi_par", "inscription__eleve"), pk=pk)
+    return render(request, "finances/mouvement.html", {
+        "m": m, "en_lettres": montant_en_lettres(m.montant), "etablissement": Etablissement.courant(),
+        "copies": ["Exemplaire du tiers", "Exemplaire de l'établissement"],
+    })
+
+
+@require_POST
+@role_requis(peut_encaisser)
+def annuler_mouvement(request, pk):
+    m = get_object_or_404(MouvementCaisse, pk=pk)
+    form = AnnulationForm(request.POST)
+    try:
+        if not m.annulable_par(request.user):
+            raise ValidationError("Vous ne pouvez annuler que vos propres opérations enregistrées aujourd'hui.")
+        if not form.is_valid():
+            raise ValidationError("Le motif d'annulation est obligatoire.")
+        m.annuler(request.user, form.cleaned_data["motif"])
+        messages.success(request, f"{'Reçu' if m.est_entree else 'Bon'} n° {m.numero} annulé.")
+    except ValidationError as e:
+        messages.error(request, " ".join(e.messages))
+    return redirect(f"{reverse('caisse_generale')}?sens={m.sens}")
+
+
+@role_requis(peut_encaisser)
+def journal_de_caisse(request):
+    exercice = _exercice(request)
+    if not exercice:
+        return redirect("accueil")
+    aujourd_hui = timezone.localdate()
+    debut = parse_date(request.GET.get("debut") or "") or aujourd_hui.replace(day=1)
+    fin = parse_date(request.GET.get("fin") or "") or aujourd_hui
+    lignes, totaux, par_mode = journal_caisse(exercice, debut, fin)
+    solde = 0
+    for l in lignes:
+        solde += l["entree"] - l["sortie"]
+        l["solde"] = solde
+    return render(request, "finances/journal_caisse.html", {"debut": debut, "fin": fin, "lignes": lignes, "totaux": totaux, "par_mode": par_mode})

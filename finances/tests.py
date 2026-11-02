@@ -156,3 +156,67 @@ class EtatsTests(FinancesMixin, TestCase):
         r = self.client.get(reverse("bulletins"), {"classe": self.classe.pk, "periode": f"s{self.s1.pk}", "ecolage_min": "10000"})
         self.assertEqual([x.inscription_id for x in r.context["resultats"]], [self.ins[0].id])
         self.assertEqual(len(r.context["exclus_ecolage"]), 2)
+
+
+class CaisseGeneraleTests(FinancesMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        from .models import LibelleCaisse
+        self.vente = LibelleCaisse.objects.create(libelle="Vente de tenues", sens="E")
+        self.salaire = LibelleCaisse.objects.create(libelle="Salaires vacataires", sens="S")
+
+    def mouvement(self, sens, libelle, montant, **extra):
+        data = {"libelle": libelle.pk, "montant": montant, "tiers": "M. Tiers", "mode": "ESP", "reference": "",
+                "date": timezone.localdate().isoformat(), "observation": "", **extra}
+        return self.client.post(f"{reverse('caisse_generale')}?sens={sens}", data)
+
+    def test_numerotation_separee_et_piece(self):
+        from .models import MouvementCaisse
+        self.mouvement("E", self.vente, 5000, matricule="M0")
+        self.mouvement("E", self.vente, 3000)
+        r = self.mouvement("S", self.salaire, 20000)
+        self.assertEqual(sorted(MouvementCaisse.objects.values_list("sens", "numero")), [("E", 1), ("E", 2), ("S", 1)])
+        self.assertEqual(MouvementCaisse.objects.get(montant=5000).inscription, self.ins[0])
+        r = self.client.get(r.url)
+        self.assertContains(r, "BON DE CAISSE (SORTIE) N° 1")
+        self.assertContains(r, "Vingt mille francs CFA")
+
+    def test_controles(self):
+        from .models import MouvementCaisse
+        self.assertEqual(self.mouvement("S", self.vente, 1000).status_code, 200)            # libellé d'entrée refusé en sortie
+        self.assertEqual(self.mouvement("E", self.vente, 1000, matricule="INCONNU").status_code, 200)
+        self.assertEqual(self.mouvement("E", self.vente, 1000, mode="OM").status_code, 200)  # référence obligatoire
+        self.assertEqual(self.mouvement("E", self.vente, 0).status_code, 200)
+        self.assertFalse(MouvementCaisse.objects.exists())
+
+    def test_journal_de_caisse(self):
+        from .models import MouvementCaisse
+        self.payer(self.ins[0], self.inscr, 10000)
+        self.mouvement("E", self.vente, 5000)
+        self.mouvement("S", self.salaire, 3000)
+        self.mouvement("E", self.vente, 999)
+        MouvementCaisse.objects.get(montant=999).annuler(self.admin, "Erreur")
+        r = self.client.get(reverse("journal_caisse"))
+        self.assertEqual(r.context["totaux"], {"ecolage": 10000, "autres_entrees": 5000, "entrees": 15000, "sorties": 3000, "solde": 12000})
+        self.assertEqual(r.context["lignes"][-1]["solde"], 12000)
+        self.assertEqual(len(r.context["lignes"]), 3)
+
+    def test_droits(self):
+        from django.contrib.auth.models import Group, User
+        from .models import MouvementCaisse
+        caissier = User.objects.create_user("caisse2", password="p")
+        caissier.groups.add(Group.objects.get(name="Caisse"))
+        self.client.force_login(caissier)
+        self.mouvement("S", self.salaire, 2000)
+        m = MouvementCaisse.objects.get()
+        self.assertEqual(m.saisi_par, caissier)
+        self.client.post(reverse("annuler_mouvement", args=[m.pk]), {"motif": "Erreur de montant"})
+        m.refresh_from_db()
+        self.assertTrue(m.annule)                                                            # sa propre opération du jour
+        autre = MouvementCaisse.enregistrer(self.ex, libelle=self.vente, montant=100, tiers="X", saisi_par=self.admin)
+        self.client.post(reverse("annuler_mouvement", args=[autre.pk]), {"motif": "x"})
+        autre.refresh_from_db()
+        self.assertFalse(autre.annule)
+        self.client.force_login(self.u_ens)
+        self.assertEqual(self.client.get(reverse("caisse_generale")).status_code, 302)
+        self.assertEqual(self.client.get(reverse("journal_caisse")).status_code, 302)

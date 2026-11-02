@@ -135,3 +135,31 @@ def paiements_periode(exercice, debut, fin, mode=""):
     par_mode = [(dict(Paiement.MODES)[m], n, t) for m, n, t in
                 valides.order_by("mode").values("mode").annotate(n=Count("id"), t=Sum("montant")).values_list("mode", "n", "t")]
     return qs, valides.aggregate(t=Sum("montant"))["t"] or 0, par_mode
+
+
+def journal_caisse(exercice, debut, fin):
+    """Journal de caisse d'une période : écolage, autres entrées et sorties (opérations non annulées).
+
+    Renvoie (lignes chronologiques, totaux, totaux par mode) ; solde = écolage + autres entrées − sorties.
+    """
+    from .models import LibelleCaisse, MouvementCaisse
+    lignes = []
+    for p in Paiement.objects.filter(exercice=exercice, annule=False, date__range=(debut, fin)).select_related("inscription__eleve", "rubrique"):
+        lignes.append({"date": p.date, "piece": f"Reçu écolage n° {p.numero_recu}", "libelle": f"Écolage — {p.rubrique}",
+                       "tiers": str(p.inscription.eleve), "mode": p.get_mode_display(), "entree": p.montant, "sortie": 0, "cle": (p.date, 0, p.numero_recu)})
+    for m in MouvementCaisse.objects.filter(exercice=exercice, annule=False, date__range=(debut, fin)).select_related("libelle"):
+        e = m.sens == LibelleCaisse.ENTREE
+        lignes.append({"date": m.date, "piece": f"{'Reçu' if e else 'Bon'} n° {m.numero}", "libelle": str(m.libelle),
+                       "tiers": m.tiers, "mode": m.get_mode_display(), "entree": m.montant if e else 0, "sortie": 0 if e else m.montant,
+                       "cle": (m.date, 1 if e else 2, m.numero)})
+    lignes.sort(key=lambda l: l["cle"])
+    ecolage = sum(l["entree"] for l in lignes if l["piece"].startswith("Reçu écolage"))
+    autres = sum(l["entree"] for l in lignes) - ecolage
+    sorties = sum(l["sortie"] for l in lignes)
+    par_mode = defaultdict(lambda: [0, 0])
+    for l in lignes:
+        par_mode[l["mode"]][0] += l["entree"]
+        par_mode[l["mode"]][1] += l["sortie"]
+    totaux = {"ecolage": ecolage, "autres_entrees": autres, "entrees": ecolage + autres, "sorties": sorties,
+              "solde": ecolage + autres - sorties}
+    return lignes, totaux, sorted((mode, e, s, e - s) for mode, (e, s) in par_mode.items())

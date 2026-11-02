@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}Journal de caisse{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">Journal de caisse</h1>
+<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-4"><label class="form-label small" for="debut">Du</label><input class="form-control" type="date" id="debut" name="debut" value="{{ debut|date:'Y-m-d' }}"></div>
+  <div class="col-md-4"><label class="form-label small" for="fin">Au</label><input class="form-control" type="date" id="fin" name="fin" value="{{ fin|date:'Y-m-d' }}"></div>
+  <div class="col-md-4 d-flex align-items-end gap-2"><button class="btn btn-outline-primary w-100">Afficher</button>
+    <button class="btn btn-outline-secondary w-100" type="button" onclick="window.print()">Imprimer</button></div>
+</form>
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md"><div class="card"><div class="card-body py-2"><div class="small text-muted">Écolage</div><strong>{{ totaux.ecolage|fcfa }}</strong></div></div></div>
+  <div class="col-6 col-md"><div class="card"><div class="card-body py-2"><div class="small text-muted">Autres entrées</div><strong>{{ totaux.autres_entrees|fcfa }}</strong></div></div></div>
+  <div class="col-6 col-md"><div class="card"><div class="card-body py-2"><div class="small text-muted">Sorties</div><strong class="text-danger">−{{ totaux.sorties|fcfa }}</strong></div></div></div>
+  <div class="col-6 col-md"><div class="card border-primary"><div class="card-body py-2"><div class="small text-muted">Solde de la période</div><strong>{{ totaux.solde|fcfa }}</strong></div></div></div>
+</div>
+<div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+  <thead class="table-light"><tr><th>Date</th><th>Pièce</th><th>Libellé</th><th>Tiers</th><th>Mode</th><th class="text-end">Entrée</th><th class="text-end">Sortie</th><th class="text-end">Solde</th></tr></thead>
+  <tbody>{% for l in lignes %}
+    <tr><td>{{ l.date|date:"d/m/Y" }}</td><td class="text-nowrap">{{ l.piece }}</td><td>{{ l.libelle }}</td><td>{{ l.tiers }}</td><td>{{ l.mode }}</td>
+      <td class="text-end">{% if l.entree %}{{ l.entree|fcfa }}{% endif %}</td><td class="text-end text-danger">{% if l.sortie %}{{ l.sortie|fcfa }}{% endif %}</td>
+      <td class="text-end">{{ l.solde|fcfa }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="text-center text-muted py-4">Aucune opération sur la période.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% if par_mode %}<div class="card"><div class="card-header">Par mode de paiement</div><table class="table table-sm mb-0">
+  <thead class="table-light"><tr><th>Mode</th><th class="text-end">Entrées</th><th class="text-end">Sorties</th><th class="text-end">Solde</th></tr></thead>
+  <tbody>{% for mode, e, s, d in par_mode %}<tr><td>{{ mode }}</td><td class="text-end">{{ e|fcfa }}</td><td class="text-end">{{ s|fcfa }}</td>
+    <td class="text-end">{{ d|fcfa }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<p class="small text-muted mt-2">Les opérations annulées sont exclues.</p>
+{% endblock %}
