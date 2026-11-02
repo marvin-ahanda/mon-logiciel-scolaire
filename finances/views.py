@@ -103,7 +103,8 @@ def compte_eleve(request, pk):
 
     return render(request, "finances/compte.html", {
         "ins": ins, "compte": c, "form_p": form_p, "form_r": form_r, "form_rb": form_rb, "action": action,
-        "paiements": Paiement.objects.filter(inscription=ins).select_related("rubrique", "saisi_par", "annule_par"),
+        "paiements": [(p, p.annulable_par(request.user)) for p in
+                      Paiement.objects.filter(inscription=ins).select_related("rubrique", "saisi_par", "annule_par")],
         "reductions": Reduction.objects.filter(inscription=ins).select_related("rubrique"),
         "remboursements": Remboursement.objects.filter(inscription=ins),
         "form_annulation": AnnulationForm(), "peut_decider": admin,
@@ -111,11 +112,13 @@ def compte_eleve(request, pk):
 
 
 @require_POST
-@admin_requis
+@role_requis(peut_encaisser)
 def annuler_paiement(request, pk):
     p = get_object_or_404(Paiement, pk=pk)
     form = AnnulationForm(request.POST)
     try:
+        if not p.annulable_par(request.user):
+            raise ValidationError("Vous ne pouvez annuler que vos propres paiements enregistrés aujourd'hui.")
         if not form.is_valid():
             raise ValidationError("Le motif d'annulation est obligatoire.")
         p.annuler(request.user, form.cleaned_data["motif"])

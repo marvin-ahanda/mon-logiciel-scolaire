@@ -5,7 +5,9 @@ from django.urls import reverse
 from finances.models import Paiement, Reduction, Remboursement
 from finances.tests import FinancesMixin
 
-from .roles import ADMINISTRATION, CAISSE, est_administration, est_caissier, libelle_role
+from discipline.models import Absence, Incident, Infraction, Sanction
+
+from .roles import ADMINISTRATION, CAISSE, SURVEILLANCE, est_administration, est_caissier, est_surveillant, libelle_role
 
 
 class RolesMixin(FinancesMixin):
@@ -55,13 +57,46 @@ class CaissierTests(RolesMixin, TestCase):
 
     def test_decisions_financieres_refusees_cote_serveur(self):
         self.payer(self.ins[0], self.t1, 20000)
-        p = Paiement.objects.get()
         self.client.post(self.url_compte(), {"action": "reduction", "r-rubrique": self.t1.pk, "r-montant": 1000, "r-motif": "x"})
         self.client.post(self.url_compte(), {"action": "remboursement", "rb-montant": 1000, "rb-motif": "x"})
-        self.client.post(reverse("annuler_paiement", args=[p.pk]), {"motif": "erreur"})
-        p.refresh_from_db()
-        self.assertFalse(Reduction.objects.exists() or Remboursement.objects.exists() or p.annule)
+        self.assertFalse(Reduction.objects.exists() or Remboursement.objects.exists())
         self.assertNotContains(self.client.get(self.url_compte()), "Réduction des frais")
+
+    def test_annule_son_propre_paiement_du_jour(self):
+        self.payer(self.ins[0], self.t1, 20000)
+        p = Paiement.objects.get()
+        self.assertContains(self.client.get(self.url_compte()), "Confirmer l'annulation")
+        self.client.post(reverse("annuler_paiement", args=[p.pk]), {"motif": "Erreur de montant"})
+        p.refresh_from_db()
+        self.assertTrue(p.annule)
+        self.assertEqual(p.annule_par, self.caissier)
+
+    def test_ne_peut_pas_annuler_le_paiement_d_un_autre(self):
+        p = Paiement.enregistrer(inscription=self.ins[0], rubrique=self.t1, montant=5000, saisi_par=self.admin)
+        self.assertNotContains(self.client.get(self.url_compte()), "Confirmer l'annulation")
+        self.client.post(reverse("annuler_paiement", args=[p.pk]), {"motif": "x"})
+        p.refresh_from_db()
+        self.assertFalse(p.annule)
+
+    def test_ne_peut_pas_annuler_un_paiement_d_un_jour_precedent(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.payer(self.ins[0], self.t1, 20000)
+        p = Paiement.objects.get()
+        Paiement.objects.filter(pk=p.pk).update(saisi_le=timezone.now() - timedelta(days=1))
+        self.client.post(reverse("annuler_paiement", args=[p.pk]), {"motif": "x"})
+        p.refresh_from_db()
+        self.assertFalse(p.annule)
+
+    def test_date_du_recu_antidatee_ne_change_rien(self):
+        """La règle se fonde sur l'heure d'enregistrement : un reçu daté d'hier mais saisi aujourd'hui reste annulable."""
+        from datetime import timedelta
+        from django.utils import timezone
+        self.payer(self.ins[0], self.t1, 20000, date=timezone.localdate() - timedelta(days=3))
+        p = Paiement.objects.get()
+        self.client.post(reverse("annuler_paiement", args=[p.pk]), {"motif": "Mauvais élève"})
+        p.refresh_from_db()
+        self.assertTrue(p.annule)
 
     def test_autres_modules_refuses(self):
         for nom in ["tarifs", "saisie", "resultats", "bulletins", "eleves", "classes", "appel", "utilisateurs"]:
@@ -150,3 +185,46 @@ class GestionComptesTests(RolesMixin, TestCase):
         r = self.client.get(reverse("utilisateurs"))
         self.assertContains(r, "Caissier")
         self.assertContains(r, "Enseignant")
+
+
+class SurveillantTests(RolesMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.surveillant = User.objects.create_user("sg", password="Mot2Passe!x")
+        self.surveillant.groups.add(Group.objects.get(name=SURVEILLANCE))
+        self.client.force_login(self.surveillant)
+
+    def test_role(self):
+        self.assertTrue(est_surveillant(self.surveillant))
+        self.assertEqual(libelle_role(self.surveillant), "Surveillant général")
+        self.assertRedirects(self.client.get(reverse("accueil")), reverse("appel"))
+
+    def test_gere_la_discipline(self):
+        from datetime import date
+        url = f"{reverse('appel')}?classe={self.classe.pk}&sequence={self.s1.pk}&date=2025-10-06"
+        self.client.post(url, {f"nj_{self.ins[0].id}": "2", f"retard_{self.ins[1].id}": "on"})
+        self.assertEqual(Absence.objects.get().saisi_par, self.surveillant)
+        inf = Infraction.objects.create(libelle="Retard répété", sanction=Sanction.objects.create(libelle="Avertissement", points_perdus=1))
+        self.client.post(f"{reverse('incidents')}?classe={self.classe.pk}&sequence={self.s1.pk}",
+                         {"inscription": self.ins[0].id, "date": "2025-10-07", "infraction": inf.id})
+        self.assertTrue(Incident.objects.exists())
+        self.assertEqual(self.client.get(reverse("suivi_discipline"), {"classe": self.classe.pk, "periode": "a"}).status_code, 200)
+
+    def test_pas_d_acces_au_reste(self):
+        for nom in ["caisse", "saisie", "bulletins", "eleves", "tarifs", "utilisateurs", "exercices"]:
+            with self.subTest(page=nom):
+                self.assertEqual(self.client.get(reverse(nom)).status_code, 302)
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 302)
+
+    def test_menu(self):
+        r = self.client.get(reverse("appel"))
+        self.assertContains(r, "Suivi disciplinaire")
+        self.assertNotContains(r, "Barème de la note de discipline")   # paramétrage : administration
+        self.assertNotContains(r, "Saisie des notes")
+
+    def test_creation_par_l_administration(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("utilisateur_creer"), {"username": "sg2", "is_active": "on", "role": SURVEILLANCE,
+                                                         "mot_de_passe": "Tres-Long-2025!"})
+        u = User.objects.get(username="sg2")
+        self.assertTrue(est_surveillant(u) and not u.is_staff)

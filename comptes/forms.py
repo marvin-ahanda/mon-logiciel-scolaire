@@ -5,7 +5,7 @@ from django.db.models import Q
 
 from scolarite.forms import BootstrapMixin
 
-from .roles import ADMINISTRATION, CAISSE, ROLES, est_administration
+from .roles import ADMINISTRATION, CAISSE, ROLES, SURVEILLANCE, est_administration
 
 
 def administrateurs_actifs():
@@ -28,8 +28,9 @@ class UtilisateurForm(BootstrapMixin, forms.ModelForm):
         self.demandeur = demandeur
         u = self.instance
         if u.pk:
+            noms = set(u.groups.values_list("name", flat=True))
             self.fields["role"].initial = ADMINISTRATION if est_administration(u) else (
-                CAISSE if u.groups.filter(name=CAISSE).exists() else "")
+                CAISSE if CAISSE in noms else SURVEILLANCE if SURVEILLANCE in noms else "")
             if u.is_superuser:
                 self.fields["role"].disabled = True
                 self.fields["role"].help_text = "Superutilisateur : toujours administration."
@@ -65,7 +66,7 @@ class UtilisateurForm(BootstrapMixin, forms.ModelForm):
             u.is_staff = role == ADMINISTRATION        # accès à l'administration avancée
         u.save()
         if not u.is_superuser:
-            u.groups.remove(*Group.objects.filter(name__in=[ADMINISTRATION, CAISSE]))
+            u.groups.remove(*Group.objects.filter(name__in=[ADMINISTRATION, CAISSE, SURVEILLANCE]))
             if role:
                 u.groups.add(Group.objects.get(name=role))
         return u

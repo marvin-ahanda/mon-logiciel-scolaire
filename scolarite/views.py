@@ -8,7 +8,7 @@ from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, ListView, UpdateView
 
-from comptes.roles import est_administration, est_caissier
+from comptes.roles import est_administration, est_caissier, est_surveillant
 
 from .forms import AttributionForm, ClasseForm, EleveForm, EnseignantForm, ExerciceForm, MatiereForm
 from .models import Attribution, Classe, Eleve, Enseignant, Exercice, Inscription, Matiere, Sequence
@@ -36,8 +36,11 @@ def admin_requis(vue):
 
 @login_required
 def accueil(request):
-    if est_caissier(request.user) and not est_administration(request.user):
-        return redirect("caisse")
+    if not est_administration(request.user):
+        if est_caissier(request.user):
+            return redirect("caisse")
+        if est_surveillant(request.user):
+            return redirect("appel")
     exercice = Exercice.actif_courant()
     ctx = {"exercice": exercice}
     if exercice:

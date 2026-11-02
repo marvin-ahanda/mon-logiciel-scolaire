@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import Group, User
 
-from comptes.roles import ADMINISTRATION, CAISSE
+from comptes.roles import ADMINISTRATION, CAISSE, SURVEILLANCE
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -105,6 +105,9 @@ class Command(BaseCommand):
         directeur = User.objects.create_user("dir.etudes", password="Demo-Directeur-2025", first_name="Directeur",
                                              last_name="des études", is_staff=True)
         directeur.groups.add(Group.objects.get(name=ADMINISTRATION))
+        surveillant = User.objects.create_user("surveillant", password="Demo-Surveillant-2025", first_name="Surveillant",
+                                               last_name="général")
+        surveillant.groups.add(Group.objects.get(name=SURVEILLANCE))
         for ins in Inscription.objects.filter(exercice=ex).select_related("classe"):
             jour = debut
             for r in rubriques:
@@ -119,4 +122,4 @@ class Command(BaseCommand):
                 Reduction.objects.create(inscription=ins, rubrique=rubriques[2], montant=10000, motif="Enfant du personnel", saisi_par=caissier)
         self.stdout.write(self.style.SUCCESS(
             f"Données de démonstration créées : {len(classes)} classes, {n} élèves, {len(profs)} enseignants.\n"
-            "Comptes : admin / Demo-Admin-2025 ; dir.etudes / Demo-Directeur-2025 ; caisse / Demo-Caisse-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))
+            "Comptes : admin / Demo-Admin-2025 ; dir.etudes / Demo-Directeur-2025 ; caisse / Demo-Caisse-2025 ; surveillant / Demo-Surveillant-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))

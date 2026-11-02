@@ -88,6 +88,17 @@ class Paiement(OperationEleve):
         dernier = cls.objects.filter(exercice=exercice).aggregate(m=Max("numero_recu"))["m"] or 0
         return cls.objects.create(exercice=exercice, numero_recu=dernier + 1, **champs)
 
+    def annulable_par(self, utilisateur):
+        """Administration : tout paiement. Caissier : ses propres paiements, enregistrés le jour même
+        (heure réelle d'enregistrement, et non la date portée sur le reçu, qui peut être antérieure)."""
+        from comptes.roles import est_administration, est_caissier
+        if self.annule:
+            return False
+        if est_administration(utilisateur):
+            return True
+        return (est_caissier(utilisateur) and self.saisi_par_id == utilisateur.id
+                and timezone.localdate(self.saisi_le) == timezone.localdate())
+
     def annuler(self, utilisateur, motif):
         if self.annule:
             raise ValidationError("Ce paiement est déjà annulé.")

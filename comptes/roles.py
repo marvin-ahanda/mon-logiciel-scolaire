@@ -2,7 +2,8 @@
 
 - Administration : le principal et ses proches collaborateurs (directeurs des études…). Tous les droits.
 - Caissier : encaissement de l'écolage, reçus, situation des classes, journal. Les réductions, remboursements,
-  annulations et tarifs restent des décisions de l'administration.
+  tarifs restent des décisions de l'administration ; le caissier peut annuler ses propres paiements du jour.
+- Surveillant général : discipline (appel du jour, infractions, suivi disciplinaire).
 - Enseignant : saisie des notes de ses matières, résultats et bulletins de ses classes
   (compte lié à une fiche enseignant).
 
@@ -17,7 +18,8 @@ from django.shortcuts import redirect
 
 ADMINISTRATION = "Administration"
 CAISSE = "Caisse"
-ROLES = [(ADMINISTRATION, "Administration (tous les droits)"), (CAISSE, "Caissier")]
+SURVEILLANCE = "Surveillance"
+ROLES = [(ADMINISTRATION, "Administration (tous les droits)"), (CAISSE, "Caissier"), (SURVEILLANCE, "Surveillant général")]
 
 
 def _groupes(user):
@@ -34,6 +36,14 @@ def est_caissier(user):
     return user.is_authenticated and user.is_active and CAISSE in _groupes(user)
 
 
+def est_surveillant(user):
+    return user.is_authenticated and user.is_active and SURVEILLANCE in _groupes(user)
+
+
+def peut_gerer_discipline(user):
+    return est_administration(user) or est_surveillant(user)
+
+
 def est_enseignant(user):
     return user.is_authenticated and getattr(user, "enseignant", None) is not None
 
@@ -47,6 +57,8 @@ def libelle_role(user):
         return "Administration"
     if est_caissier(user):
         return "Caissier"
+    if est_surveillant(user):
+        return "Surveillant général"
     if est_enseignant(user):
         return "Enseignant"
     return "Aucun rôle"

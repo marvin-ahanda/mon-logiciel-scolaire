@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from notes.services import inscriptions_classe, periode_depuis_code, periodes_exercice
 from scolarite.forms import BootstrapMixin
 from scolarite.models import Classe, Exercice, Sequence
-from scolarite.views import admin_requis
+from comptes.roles import peut_gerer_discipline, role_requis
 
 from .models import Absence, Incident, Infraction, ParametresDiscipline, Retard
 from .services import bilans_discipline
@@ -34,7 +34,7 @@ def _entier_heures(brut):
     return int(brut)
 
 
-@admin_requis
+@role_requis(peut_gerer_discipline)
 def appel(request):
     """Saisie journalière : absences (heures non justifiées / justifiées) et retards d'une classe."""
     exercice = _exercice(request)
@@ -119,7 +119,7 @@ class IncidentForm(BootstrapMixin, forms.ModelForm):
         self.fields["infraction"].label_from_instance = lambda i: f"{i.libelle} → {i.sanction}"
 
 
-@admin_requis
+@role_requis(peut_gerer_discipline)
 def incidents(request):
     exercice = _exercice(request)
     if not exercice:
@@ -149,7 +149,7 @@ def incidents(request):
 
 
 @require_POST
-@admin_requis
+@role_requis(peut_gerer_discipline)
 def incident_supprimer(request, pk):
     inc = get_object_or_404(Incident, pk=pk)
     if inc.sequence.verrouillee:
@@ -163,7 +163,7 @@ def incident_supprimer(request, pk):
     return redirect("incidents")
 
 
-@admin_requis
+@role_requis(peut_gerer_discipline)
 def suivi(request):
     """Suivi disciplinaire d'une classe sur une période (séquence, trimestre ou année)."""
     exercice = _exercice(request)

@@ -4,7 +4,7 @@
 <h1 class="h3 mb-1">Suivi disciplinaire</h1>
 <p class="text-muted small">Note de discipline = {{ parametres.note_max }} − (retards × {{ parametres.points_par_retard }}
   + heures non justifiées × {{ parametres.points_par_heure_absence }} + points des sanctions).
-  <a href="{% url 'admin:discipline_parametresdiscipline_change' parametres.pk %}">Modifier le barème</a></p>
+  {% if est_admin %}<a href="{% url 'admin:discipline_parametresdiscipline_change' parametres.pk %}">Modifier le barème</a>{% endif %}</p>
 {% include "notes/_choix.html" %}
 {% if classe %}
 <div class="d-flex justify-content-between align-items-center mb-2">

@@ -3,8 +3,8 @@
 {% block contenu %}
 <h1 class="h3 mb-3">Autres cas d'infraction à la discipline</h1>
 {% if aucune_infraction %}<div class="alert alert-warning">Aucun type d'infraction n'est défini.
-  Créez d'abord les <a href="{% url 'admin:discipline_sanction_changelist' %}">sanctions</a> puis les
-  <a href="{% url 'admin:discipline_infraction_changelist' %}">types d'infractions</a>.</div>{% endif %}
+  {% if est_admin %}Créez d'abord les <a href="{% url 'admin:discipline_sanction_changelist' %}">sanctions</a> puis les
+  <a href="{% url 'admin:discipline_infraction_changelist' %}">types d'infractions</a>.{% else %}L'administration doit d'abord les définir.{% endif %}</div>{% endif %}
 <form class="row g-2 mb-3" method="get">
   <div class="col-md-5"><select class="form-select" name="classe" required aria-label="Classe"><option value="">Classe…</option>
     {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>

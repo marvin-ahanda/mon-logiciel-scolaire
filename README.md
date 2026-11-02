@@ -25,22 +25,27 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 
 ## Rôles d'accès
 
-| | Administration | Caissier | Enseignant |
-|---|---|---|---|
-| Paramètres, élèves, enseignants, discipline, comptes utilisateurs | ✅ | — | — |
-| Encaisser, reçus, situation des classes, journal des encaissements | ✅ | ✅ | — |
-| Réductions, remboursements, annulations de paiements, tarifs | ✅ | — | — |
-| Saisie des notes | ✅ toutes | — | ✅ ses matières |
-| Résultats et bulletins | ✅ | — | ✅ ses classes |
+| | Administration | Caissier | Surveillant général | Enseignant |
+|---|---|---|---|---|
+| Paramètres, élèves, enseignants, comptes utilisateurs | ✅ | — | — | — |
+| Discipline : appel du jour, infractions, suivi | ✅ | — | ✅ | — |
+| Paramétrage de la discipline (sanctions, barème) | ✅ | — | — | — |
+| Encaisser, reçus, situation des classes, journal des encaissements | ✅ | ✅ | — | — |
+| Annuler un paiement | ✅ tous | ✅ les siens, le jour même | — | — |
+| Réductions, remboursements, tarifs | ✅ | — | — | — |
+| Saisie des notes | ✅ toutes | — | — | ✅ ses matières |
+| Résultats et bulletins | ✅ | — | — | ✅ ses classes |
 
 - **Administration** : le principal et ses proches collaborateurs (directeurs des études…), tous les droits.
-- **Caissier** : encaisse mais ne peut ni réduire, ni rembourser, ni annuler (séparation des tâches contre la fraude).
+- **Caissier** : encaisse ; ne peut ni réduire ni rembourser. Il peut annuler ses propres paiements le jour même
+  (heure réelle d'enregistrement, motif obligatoire) ; au-delà, l'annulation revient à l'administration.
+- **Surveillant général** : discipline au quotidien ; le paramétrage (sanctions, barème) reste à l'administration.
 - **Enseignant** : compte créé depuis la fiche de l'enseignant.
 
-Les comptes Administration et Caissier se gèrent dans *Paramètres → Comptes utilisateurs et rôles*
+Les comptes Administration, Caissier et Surveillant général se gèrent dans *Paramètres → Comptes utilisateurs et rôles*
 (création, changement de rôle, désactivation, nouveau mot de passe). Garde-fous : on ne peut ni retirer
 ses propres droits, ni désactiver le dernier compte d'administration actif. Techniquement, les rôles sont
-des groupes Django (« Administration », « Caisse ») ; un superutilisateur a toujours tous les droits.
+des groupes Django (« Administration », « Caisse », « Surveillance ») ; un superutilisateur a toujours tous les droits.
 
 ## Règles reprises de l'original
 
@@ -93,7 +98,7 @@ Ouvrez ensuite http://127.0.0.1:8000.
 
 **Données de démonstration** (base vide uniquement, données fictives) : `python manage.py donnees_demo`,
 puis connexion avec `admin` / `Demo-Admin-2025` ou `dir.etudes` / `Demo-Directeur-2025` (administration),
-`caisse` / `Demo-Caisse-2025` (caissier) ou `prof.math` / `Demo-Prof-2025` (enseignant).
+`caisse` / `Demo-Caisse-2025` (caissier), `surveillant` / `Demo-Surveillant-2025` (surveillant général) ou `prof.math` / `Demo-Prof-2025` (enseignant).
 
 **Tests :** `python manage.py test`
 
