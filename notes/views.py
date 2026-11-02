@@ -1,12 +1,12 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from comptes.roles import est_enseignant, role_requis
 from scolarite.models import Attribution, Classe, Etablissement, Exercice, Sequence
 
 from .models import Note
@@ -39,7 +39,7 @@ def _lire_note(brut):
     return v.quantize(Decimal("0.01"))
 
 
-@login_required
+@role_requis(est_administration, est_enseignant)
 def saisie(request):
     exercice = _exercice_ou_redirection(request)
     if not exercice:
@@ -135,7 +135,7 @@ def _choix_classe_periode(request, gabarit):
     return ctx, None
 
 
-@login_required
+@role_requis(est_administration, est_enseignant)
 def resultats(request):
     ctx, reponse = _choix_classe_periode(request, "notes/resultats.html")
     if reponse:
@@ -144,7 +144,7 @@ def resultats(request):
     return render(request, "notes/resultats.html", ctx)
 
 
-@login_required
+@role_requis(est_administration, est_enseignant)
 def bulletins(request):
     ctx, reponse = _choix_classe_periode(request, "notes/bulletins_choix.html")
     if reponse:

@@ -3,16 +3,12 @@
 from collections import defaultdict
 from dataclasses import dataclass
 
-from scolarite.models import Attribution, Inscription
-
+from comptes.roles import est_administration  # règle centralisée des rôles (réexportée)
 from discipline.services import bilans_discipline
+from scolarite.models import Attribution, Inscription
 
 from .calculs import calculer_resultats, notes_composees
 from .models import BaremeDistinction, Note
-
-
-def est_administration(user):
-    return user.is_authenticated and (user.is_staff or user.is_superuser)
 
 
 def enseignant_de(user):

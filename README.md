@@ -23,8 +23,29 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Écolage | Rubriques et tarifs par niveau et statut (ancien / nouvel élève), caisse avec reçus numérotés (montant en lettres, 2 exemplaires), espèces, Orange Money, MTN Mobile Money, Campost ; réductions, remboursements, annulation tracée ; insolvables / solvables par classe et rubrique ; journal des encaissements |
 | Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe) : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
 
-Droits d'accès : l'administration (`is_staff`) gère tout. Un enseignant saisit uniquement les notes
-de ses matières, et consulte résultats et bulletins des classes où il enseigne.
+## Rôles d'accès
+
+| | Administration | Caissier | Surveillant général | Enseignant |
+|---|---|---|---|---|
+| Paramètres, élèves, enseignants, comptes utilisateurs | ✅ | — | — | — |
+| Discipline : appel du jour, infractions, suivi | ✅ | — | ✅ | — |
+| Paramétrage de la discipline (sanctions, barème) | ✅ | — | — | — |
+| Encaisser, reçus, situation des classes, journal des encaissements | ✅ | ✅ | — | — |
+| Annuler un paiement | ✅ tous | ✅ les siens, le jour même | — | — |
+| Réductions, remboursements, tarifs | ✅ | — | — | — |
+| Saisie des notes | ✅ toutes | — | — | ✅ ses matières |
+| Résultats et bulletins | ✅ | — | — | ✅ ses classes |
+
+- **Administration** : le principal et ses proches collaborateurs (directeurs des études…), tous les droits.
+- **Caissier** : encaisse ; ne peut ni réduire ni rembourser. Il peut annuler ses propres paiements le jour même
+  (heure réelle d'enregistrement, motif obligatoire) ; au-delà, l'annulation revient à l'administration.
+- **Surveillant général** : discipline au quotidien ; le paramétrage (sanctions, barème) reste à l'administration.
+- **Enseignant** : compte créé depuis la fiche de l'enseignant.
+
+Les comptes Administration, Caissier et Surveillant général se gèrent dans *Paramètres → Comptes utilisateurs et rôles*
+(création, changement de rôle, désactivation, nouveau mot de passe). Garde-fous : on ne peut ni retirer
+ses propres droits, ni désactiver le dernier compte d'administration actif. Techniquement, les rôles sont
+des groupes Django (« Administration », « Caisse », « Surveillance ») ; un superutilisateur a toujours tous les droits.
 
 ## Règles reprises de l'original
 
@@ -76,7 +97,8 @@ python3 -m venv .venv
 Ouvrez ensuite http://127.0.0.1:8000.
 
 **Données de démonstration** (base vide uniquement, données fictives) : `python manage.py donnees_demo`,
-puis connexion avec `admin` / `Demo-Admin-2025`, `caisse` / `Demo-Caisse-2025` ou `prof.math` / `Demo-Prof-2025`.
+puis connexion avec `admin` / `Demo-Admin-2025` ou `dir.etudes` / `Demo-Directeur-2025` (administration),
+`caisse` / `Demo-Caisse-2025` (caissier), `surveillant` / `Demo-Surveillant-2025` (surveillant général) ou `prof.math` / `Demo-Prof-2025` (enseignant).
 
 **Tests :** `python manage.py test`
 

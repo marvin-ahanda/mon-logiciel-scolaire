@@ -8,7 +8,7 @@ from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, ListView, UpdateView
 
-from notes.services import est_administration
+from comptes.roles import est_administration, est_caissier, est_surveillant
 
 from .forms import AttributionForm, ClasseForm, EleveForm, EnseignantForm, ExerciceForm, MatiereForm
 from .models import Attribution, Classe, Eleve, Enseignant, Exercice, Inscription, Matiere, Sequence
@@ -17,6 +17,12 @@ from .models import Attribution, Classe, Eleve, Enseignant, Exercice, Inscriptio
 class AdminRequisMixin(LoginRequiredMixin, UserPassesTestMixin):
     def test_func(self):
         return est_administration(self.request.user)
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:      # même comportement que les vues fonctions
+            messages.error(self.request, "Accès réservé à l'administration.")
+            return redirect("accueil")
+        return super().handle_no_permission()
 
 
 def admin_requis(vue):
@@ -30,6 +36,11 @@ def admin_requis(vue):
 
 @login_required
 def accueil(request):
+    if not est_administration(request.user):
+        if est_caissier(request.user):
+            return redirect("caisse")
+        if est_surveillant(request.user):
+            return redirect("appel")
     exercice = Exercice.actif_courant()
     ctx = {"exercice": exercice}
     if exercice:
