@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titre %}Cartes scolaires{% if classe %} — {{ classe }}{% endif %}{% endblock %}
+{% block contenu %}
+<div class="no-print">
+  <h1 class="h3 mb-3">Cartes scolaires</h1>
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-md-4"><select class="form-select" name="classe" required aria-label="Classe" onchange="this.form.eleve && (this.form.eleve.value='')"><option value="">Classe…</option>
+      {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+    {% if eleves_classe %}<div class="col-md-4"><select class="form-select" name="eleve" aria-label="Élève"><option value="">Toute la classe</option>
+      {% for i in eleves_classe %}<option value="{{ i.eleve_id }}" {% if i.eleve_id|stringformat:"s" == request.GET.eleve %}selected{% endif %}>{{ i.eleve }}</option>{% endfor %}</select></div>{% endif %}
+    <div class="col-md-2"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+  </form>
+  {% if cartes %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <button class="btn btn-primary" onclick="window.print()">Imprimer {{ cartes|length }} carte{{ cartes|length|pluralize }}</button>
+    <span class="small text-muted">Format carte bancaire (85,6 × 54 mm), 10 par page A4. Imprimez à 100 % (sans « ajuster à la page »).</span>
+  </div>
+  {% if sans_photo %}<div class="alert alert-warning small">{{ sans_photo }} élève{{ sans_photo|pluralize }} sans photo : un cadre vide sera imprimé.
+    Ajoutez les photos depuis la fiche de chaque élève.</div>{% endif %}
+  {% endif %}
+</div>
+{% if cartes %}
+{% for page in pages %}
+<div class="planche-cartes">
+  {% for i in page %}
+  <article class="carte-scolaire">
+    <header class="carte-entete">
+      <div class="carte-etab">{{ etablissement.nom|default:"Établissement" }}</div>
+      <div class="carte-titre">CARTE SCOLAIRE / SCHOOL ID CARD — {{ exercice }}</div>
+    </header>
+    <div class="carte-corps">
+      <div class="carte-photo">{% if i.eleve.photo %}<img src="{% url 'photo_eleve' i.eleve.pk %}" alt="{{ i.eleve }}">{% endif %}</div>
+      <dl class="carte-infos">
+        <dt>Nom / Name</dt><dd><strong>{{ i.eleve.nom }}</strong> {{ i.eleve.prenom }}</dd>
+        <dt>Matricule</dt><dd>{{ i.eleve.matricule }}</dd>
+        <dt>Classe / Class</dt><dd>{{ i.classe }}</dd>
+        <dt>Né(e) le / Born</dt><dd>{{ i.eleve.date_naissance|date:"d/m/Y"|default:"—" }}{% if i.eleve.lieu_naissance %} à {{ i.eleve.lieu_naissance }}{% endif %}</dd>
+        <dt>Sexe / Sex</dt><dd>{{ i.eleve.sexe }}</dd>
+        {% if i.eleve.telephone_parent %}<dt>Urgence</dt><dd>{{ i.eleve.telephone_parent }}</dd>{% endif %}
+      </dl>
+    </div>
+    <footer class="carte-pied">Le chef d'établissement{% if etablissement.nom_chef %} — {{ etablissement.nom_chef }}{% endif %}</footer>
+  </article>
+  {% endfor %}
+</div>
+{% endfor %}
+{% elif classe %}<div class="alert alert-info">Aucun élève inscrit dans cette classe.</div>{% endif %}
+{% endblock %}

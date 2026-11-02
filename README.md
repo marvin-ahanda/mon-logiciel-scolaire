@@ -19,6 +19,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Élèves | Fiche avec photo, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
+| Cartes scolaires | Cartes au format carte bancaire (85,6 × 54 mm), 10 par page A4, avec photo, bilingues ; par classe ou pour un élève |
 | Emploi du temps | Créneaux horaires (avec pauses), grille par classe (matière, enseignant, salle), emploi du temps de chaque enseignant, impression ; conflits d'enseignant et de salle refusés |
 | Import / export Excel | Import des élèves et des notes (modèles fournis, aperçu ligne par ligne, enregistrement tout ou rien) ; export des élèves, des résultats, de la situation financière et du journal des encaissements |
 | Discipline | Appel du jour (heures d'absence non justifiées et justifiées avec motif, retards), infractions liées à des sanctions, suivi disciplinaire par période, note de discipline sur les bulletins |
@@ -154,4 +155,4 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, cartes scolaires, statistiques avancées.
+Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, statistiques avancées.
