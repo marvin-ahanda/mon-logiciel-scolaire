@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titre %}Matières — {{ classe }}{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-1">Matières et coefficients — {{ classe }}</h1>
+<p class="text-muted">Exercice {{ exercice }} · total des coefficients : <strong>{{ total_coef }}</strong></p>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card"><table class="table align-middle mb-0">
+    <thead class="table-light"><tr><th>Groupe</th><th>Matière</th><th>Enseignant</th><th class="text-end">Coef.</th><th></th></tr></thead>
+    <tbody>{% for a in attributions %}
+      <tr><td>{{ a.get_groupe_display }}</td><td>{{ a.matiere }}</td><td>{{ a.enseignant|default:"—" }}</td>
+        <td class="text-end">{{ a.coefficient }}</td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'attribution_modifier' a.pk %}">Modifier</a></td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Aucune matière pour cette classe.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+  <div class="col-lg-4"><div class="card"><div class="card-header">Ajouter une matière</div><div class="card-body">
+    <form method="post">{% csrf_token %}
+      {% for f in form %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+        {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+      <button class="btn btn-primary w-100 mt-2">Ajouter</button>
+    </form></div></div></div>
+</div>
+<a class="btn btn-link mt-3 px-0" href="{% url 'classes' %}">← Retour aux classes</a>
+{% endblock %}

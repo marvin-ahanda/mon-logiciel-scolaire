@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titre %}Accueil{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">{{ etablissement.nom|default:"OtourixSchool" }}</h1>
+{% if not exercice %}
+  <div class="alert alert-warning">Aucun exercice actif.
+    {% if est_admin %}<a href="{% url 'exercices' %}">Créez et activez un exercice</a> pour commencer.{% else %}Contactez l'administration.{% endif %}
+  </div>
+{% else %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card carte-stat"><div class="card-body"><div class="text-muted small">Élèves inscrits</div><div class="valeur">{{ nb_eleves }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card carte-stat"><div class="card-body"><div class="text-muted small">Classes</div><div class="valeur">{{ nb_classes }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card carte-stat"><div class="card-body"><div class="text-muted small">Enseignants</div><div class="valeur">{{ nb_enseignants }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card carte-stat"><div class="card-body"><div class="text-muted small">Matières</div><div class="valeur">{{ nb_matieres }}</div></div></div></div>
+</div>
+<div class="card"><div class="card-header">Séquences de l'exercice {{ exercice }}</div>
+  <ul class="list-group list-group-flush">
+    {% for s in sequences %}<li class="list-group-item d-flex justify-content-between">
+      <span>{{ s.libelle }} <span class="text-muted small">— trimestre {{ s.trimestre }}</span></span>
+      {% if s.verrouillee %}<span class="badge text-bg-secondary">verrouillée</span>{% else %}<span class="badge text-bg-success">ouverte</span>{% endif %}
+    </li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

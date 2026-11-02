@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block titre %}Bulletins — {{ classe }} — {{ periode.libelle }}{% endblock %}
+{% block contenu %}
+<div class="no-print">
+  <h1 class="h3 mb-3">Bulletins</h1>
+  {% include "notes/_choix.html" %}
+  <div class="d-flex gap-2 mb-3">
+    <button class="btn btn-primary" onclick="window.print()">Imprimer {{ resultats|length }} bulletin(s)</button>
+    <a class="btn btn-outline-secondary" href="{% url 'resultats' %}?classe={{ classe.pk }}&periode={{ periode.code }}">Voir les résultats</a>
+  </div>
+</div>
+{% for r in resultats %}
+<section class="bulletin">
+  <div class="entete">
+    <div><strong>{{ etablissement.nom|default:"Établissement" }}</strong><br>
+      {% if etablissement.devise %}<em>{{ etablissement.devise }}</em><br>{% endif %}
+      {{ etablissement.adresse }} {{ etablissement.ville }}{% if etablissement.telephone %} · Tél. {{ etablissement.telephone }}{% endif %}</div>
+    <div class="text-end">Année scolaire <strong>{{ exercice }}</strong><br>{% if periode.type == "sequence" %}{{ sequence.libelle }} — trimestre {{ sequence.trimestre }}{% else %}{{ periode.libelle }}{% endif %}</div>
+  </div>
+  <h2 class="text-center my-2">{{ periode.titre_bulletin }}</h2>
+  <table class="mb-2"><tr>
+    <td>Nom et prénom : <strong>{{ r.eleve }}</strong></td><td>Matricule : <strong>{{ r.eleve.matricule }}</strong></td>
+    <td>Sexe : {{ r.eleve.sexe }}</td></tr><tr>
+    <td>Né(e) le : {{ r.eleve.date_naissance|date:"d/m/Y"|default:"—" }} à {{ r.eleve.lieu_naissance|default:"—" }}</td>
+    <td>Classe : <strong>{{ classe }}</strong></td><td>Effectif : {{ stats.effectif }}</td></tr></table>
+  <table>
+    <thead><tr><th>Matière</th><th>Enseignant</th>{% for e in entetes_details %}<th>{{ e }}</th>{% endfor %}<th>{% if periode.type == "sequence" %}Note/20{% elif periode.type == "trimestre" %}Note trim.{% else %}Note ann.{% endif %}</th><th>Coef.</th><th>Note × coef.</th><th>Rang</th><th>Appréciation</th><th>Compétence</th></tr></thead>
+    <tbody>
+    {% for g in r.groupes %}
+      {% for l in g.lignes %}<tr><td>{{ l.matiere }}</td><td>{{ l.enseignant }}</td>
+        {% for d in l.details %}<td class="num">{{ d|default_if_none:"—" }}</td>{% endfor %}
+        <td class="num"><strong>{{ l.note|default_if_none:"NE" }}</strong></td><td class="num">{{ l.coefficient }}</td>
+        <td class="num">{{ l.points|default_if_none:"" }}</td>
+        <td class="num">{% if l.rang %}{{ l.rang }}{% if l.ex_aequo %} ex{% endif %}{% endif %}</td>
+        <td>{{ l.appreciation }}</td><td>{{ l.competence }}</td></tr>{% endfor %}
+      <tr class="sous-total"><td colspan="{{ entetes_details|length|add:3 }}">Groupe {{ g.groupe }}</td><td class="num">{{ g.total_coefficients }}</td>
+        <td class="num">{{ g.total_points }}</td><td colspan="3">Moyenne du groupe : {{ g.moyenne|default_if_none:"—" }}</td></tr>
+    {% endfor %}
+    <tr class="sous-total"><td colspan="{{ entetes_details|length|add:3 }}">TOTAL</td><td class="num">{{ r.total_coefficients }}</td><td class="num">{{ r.total_points }}</td><td colspan="3"></td></tr>
+    </tbody>
+  </table>
+  <table class="mt-2"><tr>
+    <td>Moyenne : <strong>{% if r.moyenne is not None %}{{ r.moyenne }} / 20{% elif r.moyenne_non_classee is not None %}{{ r.moyenne_non_classee }} / 20 (non classé){% else %}NC{% endif %}</strong></td>
+    <td>Rang : <strong>{% if r.rang %}{{ r.rang }}{% if r.ex_aequo %} ex{% endif %}{% else %}—{% endif %}</strong> / {{ stats.effectif_classe }}</td>
+    <td>Appréciation : <strong>{{ r.appreciation|default:"—" }}</strong></td></tr><tr>
+    <td>Moyenne de la classe : {{ stats.moyenne_classe|default_if_none:"—" }}</td>
+    <td>Plus forte : {{ stats.moyenne_max|default_if_none:"—" }} · plus faible : {{ stats.moyenne_min|default_if_none:"—" }}</td>
+    <td>Distinction : <strong>{{ r.distinctions|join:", "|default:"—" }}</strong></td></tr>
+    {% if periode.type == "annee" %}<tr>
+    <td colspan="2">Moyennes trimestrielles : {% for m in r.moyennes_trimestres %}T{{ forloop.counter }} : <strong>{{ m|default_if_none:"—" }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+    <td>Décision proposée : <strong>{{ r.decision|default:"—" }}</strong></td></tr>{% endif %}</table>
+  <table class="mt-2"><tr><th>Visa du parent</th><th>Professeur principal</th><th>Le chef d'établissement{% if etablissement.nom_chef %}<br><span class="fw-normal">{{ etablissement.nom_chef }}</span>{% endif %}</th></tr>
+    <tr><td class="signature"></td><td class="signature"></td><td class="signature"></td></tr></table>
+  <p class="small mt-1 mb-0">NE : non évalué · NC : non classé.{% if periode.type != "sequence" %} Note de la période = moyenne des notes {% if periode.type == "trimestre" %}séquentielles du trimestre{% else %}trimestrielles{% endif %} disponibles.{% endif %}</p>
+</section>
+{% empty %}<div class="alert alert-info">Aucun élève à afficher.</div>{% endfor %}
+{% endblock %}

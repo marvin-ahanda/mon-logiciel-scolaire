@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titre %}{{ titre }}{% endblock %}
+{% block contenu %}
+<div class="row justify-content-center"><div class="col-lg-8 col-xl-6">
+<h1 class="h3 mb-3">{{ titre }}</h1>
+<div class="card"><div class="card-body">
+<form method="post" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  {% for f in form %}
+    <div class="mb-3">
+      {% if f.field.widget.input_type == "checkbox" %}
+        <div class="form-check">{{ f }} <label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label></div>
+      {% else %}
+        <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+        {{ f }}
+      {% endif %}
+      {% if f.help_text %}<div class="form-text">{{ f.help_text|safe }}</div>{% endif %}
+      {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+  {% endfor %}
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">Enregistrer</button>
+    <a class="btn btn-outline-secondary" href="{{ url_retour }}">Annuler</a>
+    {% if suppression %}<button class="btn btn-outline-danger ms-auto" name="supprimer" value="1"
+      onclick="return confirm('Retirer cette matière de la classe ?')">Supprimer</button>{% endif %}
+  </div>
+</form>
+</div></div></div></div>
+{% endblock %}

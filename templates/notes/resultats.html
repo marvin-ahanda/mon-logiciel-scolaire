@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titre %}Résultats{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">Résultats</h1>
+{% include "notes/_choix.html" %}
+{% if classe %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+  <h2 class="h5 m-0">{{ classe }} — {{ periode.libelle }} ({{ exercice }})</h2>
+  <div class="no-print d-flex gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'bulletins' %}?classe={{ classe.pk }}&periode={{ periode.code }}">Bulletins de la classe</a>
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Imprimer</button>
+  </div>
+</div>
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Effectif</div><strong>{{ stats.effectif }}</strong> ({{ stats.effectif_classe }} classés)</div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Moyenne de classe</div><strong>{{ stats.moyenne_classe|default:"—" }}</strong></div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Plus forte</div><strong>{{ stats.moyenne_max|default:"—" }}</strong></div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Plus faible</div><strong>{{ stats.moyenne_min|default:"—" }}</strong></div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Moyennes ≥ 10</div><strong>{{ stats.nombre_moyennes }}</strong></div></div></div>
+  <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2"><div class="small text-muted">Taux de réussite</div><strong>{% if stats.taux_reussite is not None %}{{ stats.taux_reussite }} %{% else %}—{% endif %}</strong></div></div></div>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+  <thead class="table-light"><tr><th>Rang</th><th>Élève</th>
+    {% for a in attributions %}<th class="text-end small" title="{{ a.matiere }} (coef. {{ a.coefficient }})">{{ a.matiere.code }}</th>{% endfor %}
+    <th class="text-end">Moyenne</th><th>Appréciation</th><th>Distinctions</th>{% if periode.type == "annee" %}<th>Décision proposée</th>{% endif %}<th class="no-print"></th></tr></thead>
+  <tbody>{% for r in classement %}
+    <tr><td>{% if r.rang %}{{ r.rang }}{% if r.ex_aequo %} ex{% endif %}{% else %}—{% endif %}</td><td>{{ r.eleve }}</td>
+      {% for l in r.lignes %}<td class="text-end {% if l.note is not None and l.note < 10 %}note-faible{% endif %}">{{ l.note|default_if_none:"" }}</td>{% endfor %}
+      <td class="text-end fw-semibold {% if r.moyenne is not None and r.moyenne < 10 %}note-faible{% endif %}">{% if r.moyenne is not None %}{{ r.moyenne }}{% elif r.moyenne_non_classee is not None %}<span class="text-muted fw-normal" title="Total des coefficients évalués inférieur au seuil de la classe">{{ r.moyenne_non_classee }} NC</span>{% else %}NC{% endif %}</td>
+      <td>{{ r.appreciation }}</td><td class="small">{{ r.distinctions|join:", " }}</td>{% if periode.type == "annee" %}<td class="small">{{ r.decision }}</td>{% endif %}
+      <td class="no-print"><a class="small" href="{% url 'bulletins' %}?classe={{ classe.pk }}&periode={{ periode.code }}&eleve={{ r.inscription_id }}">Bulletin</a></td></tr>
+  {% empty %}<tr><td colspan="99" class="text-center text-muted py-4">Aucun élève inscrit.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+<p class="small text-muted mt-2">NC : non classé (aucune note, ou total des coefficients évalués inférieur au seuil de la classe). Les cases vides sont des matières non évaluées, exclues de la moyenne.{% if periode.type != "sequence" %} Note de la période = moyenne des notes {% if periode.type == "trimestre" %}séquentielles du trimestre{% else %}trimestrielles{% endif %} disponibles.{% endif %}</p>
+{% endif %}
+{% endblock %}

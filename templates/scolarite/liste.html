@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titre %}{{ titre }}{% endblock %}
+{% block contenu %}
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">{{ titre }}</h1>
+  {% block actions %}{% if url_creation %}<a class="btn btn-primary" href="{{ url_creation }}">+ Ajouter</a>{% endif %}{% endblock %}
+</div>
+{% block filtres %}{% endblock %}
+<div class="card"><div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
+  <thead class="table-light"><tr>{% for e in entetes %}<th>{{ e }}</th>{% endfor %}{% block entete_extra %}{% endblock %}<th></th></tr></thead>
+  <tbody>
+  {% for l in lignes %}
+    <tr>{% for v in l.valeurs %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}{% block cellule_extra %}{% endblock %}
+      <td class="text-end">{% if l.url %}<a class="btn btn-sm btn-outline-secondary" href="{{ l.url }}">Modifier</a>{% endif %}</td></tr>
+  {% empty %}
+    <tr><td colspan="{{ entetes|length|add:2 }}" class="text-center text-muted py-4">Aucun élément.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% if is_paginated %}
+<nav class="mt-3"><ul class="pagination">
+  {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q|urlencode }}&classe={{ classe_choisie|urlencode }}">Précédent</a></li>{% endif %}
+  <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} / {{ paginator.num_pages }}</span></li>
+  {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q|urlencode }}&classe={{ classe_choisie|urlencode }}">Suivant</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "scolarite/liste.html" %}
+{% block filtres %}
+<form class="row g-2 mb-3" method="get">
+  <div class="col-sm-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher (nom, prénom, matricule)"></div>
+  <div class="col-sm-4"><select class="form-select" name="classe"><option value="">Toutes les classes</option>
+    {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == classe_choisie %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-sm-3"><button class="btn btn-outline-primary w-100">Filtrer</button></div>
+</form>
+{% endblock %}
