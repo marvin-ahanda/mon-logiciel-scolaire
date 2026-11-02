@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titre %}Emploi du temps{% if classe %} — {{ classe }}{% endif %}{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3 no-print">Emploi du temps par classe</h1>
+<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-5"><select class="form-select" name="classe" required aria-label="Classe"><option value="">Classe…</option>
+    {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+  <div class="col-md-4 text-md-end"><a class="btn btn-link" href="{% url 'emploi_enseignant' %}">Emploi du temps par enseignant</a></div>
+</form>
+{% if not creneaux %}<div class="alert alert-warning">Aucun créneau horaire défini.{% if est_admin %} Créez-les dans
+  <a href="{% url 'admin:emploi_creneau_changelist' %}">Administration avancée → Créneaux horaires</a>.{% endif %}</div>{% endif %}
+{% if classe and creneaux %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="h5 m-0">{{ classe }} — {{ exercice_actif }}</h2>
+  <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Imprimer</button>
+</div>
+<form method="post">{% csrf_token %}
+<div class="card"><div class="table-responsive"><table class="table table-bordered align-middle mb-0 emploi">
+  <thead class="table-light"><tr><th>Horaire</th>{% for j, nom in jours %}<th>{{ nom }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for l in lignes %}
+    <tr class="{% if l.creneau.pause %}table-secondary{% endif %}"><th class="text-nowrap">{{ l.creneau }}</th>
+    {% if l.creneau.pause %}<td colspan="{{ jours|length }}" class="text-center text-muted small">Pause</td>
+    {% else %}{% for c in l.cellules %}
+      <td class="{% if c.erreur %}table-danger{% endif %}">
+        {% if modifiable %}
+          <select class="form-select form-select-sm no-print" name="c_{{ c.jour }}_{{ l.creneau.id }}" aria-label="Matière">
+            <option value="">—</option>{% for a in attributions %}<option value="{{ a.pk }}" {% if a.pk|stringformat:"s" == c.a_id %}selected{% endif %}>{{ a.matiere }}</option>{% endfor %}</select>
+          <input class="form-control form-control-sm mt-1 no-print" name="s_{{ c.jour }}_{{ l.creneau.id }}" value="{{ c.salle }}" placeholder="Salle" maxlength="50" aria-label="Salle">
+          {% if c.erreur %}<div class="small text-danger mt-1">{{ c.erreur }}</div>{% endif %}
+        {% endif %}
+        <div class="{% if modifiable %}d-none d-print-block{% endif %}">{% if c.cours %}<strong>{{ c.cours.attribution.matiere }}</strong>
+          <div class="small">{{ c.cours.attribution.enseignant|default:"" }}{% if c.cours.salle %} · {{ c.cours.salle }}{% endif %}</div>{% endif %}</div>
+      </td>{% endfor %}{% endif %}</tr>
+  {% endfor %}</tbody>
+</table></div>
+{% if modifiable %}<div class="card-footer no-print d-flex flex-wrap gap-2 align-items-center"><button class="btn btn-primary">Enregistrer l'emploi du temps</button>
+  <span class="small text-muted">Les conflits (enseignant ou salle déjà occupés sur le créneau) sont refusés.</span></div>{% endif %}
+</div>
+</form>
+<div class="card mt-3 no-print"><div class="card-header">Volume horaire hebdomadaire</div>
+  <ul class="list-group list-group-flush">{% for a, n in volume %}<li class="list-group-item d-flex justify-content-between small">
+    <span>{{ a.matiere }} <span class="text-muted">— {{ a.enseignant|default:"sans enseignant" }}</span></span><span>{{ n }} créneau{{ n|pluralize:"x" }}</span></li>{% endfor %}</ul></div>
+{% endif %}
+{% endblock %}
