@@ -39,18 +39,22 @@ class Command(BaseCommand):
             raise CommandError("La base contient déjà des données : commande réservée à une base vide.")
         rnd = random.Random(2025)
         Etablissement.objects.create(nom="Collège de démonstration Otourix", devise="Travail – Discipline – Réussite",
+                                     nom_en="Otourix Demonstration College", devise_en="Work – Discipline – Success",
                                      ville="Yaoundé", telephone="+237 600 000 000", nom_chef="M. Le Principal")
         ex = Exercice.objects.create(libelle="2025-2026", actif=True)
         sequences = list(ex.sequences.all())
         cycle = Cycle.objects.create(libelle="Premier cycle")
         niveaux = [Niveau.objects.create(libelle=l, cycle=cycle, ordre=i) for i, l in enumerate(["6e", "5e"], 1)]
-        classes = [Classe.objects.create(libelle=f"{n.libelle} {s}", niveau=n, effectif_max=60) for n in niveaux for s in "AB"]
+        classes = [Classe.objects.create(libelle=f"{n.libelle} {s}", niveau=n, effectif_max=60,
+                                         section_anglophone=(n.libelle == "5e" and s == "B")) for n in niveaux for s in "AB"]
         User.objects.create_superuser("admin", password="Demo-Admin-2025", first_name="Admin", last_name="Démo")
         profs = []
         for i, (code, lib, coef, gr) in enumerate(MATIERES):
             u = User.objects.create_user(f"prof.{code.lower()}", password="Demo-Prof-2025", last_name=f"Prof {lib}")
             profs.append(Enseignant.objects.create(matricule=f"ENS{i + 1:03}", nom=NOMS[i], prenom=PRENOMS[i], utilisateur=u))
-        matieres = [Matiere.objects.create(code=c, libelle=l) for c, l, _, _ in MATIERES]
+        anglais = {"FR": "French", "ANG": "English", "MATH": "Mathematics", "SVT": "Biology", "HG": "History-Geography",
+                   "EPS": "Physical education", "INFO": "Computer science"}
+        matieres = [Matiere.objects.create(code=c, libelle=l, libelle_en=anglais[c]) for c, l, _, _ in MATIERES]
         n = 0
         for classe in classes:
             attributions = [Attribution.objects.create(exercice=ex, classe=classe, matiere=m, enseignant=p, coefficient=coef, groupe=gr)

@@ -10,6 +10,7 @@ from comptes.roles import est_enseignant, role_requis
 from scolarite.models import Attribution, Classe, Etablissement, Exercice, Sequence
 
 from .models import Note
+from .traductions import LANGUES, langue_du_bulletin, libelles
 from .services import (attributions_saisissables, enseignant_de, est_administration, inscriptions_classe,
                        periode_depuis_code, periodes_exercice, peut_saisir, resultats_periode)
 
@@ -149,6 +150,9 @@ def bulletins(request):
     ctx, reponse = _choix_classe_periode(request, "notes/bulletins_choix.html")
     if reponse:
         return reponse
+    choix_langue = request.GET.get("langue", "auto")
+    langue = langue_du_bulletin(choix_langue, ctx["classe"])
+    ctx.update(langue=langue, choix_langue=choix_langue, langues=LANGUES, L=libelles(langue))
     ins = request.GET.get("eleve")
     if ins:
         ctx["resultats"] = [r for r in ctx["resultats"] if str(r.inscription_id) == ins]

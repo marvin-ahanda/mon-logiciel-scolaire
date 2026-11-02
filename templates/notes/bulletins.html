@@ -1,72 +1,83 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load i18n bulletin_tags %}
 {% block titre %}Bulletins — {{ classe }} — {{ periode.libelle }}{% endblock %}
 {% block contenu %}
 <div class="no-print">
   <h1 class="h3 mb-3">Bulletins</h1>
   {% include "notes/_choix.html" %}
-  {% if est_admin %}<form class="row g-2 align-items-center mb-2" method="get">
+  <form class="row g-2 align-items-center mb-2" method="get">
     <input type="hidden" name="classe" value="{{ classe.pk }}"><input type="hidden" name="periode" value="{{ periode.code }}">
+    {% if request.GET.eleve %}<input type="hidden" name="eleve" value="{{ request.GET.eleve }}">{% endif %}
+    <div class="col-auto"><label class="col-form-label small" for="langue">Langue du bulletin</label></div>
+    <div class="col-auto"><select class="form-select form-select-sm" id="langue" name="langue">
+      {% for code, lib in langues %}<option value="{{ code }}" {% if code == choix_langue %}selected{% endif %}>{{ lib }}</option>{% endfor %}</select></div>
+    {% if est_admin %}
     <div class="col-auto"><label class="col-form-label small" for="ecolage_min">Filtre écolage : versements strictement supérieurs à</label></div>
     <div class="col-auto"><input class="form-control form-control-sm" id="ecolage_min" name="ecolage_min" inputmode="numeric" value="{{ ecolage_min|default_if_none:'' }}" style="width:9rem"></div>
+    {% endif %}
     <div class="col-auto"><button class="btn btn-sm btn-outline-secondary">Appliquer</button></div>
   </form>
   {% if exclus_ecolage %}<div class="alert alert-warning small">{{ exclus_ecolage|length }} bulletin(s) retenu(s) par le filtre écolage :
-    {% for r in exclus_ecolage %}{{ r.eleve }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>{% endif %}{% endif %}
-  <div class="d-flex gap-2 mb-3">
+    {% for r in exclus_ecolage %}{{ r.eleve }}{% if not forloop.last %}, {% endif %}{% endfor %}.</div>{% endif %}
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <button class="btn btn-primary" onclick="window.print()">Imprimer {{ resultats|length }} bulletin(s)</button>
     <a class="btn btn-outline-secondary" href="{% url 'resultats' %}?classe={{ classe.pk }}&periode={{ periode.code }}">Voir les résultats</a>
+    <span class="small text-muted">Bulletins en {% if langue == "en" %}anglais{% else %}français{% endif %}{% if choix_langue == "auto" %} (classe {% if classe.section_anglophone %}de la section anglophone{% else %}francophone{% endif %}){% endif %}.</span>
   </div>
 </div>
+{% language langue %}
 {% for r in resultats %}
-<section class="bulletin">
+<section class="bulletin" lang="{{ langue }}">
   <div class="entete">
-    <div><strong>{{ etablissement.nom|default:"Établissement" }}</strong><br>
-      {% if etablissement.devise %}<em>{{ etablissement.devise }}</em><br>{% endif %}
-      {{ etablissement.adresse }} {{ etablissement.ville }}{% if etablissement.telephone %} · Tél. {{ etablissement.telephone }}{% endif %}</div>
-    <div class="text-end">Année scolaire <strong>{{ exercice }}</strong><br>{% if periode.type == "sequence" %}{{ sequence.libelle }} — trimestre {{ sequence.trimestre }}{% else %}{{ periode.libelle }}{% endif %}</div>
+    <div><strong>{% if langue == "en" and etablissement.nom_en %}{{ etablissement.nom_en }}{% else %}{{ etablissement.nom|default:L.etablissement }}{% endif %}</strong><br>
+      {% if langue == "en" and etablissement.devise_en %}<em>{{ etablissement.devise_en }}</em><br>{% elif etablissement.devise %}<em>{{ etablissement.devise }}</em><br>{% endif %}
+      {{ etablissement.adresse }} {{ etablissement.ville }}{% if etablissement.telephone %} · {{ L.tel }} {{ etablissement.telephone }}{% endif %}</div>
+    <div class="text-end">{{ L.annee_scolaire }} <strong>{{ exercice }}</strong><br>{% if periode.type == "sequence" %}{{ sequence.libelle|tr:langue }} — {{ L.trimestre }} {{ sequence.trimestre }}{% else %}{{ periode.libelle|tr:langue }}{% endif %}</div>
   </div>
-  <h2 class="text-center my-2">{{ periode.titre_bulletin }}</h2>
+  <h2 class="text-center my-2">{% if periode.type == "sequence" %}{{ L.titre_sequence }}{% elif periode.type == "trimestre" %}{{ L.titre_trimestre }}{% else %}{{ L.titre_annee }}{% endif %}</h2>
   <table class="mb-2"><tr>
-    <td>Nom et prénom : <strong>{{ r.eleve }}</strong></td><td>Matricule : <strong>{{ r.eleve.matricule }}</strong></td>
-    <td>Sexe : {{ r.eleve.sexe }}</td></tr><tr>
-    <td>Né(e) le : {{ r.eleve.date_naissance|date:"d/m/Y"|default:"—" }} à {{ r.eleve.lieu_naissance|default:"—" }}</td>
-    <td>Classe : <strong>{{ classe }}</strong></td><td>Effectif : {{ stats.effectif }}</td></tr></table>
+    <td>{{ L.nom_prenom }}{{ L.dp }} <strong>{{ r.eleve }}</strong></td><td>{{ L.matricule }}{{ L.dp }} <strong>{{ r.eleve.matricule }}</strong></td>
+    <td>{{ L.sexe }}{{ L.dp }} {{ r.eleve.sexe }}</td></tr><tr>
+    <td>{{ L.ne_le }}{{ L.dp }} {{ r.eleve.date_naissance|date:"d/m/Y"|default:"—" }} {{ L.a }} {{ r.eleve.lieu_naissance|default:"—" }}</td>
+    <td>{{ L.classe }}{{ L.dp }} <strong>{{ classe }}</strong></td><td>{{ L.effectif }}{{ L.dp }} {{ stats.effectif }}</td></tr></table>
   <table>
-    <thead><tr><th>Matière</th><th>Enseignant</th>{% for e in entetes_details %}<th>{{ e }}</th>{% endfor %}<th>{% if periode.type == "sequence" %}Note/20{% elif periode.type == "trimestre" %}Note trim.{% else %}Note ann.{% endif %}</th><th>Coef.</th><th>Note × coef.</th><th>Rang</th><th>Appréciation</th><th>Compétence</th></tr></thead>
+    <thead><tr><th>{{ L.matiere }}</th><th>{{ L.enseignant }}</th>{% for e in entetes_details %}<th>{{ e|tr:langue }}</th>{% endfor %}
+      <th>{% if periode.type == "sequence" %}{{ L.note_sequence }}{% elif periode.type == "trimestre" %}{{ L.note_trimestre }}{% else %}{{ L.note_annee }}{% endif %}</th>
+      <th>{{ L.coef }}</th><th>{{ L.points }}</th><th>{{ L.rang }}</th><th>{{ L.appreciation }}</th><th>{{ L.competence }}</th></tr></thead>
     <tbody>
     {% for g in r.groupes %}
-      {% for l in g.lignes %}<tr><td>{{ l.matiere }}</td><td>{{ l.enseignant }}</td>
+      {% for l in g.lignes %}<tr><td>{% if langue == "en" and l.matiere_en %}{{ l.matiere_en }}{% else %}{{ l.matiere }}{% endif %}</td><td>{{ l.enseignant }}</td>
         {% for d in l.details %}<td class="num">{{ d|default_if_none:"—" }}</td>{% endfor %}
         <td class="num"><strong>{{ l.note|default_if_none:"NE" }}</strong></td><td class="num">{{ l.coefficient }}</td>
         <td class="num">{{ l.points|default_if_none:"" }}</td>
         <td class="num">{% if l.rang %}{{ l.rang }}{% if l.ex_aequo %} ex{% endif %}{% endif %}</td>
-        <td>{{ l.appreciation }}</td><td>{{ l.competence }}</td></tr>{% endfor %}
-      <tr class="sous-total"><td colspan="{{ entetes_details|length|add:3 }}">Groupe {{ g.groupe }}</td><td class="num">{{ g.total_coefficients }}</td>
-        <td class="num">{{ g.total_points }}</td><td colspan="3">Moyenne du groupe : {{ g.moyenne|default_if_none:"—" }}</td></tr>
+        <td>{{ l.appreciation|tr:langue }}</td><td>{{ l.competence|tr:langue }}</td></tr>{% endfor %}
+      <tr class="sous-total"><td colspan="{{ entetes_details|length|add:3 }}">{{ L.groupe }} {{ g.groupe }}</td><td class="num">{{ g.total_coefficients }}</td>
+        <td class="num">{{ g.total_points }}</td><td colspan="3">{{ L.moyenne_groupe }}{{ L.dp }} {{ g.moyenne|default_if_none:"—" }}</td></tr>
     {% endfor %}
-    <tr class="sous-total"><td colspan="{{ entetes_details|length|add:3 }}">TOTAL</td><td class="num">{{ r.total_coefficients }}</td><td class="num">{{ r.total_points }}</td><td colspan="3"></td></tr>
+    <tr class="sous-total"><td colspan="{{ entetes_details|length|add:3 }}">{{ L.total }}</td><td class="num">{{ r.total_coefficients }}</td><td class="num">{{ r.total_points }}</td><td colspan="3"></td></tr>
     </tbody>
   </table>
   <table class="mt-2"><tr>
-    <td>Moyenne : <strong>{% if r.moyenne is not None %}{{ r.moyenne }} / 20{% elif r.moyenne_non_classee is not None %}{{ r.moyenne_non_classee }} / 20 (non classé){% else %}NC{% endif %}</strong></td>
-    <td>Rang : <strong>{% if r.rang %}{{ r.rang }}{% if r.ex_aequo %} ex{% endif %}{% else %}—{% endif %}</strong> / {{ stats.effectif_classe }}</td>
-    <td>Appréciation : <strong>{{ r.appreciation|default:"—" }}</strong></td></tr><tr>
-    <td>Moyenne de la classe : {{ stats.moyenne_classe|default_if_none:"—" }}</td>
-    <td>Plus forte : {{ stats.moyenne_max|default_if_none:"—" }} · plus faible : {{ stats.moyenne_min|default_if_none:"—" }}</td>
-    <td>Distinction : <strong>{{ r.distinctions|join:", "|default:"—" }}</strong></td></tr>
+    <td>{{ L.moyenne }}{{ L.dp }} <strong>{% if r.moyenne is not None %}{{ r.moyenne }} / 20{% elif r.moyenne_non_classee is not None %}{{ r.moyenne_non_classee }} / 20 ({{ L.non_classe }}){% else %}NC{% endif %}</strong></td>
+    <td>{{ L.rang }}{{ L.dp }} <strong>{% if r.rang %}{{ r.rang }}{% if r.ex_aequo %} ex{% endif %}{% else %}—{% endif %}</strong> / {{ stats.effectif_classe }}</td>
+    <td>{{ L.appreciation }}{{ L.dp }} <strong>{{ r.appreciation|tr:langue|default:"—" }}</strong></td></tr><tr>
+    <td>{{ L.moyenne_classe }}{{ L.dp }} {{ stats.moyenne_classe|default_if_none:"—" }}</td>
+    <td>{{ L.plus_forte }}{{ L.dp }} {{ stats.moyenne_max|default_if_none:"—" }} · {{ L.plus_faible }}{{ L.dp }} {{ stats.moyenne_min|default_if_none:"—" }}</td>
+    <td>{{ L.distinction }}{{ L.dp }} <strong>{{ r.distinctions|tr_liste:langue|default:"—" }}</strong></td></tr>
     {% if periode.type == "annee" %}<tr>
-    <td colspan="2">Moyennes trimestrielles : {% for m in r.moyennes_trimestres %}T{{ forloop.counter }} : <strong>{{ m|default_if_none:"—" }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
-    <td>Décision proposée : <strong>{{ r.decision|default:"—" }}</strong></td></tr>{% endif %}</table>
+    <td colspan="2">{{ L.moyennes_trimestrielles }}{{ L.dp }} {% for m in r.moyennes_trimestres %}T{{ forloop.counter }}{{ L.dp }} <strong>{{ m|default_if_none:"—" }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+    <td>{{ L.decision }}{{ L.dp }} <strong>{{ r.decision|tr:langue|default:"—" }}</strong></td></tr>{% endif %}</table>
   {% if r.discipline %}{% with b=r.discipline %}
-  <table class="mt-2"><tr><th colspan="4">Discipline</th><th colspan="3">Points perdus</th><th rowspan="2">Note de discipline</th></tr>
-    <tr><th>Abs. non justifiées</th><th>Abs. justifiées</th><th>Retards</th><th>Autres cas</th><th>Ponctualité</th><th>Assiduité</th><th>Autres cas</th></tr>
+  <table class="mt-2"><tr><th colspan="4">{{ L.discipline }}</th><th colspan="3">{{ L.points_perdus }}</th><th rowspan="2">{{ L.note_discipline }}</th></tr>
+    <tr><th>{{ L.abs_nj }}</th><th>{{ L.abs_j }}</th><th>{{ L.retards }}</th><th>{{ L.autres_cas }}</th><th>{{ L.ponctualite }}</th><th>{{ L.assiduite }}</th><th>{{ L.autres_cas }}</th></tr>
     <tr><td class="num">{{ b.heures_non_justifiees }} h</td><td class="num">{{ b.heures_justifiees }} h</td><td class="num">{{ b.retards }}</td>
       <td>{{ b.incidents|join:", "|default:"—" }}</td><td class="num">{% if b.points_ponctualite %}−{{ b.points_ponctualite }}{% else %}0{% endif %}</td><td class="num">{% if b.points_assiduite %}−{{ b.points_assiduite }}{% else %}0{% endif %}</td>
-      <td class="num">{% if b.points_autres_cas %}−{{ b.points_autres_cas }}{% else %}0{% endif %}</td><td class="num"><strong>{{ b.note }} / 20</strong> · {{ b.appreciation }}</td></tr></table>
+      <td class="num">{% if b.points_autres_cas %}−{{ b.points_autres_cas }}{% else %}0{% endif %}</td><td class="num"><strong>{{ b.note }} / 20</strong> · {{ b.appreciation|tr:langue }}</td></tr></table>
   {% endwith %}{% endif %}
-  <table class="mt-2"><tr><th>Visa du parent</th><th>Professeur principal</th><th>Le chef d'établissement{% if etablissement.nom_chef %}<br><span class="fw-normal">{{ etablissement.nom_chef }}</span>{% endif %}</th></tr>
+  <table class="mt-2"><tr><th>{{ L.visa_parent }}</th><th>{{ L.professeur_principal }}</th><th>{{ L.chef_etablissement }}{% if etablissement.nom_chef %}<br><span class="fw-normal">{{ etablissement.nom_chef }}</span>{% endif %}</th></tr>
     <tr><td class="signature"></td><td class="signature"></td><td class="signature"></td></tr></table>
-  <p class="small mt-1 mb-0">NE : non évalué · NC : non classé.{% if periode.type != "sequence" %} Note de la période = moyenne des notes {% if periode.type == "trimestre" %}séquentielles du trimestre{% else %}trimestrielles{% endif %} disponibles.{% endif %}</p>
+  <p class="small mt-1 mb-0">{{ L.legende }}{% if periode.type == "trimestre" %} {{ L.legende_trimestre }}{% elif periode.type == "annee" %} {{ L.legende_annee }}{% endif %}</p>
 </section>
 {% empty %}<div class="alert alert-info">Aucun élève à afficher.</div>{% endfor %}
+{% endlanguage %}
 {% endblock %}
