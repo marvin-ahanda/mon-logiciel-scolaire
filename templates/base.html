@@ -30,6 +30,18 @@
         </li>
         <li class="nav-item"><a class="nav-link" href="{% url 'enseignants' %}">Enseignants</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'eleves' %}">Élèves</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Discipline</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'appel' %}">Appel du jour (absences, retards)</a></li>
+            <li><a class="dropdown-item" href="{% url 'incidents' %}">Infractions</a></li>
+            <li><a class="dropdown-item" href="{% url 'suivi_discipline' %}">Suivi disciplinaire</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'admin:discipline_sanction_changelist' %}">Sanctions</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin:discipline_infraction_changelist' %}">Types d'infractions</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin:discipline_parametresdiscipline_changelist' %}">Barème de la note de discipline</a></li>
+          </ul>
+        </li>
         {% endif %}
         <li class="nav-item"><a class="nav-link" href="{% url 'saisie' %}">Saisie des notes</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'resultats' %}">Résultats</a></li>

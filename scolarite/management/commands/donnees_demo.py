@@ -12,6 +12,9 @@ from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from datetime import date, timedelta
+
+from discipline.models import Absence, Incident, Infraction, ParametresDiscipline, Retard, Sanction
 from notes.models import BaremeDistinction, Note
 from scolarite.models import (Attribution, Classe, Cycle, Eleve, Enseignant, Etablissement, Exercice, Inscription,
                               Matiere, Niveau)
@@ -62,7 +65,29 @@ class Command(BaseCommand):
                             Note.objects.create(inscription=ins, attribution=a, sequence=seq,
                                                 valeur=Decimal(str(round(v * 4) / 4)))
         for t, inf, sup in [("TH", "12", "14"), ("ENC", "14", "16"), ("FEL", "16", "20.01"), ("AVT", "8", "10")]:
-            BaremeDistinction.objects.create(exercice=ex, type=t, borne_inf=Decimal(inf), borne_sup=Decimal(sup))
+            BaremeDistinction.objects.create(exercice=ex, type=t, borne_inf=Decimal(inf), borne_sup=Decimal(sup),
+                                             conduite_min=Decimal("14") if t in ("TH", "ENC", "FEL") else None)
+        # Discipline
+        ParametresDiscipline.objects.create(exercice=ex, points_par_retard=Decimal("0.5"), points_par_heure_absence=Decimal("0.25"))
+        sanctions = {lib: Sanction.objects.create(libelle=lib, points_perdus=Decimal(pts)) for lib, pts in
+                     [("Avertissement de conduite", "1"), ("Blâme de conduite", "3"), ("Exclusion temporaire", "6")]}
+        infractions = [Infraction.objects.create(libelle=lib, sanction=sanctions[san]) for lib, san in
+                       [("Bavardage répété", "Avertissement de conduite"), ("Tenue non conforme", "Avertissement de conduite"),
+                        ("Insolence", "Blâme de conduite"), ("Bagarre", "Exclusion temporaire")]]
+        debut = date(2025, 9, 8)
+        for ins in Inscription.objects.filter(exercice=ex):
+            for seq in sequences:
+                for _ in range(rnd.choice([0, 0, 1, 2, 3])):
+                    jour = debut + timedelta(days=(seq.numero - 1) * 42 + rnd.randrange(0, 40))
+                    if rnd.random() < 0.6:
+                        Absence.objects.update_or_create(inscription=ins, date=jour, defaults={
+                            "sequence": seq, "heures_non_justifiees": rnd.choice([0, 2, 2, 4]),
+                            "heures_justifiees": rnd.choice([0, 0, 2]), "motif": "Certificat médical"})
+                    else:
+                        Retard.objects.get_or_create(inscription=ins, date=jour, defaults={"sequence": seq})
+                if rnd.random() < 0.12:
+                    Incident.objects.create(inscription=ins, sequence=seq, infraction=rnd.choice(infractions),
+                                            date=debut + timedelta(days=(seq.numero - 1) * 42 + rnd.randrange(0, 40)))
         BaremeDistinction.objects.create(exercice=ex, type="BLA", borne_sup=Decimal("8"))
         self.stdout.write(self.style.SUCCESS(
             f"Données de démonstration créées : {len(classes)} classes, {n} élèves, {len(profs)} enseignants.\n"

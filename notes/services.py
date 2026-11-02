@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 from scolarite.models import Attribution, Inscription
 
+from discipline.services import bilans_discipline
+
 from .calculs import calculer_resultats, notes_composees
 from .models import BaremeDistinction, Note
 
@@ -90,26 +92,39 @@ def resultats_periode(classe, exercice, periode):
     sequences = list(exercice.sequences.all())
     coef_min = classe.coef_min_classement
 
+    par_trimestre = {t: [s for s in sequences if s.trimestre == t] for t in (1, 2, 3)}
+    sequences_periode = ([periode.sequence] if periode.type == "sequence" else
+                         par_trimestre[periode.trimestre] if periode.type == "trimestre" else sequences)
+    bilans = bilans_discipline(inscriptions, sequences_periode, exercice)
+    conduite = {i: b.note for i, b in bilans.items()}
+
+    def avec_discipline(resultats):
+        for r in resultats:
+            r.discipline = bilans.get(r.inscription_id)
+        return resultats
+
     if periode.type == "sequence":
         brutes = _notes_brutes(inscriptions, attributions, [periode.sequence])
         notes = {(i, a): v for (i, a, _), v in brutes.items()}
-        resultats, stats = calculer_resultats(eleves, attributions, notes, baremes, coef_min)
-        return resultats, stats, attributions, []
+        resultats, stats = calculer_resultats(eleves, attributions, notes, baremes, coef_min, conduite=conduite)
+        return avec_discipline(resultats), stats, attributions, []
 
     brutes = _notes_brutes(inscriptions, attributions, sequences)
-    par_trimestre = {t: [s for s in sequences if s.trimestre == t] for t in (1, 2, 3)}
 
     if periode.type == "trimestre":
         seqs = par_trimestre[periode.trimestre]
         notes, composantes = _notes_trimestre(brutes, cles, seqs)
-        resultats, stats = calculer_resultats(eleves, attributions, notes, baremes, coef_min, details=composantes)
-        return resultats, stats, attributions, [s.libelle for s in seqs]
+        resultats, stats = calculer_resultats(eleves, attributions, notes, baremes, coef_min, details=composantes,
+                                              conduite=conduite)
+        return avec_discipline(resultats), stats, attributions, [s.libelle for s in seqs]
 
     # Année : note annuelle d'une matière = moyenne des notes trimestrielles disponibles.
     notes_t = {t: _notes_trimestre(brutes, cles, par_trimestre[t])[0] for t in (1, 2, 3)}
     composantes = {k: [notes_t[t].get(k) for t in (1, 2, 3)] for k in cles}
     notes_annuelles = notes_composees(composantes)
-    resultats, stats = calculer_resultats(eleves, attributions, notes_annuelles, baremes, coef_min, details=composantes)
+    resultats, stats = calculer_resultats(eleves, attributions, notes_annuelles, baremes, coef_min, details=composantes,
+                                          conduite=conduite)
+    avec_discipline(resultats)
     # Moyennes générales de chaque trimestre, affichées sur le bulletin annuel
     moy_t = defaultdict(dict)
     for t in (1, 2, 3):

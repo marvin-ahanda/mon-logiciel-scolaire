@@ -53,8 +53,8 @@ class BaremeDistinction(models.Model):
         moyenne dans [borne_inf ; borne_sup[  (borne inférieure comprise, borne supérieure exclue)
     Blâme : moyenne strictement inférieure à borne_sup (borne_inf ignorée).
 
-    La condition « note de conduite strictement supérieure à » de l'original
-    sera ajoutée avec le module de discipline.
+    Tableau d'honneur, encouragements, félicitations : condition supplémentaire facultative
+    « et note de conduite strictement supérieure à » (comme dans l'original).
     """
 
     TABLEAU_HONNEUR = "TH"
@@ -74,6 +74,9 @@ class BaremeDistinction(models.Model):
     type = models.CharField(max_length=3, choices=TYPES)
     borne_inf = models.DecimalField("borne inférieure (comprise)", max_digits=4, decimal_places=2, null=True, blank=True)
     borne_sup = models.DecimalField("borne supérieure (exclue)", max_digits=4, decimal_places=2)
+    conduite_min = models.DecimalField("note de conduite strictement supérieure à", max_digits=4, decimal_places=2,
+                                       null=True, blank=True,
+                                       help_text="Tableau d'honneur, encouragements, félicitations uniquement. Vide = pas de condition.")
 
     class Meta:
         ordering = ["exercice", "type"]
@@ -83,16 +86,24 @@ class BaremeDistinction(models.Model):
     def __str__(self):
         return f"{self.get_type_display()} ({self.exercice})"
 
+    AVEC_CONDUITE = (TABLEAU_HONNEUR, ENCOURAGEMENTS, FELICITATIONS)
+
     def clean(self):
+        if self.conduite_min is not None and self.type not in self.AVEC_CONDUITE:
+            raise ValidationError("La condition de conduite ne s'applique qu'au tableau d'honneur, aux encouragements et aux félicitations.")
         if self.type != self.BLAME:
             if self.borne_inf is None:
                 raise ValidationError("La borne inférieure est obligatoire pour ce type.")
             if self.borne_inf >= self.borne_sup:
                 raise ValidationError("La borne inférieure doit être strictement inférieure à la borne supérieure.")
 
-    def s_applique(self, moyenne):
+    def s_applique(self, moyenne, note_conduite=None):
         if moyenne is None:
             return False
         if self.type == self.BLAME:
             return moyenne < self.borne_sup
-        return self.borne_inf <= moyenne < self.borne_sup
+        if not (self.borne_inf <= moyenne < self.borne_sup):
+            return False
+        if self.conduite_min is not None and self.type in self.AVEC_CONDUITE:
+            return note_conduite is not None and note_conduite > self.conduite_min
+        return True

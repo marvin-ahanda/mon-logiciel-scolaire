@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block titre %}Infractions{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">Autres cas d'infraction à la discipline</h1>
+{% if aucune_infraction %}<div class="alert alert-warning">Aucun type d'infraction n'est défini.
+  Créez d'abord les <a href="{% url 'admin:discipline_sanction_changelist' %}">sanctions</a> puis les
+  <a href="{% url 'admin:discipline_infraction_changelist' %}">types d'infractions</a>.</div>{% endif %}
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-5"><select class="form-select" name="classe" required aria-label="Classe"><option value="">Classe…</option>
+    {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><select class="form-select" name="sequence" required aria-label="Séquence"><option value="">Séquence…</option>
+    {% for s in sequences %}<option value="{{ s.pk }}" {% if s.pk|stringformat:"s" == s_id %}selected{% endif %}>{{ s.libelle }}{% if s.verrouillee %} (verrouillée){% endif %}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+</form>
+{% if classe %}
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card">
+    <div class="card-header">{{ classe }} — {{ sequence.libelle }}</div>
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Date</th><th>Élève</th><th>Infraction</th><th>Sanction</th><th></th></tr></thead>
+      <tbody>{% for i in liste %}
+        <tr><td>{{ i.date|date:"d/m/Y" }}</td><td>{{ i.inscription.eleve }}</td>
+          <td>{{ i.infraction }}{% if i.observation %}<div class="small text-muted">{{ i.observation }}</div>{% endif %}</td>
+          <td>{{ i.infraction.sanction }}</td>
+          <td class="text-end">{% if not sequence.verrouillee %}<form method="post" action="{% url 'incident_supprimer' i.pk %}">{% csrf_token %}
+            <input type="hidden" name="retour" value="{{ request.get_full_path }}">
+            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette infraction ?')">Supprimer</button></form>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Aucune infraction pour cette séquence.</td></tr>{% endfor %}</tbody>
+    </table></div></div>
+  <div class="col-lg-4">{% if not sequence.verrouillee %}<div class="card"><div class="card-header">Enregistrer une infraction</div><div class="card-body">
+    <form method="post">{% csrf_token %}
+      {% for f in form %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+        {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+      <button class="btn btn-primary w-100 mt-2">Enregistrer</button>
+    </form></div></div>{% else %}<div class="alert alert-secondary">Séquence fermée.</div>{% endif %}</div>
+</div>
+{% endif %}
+{% endblock %}

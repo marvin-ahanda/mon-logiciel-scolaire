@@ -123,6 +123,7 @@ class ResultatEleve:
     moyenne_non_classee: Decimal | None = None   # moyenne calculée mais coefficients insuffisants
     moyennes_trimestres: list = field(default_factory=list)
     decision: str = ""                           # décision de passage proposée (bulletin annuel)
+    discipline: object = None                    # BilanDiscipline de la période
 
     @property
     def appreciation(self):
@@ -175,7 +176,7 @@ def moyenne_ponderee(lignes):
     return total_coef, total_points, moyenne
 
 
-def calculer_resultats(eleves, attributions, notes, baremes=(), coef_min=0, details=None):
+def calculer_resultats(eleves, attributions, notes, baremes=(), coef_min=0, details=None, conduite=None):
     """Calcule les résultats d'une classe pour une période (séquence, trimestre ou année).
 
     eleves       : liste de (inscription_id, eleve)
@@ -186,8 +187,10 @@ def calculer_resultats(eleves, attributions, notes, baremes=(), coef_min=0, deta
                    évalué est supérieur ou égal à ce seuil (« Classer si total de coefficients
                    est supérieur ou égal à » dans l'original)
     details      : dict {(inscription_id, attribution_id): [notes composantes]} pour l'affichage
+    conduite     : dict {inscription_id: note de discipline} pour la condition de conduite des distinctions
     """
     details = details or {}
+    conduite = conduite or {}
     resultats = []
     for inscription_id, eleve in eleves:
         r = ResultatEleve(inscription_id=inscription_id, eleve=eleve)
@@ -204,7 +207,7 @@ def calculer_resultats(eleves, attributions, notes, baremes=(), coef_min=0, deta
         r.total_coefficients, r.total_points, r.moyenne = moyenne_ponderee(r.lignes)
         if r.moyenne is not None and r.total_coefficients < coef_min:
             r.moyenne_non_classee, r.moyenne = r.moyenne, None
-        r.distinctions = [b.get_type_display() for b in baremes if b.s_applique(r.moyenne)]
+        r.distinctions = [b.get_type_display() for b in baremes if b.s_applique(r.moyenne, conduite.get(inscription_id))]
         resultats.append(r)
 
     for (rang, ex), r in zip(rangs([r.moyenne for r in resultats]), resultats):
