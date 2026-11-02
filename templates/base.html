@@ -51,14 +51,18 @@
         {% endif %}
         {% if est_admin or est_caissier %}
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Écolage</a>
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Caisse</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="{% url 'caisse' %}">Caisse (paiements, réductions)</a></li>
             <li><a class="dropdown-item" href="{% url 'situation_financiere' %}">Situation par classe (insolvables)</a></li>
             <li><a class="dropdown-item" href="{% url 'journal_encaissements' %}">Journal des encaissements</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'caisse_generale' %}">Caisse générale (autres entrées et sorties)</a></li>
+            <li><a class="dropdown-item" href="{% url 'journal_caisse' %}">Journal de caisse</a></li>
             {% if est_admin %}<li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'tarifs' %}">Tarifs</a></li>
-            <li><a class="dropdown-item" href="{% url 'admin:finances_rubrique_changelist' %}">Rubriques</a></li>{% endif %}
+            <li><a class="dropdown-item" href="{% url 'admin:finances_rubrique_changelist' %}">Rubriques</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin:finances_libellecaisse_changelist' %}">Libellés de caisse</a></li>{% endif %}
           </ul>
         </li>
         {% endif %}

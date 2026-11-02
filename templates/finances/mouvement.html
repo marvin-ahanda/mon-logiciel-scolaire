@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load finances_tags %}
+{% block titre %}{% if m.est_entree %}Reçu{% else %}Bon de caisse{% endif %} n° {{ m.numero }}{% endblock %}
+{% block contenu %}
+<div class="no-print d-flex gap-2 mb-3">
+  <button class="btn btn-primary" onclick="window.print()">Imprimer</button>
+  <a class="btn btn-outline-secondary" href="{% url 'caisse_generale' %}?sens={{ m.sens }}">Retour à la caisse générale</a>
+</div>
+{% if m.annule %}<div class="alert alert-danger">Opération annulée le {{ m.annule_le|date:"d/m/Y" }} : {{ m.motif_annulation }}</div>{% endif %}
+{% for copie in copies %}
+<section class="bulletin recu">
+  <div class="entete">
+    <div><strong>{{ etablissement.nom|default:"Établissement" }}</strong><br>{{ etablissement.ville }}{% if etablissement.telephone %} · Tél. {{ etablissement.telephone }}{% endif %}</div>
+    <div class="text-end"><strong>{% if m.est_entree %}REÇU DE CAISSE{% else %}BON DE CAISSE (SORTIE){% endif %} N° {{ m.numero }}</strong><br>Exercice {{ m.exercice }}<br><span class="small">{{ copie }}</span></div>
+  </div>
+  {% if m.annule %}<p class="text-center fw-bold text-danger">ANNULÉ</p>{% endif %}
+  <table>
+    <tr><td style="width:35%">{% if m.est_entree %}Reçu de{% else %}Payé à{% endif %}</td><td><strong>{{ m.tiers }}</strong>{% if m.inscription %} — élève {{ m.inscription.eleve }} ({{ m.inscription.eleve.matricule }}){% endif %}</td></tr>
+    <tr><td>La somme de</td><td><strong>{{ m.montant|fcfa }}</strong></td></tr>
+    <tr><td>En lettres</td><td><em>{{ en_lettres }}</em></td></tr>
+    <tr><td>Motif</td><td>{{ m.libelle }}{% if m.observation %} — {{ m.observation }}{% endif %}</td></tr>
+    <tr><td>Mode</td><td>{{ m.get_mode_display }}{% if m.reference %} — réf. {{ m.reference }}{% endif %}</td></tr>
+    <tr><td>Date</td><td>{{ m.date|date:"d/m/Y" }}</td></tr>
+  </table>
+  <div class="d-flex justify-content-between mt-3"><span>Caissier : {{ m.saisi_par.get_full_name|default:m.saisi_par.username|default:"—" }}</span>
+    <span>{% if m.est_entree %}Signature et cachet{% else %}Signature du bénéficiaire{% endif %}</span></div>
+  <div class="signature"></div>
+</section>
+{% endfor %}
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Paiement, Reduction, Remboursement, Rubrique, Tarif
+from .models import LibelleCaisse, MouvementCaisse, Paiement, Reduction, Remboursement, Rubrique, Tarif
 
 
 @admin.register(Rubrique)
@@ -41,3 +41,26 @@ class ReductionAdmin(admin.ModelAdmin):
 @admin.register(Remboursement)
 class RemboursementAdmin(admin.ModelAdmin):
     list_display = ["inscription", "montant", "motif", "date"]
+
+
+@admin.register(LibelleCaisse)
+class LibelleCaisseAdmin(admin.ModelAdmin):
+    list_display = ["libelle", "sens", "actif"]
+    list_filter = ["sens", "actif"]
+    list_editable = ["actif"]
+
+
+@admin.register(MouvementCaisse)
+class MouvementCaisseAdmin(admin.ModelAdmin):
+    """Consultation seulement : saisie et annulation depuis la caisse générale (traçabilité)."""
+    list_display = ["numero", "sens", "exercice", "date", "libelle", "tiers", "montant", "mode", "annule"]
+    list_filter = ["exercice", "sens", "annule", "libelle"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

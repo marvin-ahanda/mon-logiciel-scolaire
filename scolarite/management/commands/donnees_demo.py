@@ -17,7 +17,7 @@ from django.db import transaction
 from datetime import date, timedelta
 
 from discipline.models import Absence, Incident, Infraction, ParametresDiscipline, Retard, Sanction
-from finances.models import Paiement, Reduction, Rubrique, Tarif
+from finances.models import LibelleCaisse, MouvementCaisse, Paiement, Reduction, Rubrique, Tarif
 from finances.services import compte
 from emploi.models import Cours, Creneau
 from notes.models import BaremeDistinction, Note
@@ -157,6 +157,16 @@ class Command(BaseCommand):
                                          reference=f"TX{rnd.randrange(10**8):08}" if mode in ("OM", "MTN") else "", saisi_par=caissier)
             if rnd.random() < 0.08 and compte(ins).ligne(rubriques[2].id).reste >= 10000:
                 Reduction.objects.create(inscription=ins, rubrique=rubriques[2], montant=10000, motif="Enfant du personnel", saisi_par=caissier)
+        # Caisse générale
+        entrees = [LibelleCaisse.objects.create(libelle=l, sens="E") for l in ["Vente de tenues", "Frais d'examen blanc", "Location de salle"]]
+        sorties = [LibelleCaisse.objects.create(libelle=l, sens="S") for l in ["Fournitures de bureau", "Salaires vacataires", "Entretien et réparations"]]
+        for k in range(12):
+            jour = debut + timedelta(days=rnd.randrange(0, 60))
+            MouvementCaisse.enregistrer(ex, libelle=rnd.choice(entrees), montant=rnd.choice([2500, 5000, 7500, 15000]), date=jour,
+                                        tiers=f"Parent {rnd.choice(NOMS)}", saisi_par=caissier)
+            if k % 2:
+                MouvementCaisse.enregistrer(ex, libelle=rnd.choice(sorties), montant=rnd.choice([10000, 25000, 40000]), date=jour,
+                                            tiers=rnd.choice(["Librairie du Centre", "M. Vacataire", "Quincaillerie Mvog-Ada"]), saisi_par=caissier)
         self.stdout.write(self.style.SUCCESS(
             f"Données de démonstration créées : {len(classes)} classes, {n} élèves, {len(profs)} enseignants.\n"
             "Comptes : admin / Demo-Admin-2025 ; dir.etudes / Demo-Directeur-2025 ; caisse / Demo-Caisse-2025 ; surveillant / Demo-Surveillant-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))
