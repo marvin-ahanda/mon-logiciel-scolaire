@@ -1,7 +1,7 @@
 from decimal import Decimal as D
 from types import SimpleNamespace
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
@@ -94,6 +94,7 @@ class DonneesMixin:
         self.classe = Classe.objects.create(libelle="6e A", niveau=niveau)
         self.autre_classe = Classe.objects.create(libelle="6e B", niveau=niveau)
         self.admin = User.objects.create_user("admin", password="Mot2Passe!x", is_staff=True)
+        self.admin.groups.add(Group.objects.get(name="Administration"))
         self.u_ens = User.objects.create_user("prof", password="Mot2Passe!x")
         self.u_autre = User.objects.create_user("autre", password="Mot2Passe!x")
         self.ens = Enseignant.objects.create(matricule="E1", nom="Prof", utilisateur=self.u_ens)

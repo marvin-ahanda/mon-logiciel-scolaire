@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from notes.services import inscriptions_classe
 from scolarite.models import Classe, Etablissement, Exercice, Inscription, Niveau
+from comptes.roles import est_administration, peut_encaisser, role_requis
 from scolarite.views import admin_requis
 
 from .forms import AnnulationForm, PaiementForm, ReductionForm, RemboursementForm
@@ -26,7 +27,7 @@ def _exercice(request):
     return ex
 
 
-@admin_requis
+@role_requis(peut_encaisser)
 def caisse(request):
     """Recherche d'un élève de l'exercice actif pour ouvrir son compte."""
     exercice = _exercice(request)
@@ -56,11 +57,15 @@ def _verrouiller_compte(inscription_id):
     return ins, compte(ins)
 
 
-@admin_requis
+@role_requis(peut_encaisser)
 def compte_eleve(request, pk):
     ins = get_object_or_404(Inscription.objects.select_related("eleve", "classe__niveau", "exercice"), pk=pk)
     c = compte(ins)
     action = request.POST.get("action") if request.method == "POST" else None
+    admin = est_administration(request.user)
+    if action in ("reduction", "remboursement") and not admin:
+        messages.error(request, "Les réductions et les remboursements sont réservés à l'administration.")
+        return redirect("compte_eleve", pk=pk)
     form_p = PaiementForm(request.POST if action == "paiement" else None, compte=c, prefix="p")
     form_r = ReductionForm(request.POST if action == "reduction" else None, compte=c, prefix="r")
     form_rb = RemboursementForm(request.POST if action == "remboursement" else None, prefix="rb")
@@ -101,7 +106,7 @@ def compte_eleve(request, pk):
         "paiements": Paiement.objects.filter(inscription=ins).select_related("rubrique", "saisi_par", "annule_par"),
         "reductions": Reduction.objects.filter(inscription=ins).select_related("rubrique"),
         "remboursements": Remboursement.objects.filter(inscription=ins),
-        "form_annulation": AnnulationForm(),
+        "form_annulation": AnnulationForm(), "peut_decider": admin,
     })
 
 
@@ -120,7 +125,7 @@ def annuler_paiement(request, pk):
     return redirect("compte_eleve", pk=p.inscription_id)
 
 
-@admin_requis
+@role_requis(peut_encaisser)
 def recu(request, pk):
     p = get_object_or_404(Paiement.objects.select_related("inscription__eleve", "inscription__classe", "rubrique", "exercice", "saisi_par"), pk=pk)
     c = compte(p.inscription)
@@ -184,7 +189,7 @@ def tarifs(request):
     return render(request, "finances/tarifs.html", {"exercice": exercice, "rubriques": rubriques, "lignes": lignes})
 
 
-@admin_requis
+@role_requis(peut_encaisser)
 def situation(request):
     """Situation financière d'une classe : solvables / insolvables, globalement ou pour une rubrique."""
     exercice = _exercice(request)
@@ -216,7 +221,7 @@ def situation(request):
     return render(request, "finances/situation.html", ctx)
 
 
-@admin_requis
+@role_requis(peut_encaisser)
 def journal(request):
     """Journal des encaissements sur une période, par mode de paiement."""
     exercice = _exercice(request)

@@ -9,7 +9,7 @@
 </head>
 <body>
 {% if user.is_authenticated %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+<nav class="navbar navbar-expand-xl navbar-dark bg-primary no-print">
   <div class="container-fluid">
     <a class="navbar-brand fw-semibold" href="{% url 'accueil' %}">OtourixSchool</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-label="Menu">
@@ -25,6 +25,7 @@
             <li><a class="dropdown-item" href="{% url 'classes' %}">Classes et coefficients</a></li>
             <li><a class="dropdown-item" href="{% url 'matieres' %}">Matières</a></li>
             <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'utilisateurs' %}">Comptes utilisateurs et rôles</a></li>
             <li><a class="dropdown-item" href="{% url 'admin:index' %}">Administration avancée</a></li>
           </ul>
         </li>
@@ -42,28 +43,34 @@
             <li><a class="dropdown-item" href="{% url 'admin:discipline_parametresdiscipline_changelist' %}">Barème de la note de discipline</a></li>
           </ul>
         </li>
+
+        {% endif %}
+        {% if est_admin or est_caissier %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Écolage</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="{% url 'caisse' %}">Caisse (paiements, réductions)</a></li>
             <li><a class="dropdown-item" href="{% url 'situation_financiere' %}">Situation par classe (insolvables)</a></li>
             <li><a class="dropdown-item" href="{% url 'journal_encaissements' %}">Journal des encaissements</a></li>
-            <li><hr class="dropdown-divider"></li>
+            {% if est_admin %}<li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'tarifs' %}">Tarifs</a></li>
-            <li><a class="dropdown-item" href="{% url 'admin:finances_rubrique_changelist' %}">Rubriques</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin:finances_rubrique_changelist' %}">Rubriques</a></li>{% endif %}
           </ul>
         </li>
         {% endif %}
+        {% if est_admin or est_enseignant %}
         <li class="nav-item"><a class="nav-link" href="{% url 'saisie' %}">Saisie des notes</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'resultats' %}">Résultats</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'bulletins' %}">Bulletins</a></li>
+        {% endif %}
       </ul>
-      <span class="navbar-text me-3 small">
+      <span class="navbar-text me-3 small d-none d-xxl-inline">
         Exercice : <strong>{{ exercice_actif|default:"aucun" }}</strong>
       </span>
       <div class="dropdown">
-        <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">{{ user.get_full_name|default:user.username }}</a>
+        <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">{{ user.get_full_name|default:user.username }} <span class="badge text-bg-light text-primary ms-1">{{ role }}</span></a>
         <ul class="dropdown-menu dropdown-menu-end">
+          <li><span class="dropdown-item-text small text-muted">Exercice : {{ exercice_actif|default:"aucun" }}</span></li>
           <li><a class="dropdown-item" href="{% url 'password_change' %}">Changer mon mot de passe</a></li>
           <li><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="dropdown-item">Se déconnecter</button></form></li>
         </ul>

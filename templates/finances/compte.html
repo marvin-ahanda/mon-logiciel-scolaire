@@ -28,8 +28,8 @@
             <td>{{ p.get_mode_display }}{% if p.reference %} <span class="small">({{ p.reference }})</span>{% endif %}</td><td class="text-end">{{ p.montant|fcfa }}</td>
             <td class="text-end text-decoration-none">{% if p.annule %}<span class="badge text-bg-secondary" title="{{ p.motif_annulation }} — {{ p.annule_par }}, {{ p.annule_le|date:'d/m/Y H:i' }}">annulé</span>
               {% else %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'recu' p.pk %}">Reçu</a>
-              <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#annul{{ p.pk }}">Annuler</button>{% endif %}</td></tr>
-          {% if not p.annule %}<tr class="collapse" id="annul{{ p.pk }}"><td colspan="6">
+              {% if peut_decider %}<button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#annul{{ p.pk }}">Annuler</button>{% endif %}{% endif %}</td></tr>
+          {% if not p.annule and peut_decider %}<tr class="collapse" id="annul{{ p.pk }}"><td colspan="6">
             <form class="d-flex gap-2" method="post" action="{% url 'annuler_paiement' p.pk %}">{% csrf_token %}
               <input class="form-control form-control-sm" name="motif" required maxlength="200" placeholder="Motif de l'annulation (obligatoire)" aria-label="Motif">
               <button class="btn btn-sm btn-danger">Confirmer l'annulation</button></form></td></tr>{% endif %}
@@ -52,6 +52,7 @@
         <button class="btn btn-primary w-100 mt-1">Enregistrer et imprimer le reçu</button></form>
       {% else %}<p class="mb-0 text-success">Compte soldé : aucun paiement attendu.</p>{% endif %}
     </div></div>
+    {% if peut_decider %}
     <div class="card mb-3"><div class="card-header">Réduction des frais</div><div class="card-body">
       {% if compte.total_reste %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="reduction">
         {% for f in form_r %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
@@ -66,6 +67,7 @@
           {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
         <button class="btn btn-outline-danger w-100" onclick="return confirm('Enregistrer ce remboursement ?')">Enregistrer le remboursement</button></form>{% endif %}
     </div></div>
+    {% else %}<p class="small text-muted">Réductions, remboursements et annulations : réservés à l'administration.</p>{% endif %}
   </div>
 </div>
 {% endblock %}
