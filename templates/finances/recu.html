@@ -17,7 +17,7 @@
     <tr><td style="width:35%">Reçu de</td><td><strong>{{ p.inscription.eleve }}</strong> (matricule {{ p.inscription.eleve.matricule }}) — classe {{ p.inscription.classe }}</td></tr>
     <tr><td>La somme de</td><td><strong>{{ p.montant|fcfa }}</strong></td></tr>
     <tr><td>En lettres</td><td><em>{{ en_lettres }}</em></td></tr>
-    <tr><td>Au titre de</td><td>{{ p.rubrique }}</td></tr>
+    <tr><td>Au titre de</td><td>{{ p.rubrique }}{% if p.est_arriere %} — <strong>arriérés de l'année {{ p.inscription.exercice }}</strong>{% endif %}</td></tr>
     <tr><td>Mode de paiement</td><td>{{ p.get_mode_display }}{% if p.reference %} — réf. {{ p.reference }}{% endif %}</td></tr>
     <tr><td>Date</td><td>{{ p.date|date:"d/m/Y" }}</td></tr>
     <tr><td>Reste pour la rubrique</td><td>{{ ligne.reste|fcfa }}</td></tr>

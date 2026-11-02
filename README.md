@@ -19,6 +19,9 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Élèves | Fiche avec photo, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
+| Caisse générale | Autres entrées (reçus) et sorties (bons de caisse) avec libellés, tiers et élève facultatif ; journal de caisse avec solde |
+| Plan de financement | Échéancier mensuel accordé par l'administration ; suivi des échéances payées, en retard, à venir ; liste des élèves en retard |
+| Dettes antérieures | Arriérés des années précédentes sur le compte de l'élève et dans la caisse ; règlement encaissé dans l'exercice actif ; état des débiteurs, y compris les élèves partis |
 | Cartes scolaires | Cartes au format carte bancaire (85,6 × 54 mm), 10 par page A4, avec photo, bilingues ; par classe ou pour un élève |
 | Emploi du temps | Créneaux horaires (avec pauses), grille par classe (matière, enseignant, salle), emploi du temps de chaque enseignant, impression ; conflits d'enseignant et de salle refusés |
 | Import / export Excel | Import des élèves et des notes (modèles fournis, aperçu ligne par ligne, enregistrement tout ou rien) ; export des élèves, des résultats, de la situation financière et du journal des encaissements |
@@ -73,6 +76,11 @@ des groupes Django (« Administration », « Caisse », « Surveillance ») ; un
   redimensionnées à 400 px et réencodées en JPEG (métadonnées EXIF/GPS supprimées), sous un nom aléatoire.
   Données de mineurs : elles ne sont servies que par une vue protégée (administration, caisse, surveillance,
   enseignants de la classe), jamais comme fichiers publics. Option d'affichage sur les bulletins.
+- **Caisse générale** : numérotation séparée des reçus d'entrée et des bons de sortie par exercice ; même règle
+  d'annulation que pour les paiements (le caissier annule ses propres opérations du jour). Journal de caisse :
+  écolage + autres entrées − sorties, opérations annulées exclues.
+- **Dettes antérieures** : calculées avec les tarifs de chaque année ; un exercice est antérieur si sa désignation
+  (au format « AAAA-AAAA ») précède celle de l'exercice actif. Tout paiement est encaissé dans l'exercice actif.
 - **Emploi du temps** : un enseignant ou une salle ne peut pas être à deux endroits sur le même créneau ;
   la grille d'une classe est enregistrée d'un bloc (rien n'est modifié en cas de conflit). Modifiable par
   l'administration ; consultable par les enseignants (chacun voit le sien) et la surveillance. Les créneaux
@@ -155,4 +163,4 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 
 ## Feuille de route (modules de l'original non encore repris)
 
-Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, statistiques avancées.
+SMS aux parents, statistiques avancées.

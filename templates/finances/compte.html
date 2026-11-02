@@ -4,6 +4,11 @@
 <a class="btn btn-link px-0 mb-2" href="{% url 'caisse' %}?classe={{ ins.classe_id }}">← Caisse</a>
 <h1 class="h3 mb-1">{{ ins.eleve }}</h1>
 <p class="text-muted">Matricule {{ ins.eleve.matricule }} · {{ ins.classe }} · {{ ins.get_statut_display }} · exercice {{ ins.exercice }}</p>
+{% if arriere %}<div class="alert alert-warning">Compte de l'exercice <strong>{{ ins.exercice }}</strong> (année antérieure) : les règlements sont
+  encaissés dans l'exercice actif <strong>{{ exercice_actif }}</strong> et apparaissent dans son journal.</div>{% endif %}
+{% if dettes %}<div class="alert alert-danger"><strong>Dettes des années antérieures : {{ total_dettes|fcfa }}</strong>
+  <ul class="mb-0 mt-1">{% for d in dettes %}<li>{{ d.inscription.exercice }} — classe de {{ d.inscription.classe }} : reste {{ d.total_reste|fcfa }}
+    · <a href="{% url 'compte_eleve' d.inscription.pk %}">régler</a></li>{% endfor %}</ul></div>{% endif %}
 <div class="row g-3">
   <div class="col-xl-7">
     <div class="card mb-3"><div class="card-header">Compte d'écolage</div>

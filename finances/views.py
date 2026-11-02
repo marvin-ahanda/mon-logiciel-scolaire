@@ -18,7 +18,7 @@ from .forms import AnnulationForm, MouvementCaisseForm, PaiementForm, PlanFinanc
 from .lettres import montant_en_lettres
 from .models import (Echeance, LibelleCaisse, MouvementCaisse, Paiement, PlanFinancement, Reduction, Remboursement, Rubrique,
                      Tarif, repartir)
-from .services import compte, comptes, journal_caisse, paiements_periode, situation_classe
+from .services import compte, comptes, dettes_anterieures, journal_caisse, paiements_periode, situation_classe
 
 
 def _exercice(request):
@@ -44,9 +44,11 @@ def caisse(request):
             qs = qs.filter(classe_id=c_id)
         resultats = list(qs.order_by("eleve__nom", "eleve__prenom")[:100])
     cs = comptes(resultats, exercice) if resultats else {}
+    dettes = dettes_anterieures([i.eleve_id for i in resultats], exercice) if resultats else {}
     aujourd_hui = Paiement.objects.filter(exercice=exercice, annule=False, date=timezone.localdate())
     return render(request, "finances/caisse.html", {
-        "q": q, "c_id": c_id, "classes": Classe.objects.all(), "resultats": [(i, cs[i.id]) for i in resultats],
+        "q": q, "c_id": c_id, "classes": Classe.objects.all(),
+        "resultats": [(i, cs[i.id], sum(d.total_reste for d in dettes.get(i.eleve_id, []))) for i in resultats],
         "encaisse_jour": aujourd_hui.aggregate(t=Sum("montant"))["t"] or 0, "nb_jour": aujourd_hui.count(),
         "sans_tarif": not Tarif.objects.filter(exercice=exercice).exists(),
     })
@@ -128,7 +130,18 @@ def compte_eleve(request, pk):
         "reductions": Reduction.objects.filter(inscription=ins).select_related("rubrique"),
         "remboursements": Remboursement.objects.filter(inscription=ins),
         "form_annulation": AnnulationForm(), "peut_decider": admin, "form_plan": form_plan, **_contexte_plan(ins, c),
+        **_contexte_dettes(ins),
     })
+
+
+def _contexte_dettes(ins):
+    actif = Exercice.actif_courant()
+    if actif is None:
+        return {}
+    if ins.exercice_id != actif.pk:
+        return {"arriere": True, "exercice_actif": actif}
+    dettes = dettes_anterieures([ins.eleve_id], actif).get(ins.eleve_id, [])
+    return {"dettes": dettes, "total_dettes": sum(d.total_reste for d in dettes)}
 
 
 def _contexte_plan(ins, c):
@@ -342,3 +355,25 @@ def journal_de_caisse(request):
         solde += l["entree"] - l["sortie"]
         l["solde"] = solde
     return render(request, "finances/journal_caisse.html", {"debut": debut, "fin": fin, "lignes": lignes, "totaux": totaux, "par_mode": par_mode})
+
+
+
+@role_requis(peut_encaisser)
+def debiteurs_anterieurs(request):
+    """Élèves qui doivent encore de l'écolage d'années antérieures (« Doit à l'établissement » de l'original)."""
+    exercice = _exercice(request)
+    if not exercice:
+        return redirect("accueil")
+    inscrits = request.GET.get("filtre", "inscrits") != "tous"
+    eleves = Inscription.objects.exclude(exercice=exercice).values_list("eleve_id", flat=True).distinct()
+    dettes = dettes_anterieures(list(eleves), exercice)
+    actuelles = {i.eleve_id: i for i in Inscription.objects.filter(exercice=exercice, eleve_id__in=dettes).select_related("classe")}
+    lignes = []
+    for eleve_id, liste in dettes.items():
+        actuelle = actuelles.get(eleve_id)
+        if inscrits and not actuelle:
+            continue
+        lignes.append({"eleve": liste[0].inscription.eleve, "actuelle": actuelle, "dettes": liste,
+                       "total": sum(c.total_reste for c in liste)})
+    lignes.sort(key=lambda l: (-l["total"], str(l["eleve"])))
+    return render(request, "finances/debiteurs.html", {"lignes": lignes, "inscrits": inscrits, "total": sum(l["total"] for l in lignes)})

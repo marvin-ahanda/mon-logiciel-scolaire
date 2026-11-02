@@ -107,11 +107,21 @@ class Paiement(OperationEleve, Annulable):
     def __str__(self):
         return f"Reçu n° {self.numero_recu} — {self.inscription.eleve} — {self.montant} F"
 
+    @property
+    def est_arriere(self):
+        """Règlement d'une dette d'une année antérieure (encaissé dans un autre exercice que celui de l'inscription)."""
+        return self.inscription.exercice_id != self.exercice_id
+
     @classmethod
     @transaction.atomic
     def enregistrer(cls, **champs):
-        """Crée le paiement avec le numéro de reçu suivant de l'exercice (sans doublon en cas de saisies simultanées)."""
-        exercice = Exercice.objects.select_for_update().get(pk=champs["inscription"].exercice_id)
+        """Crée le paiement avec le numéro de reçu suivant (sans doublon en cas de saisies simultanées).
+
+        Le paiement est encaissé dans l'exercice actif (journal et numérotation du jour), même lorsqu'il règle
+        une dette d'une année antérieure ; l'inscription concernée indique l'année réglée.
+        """
+        actif = Exercice.actif_courant()
+        exercice = Exercice.objects.select_for_update().get(pk=actif.pk if actif else champs["inscription"].exercice_id)
         dernier = cls.objects.filter(exercice=exercice).aggregate(m=Max("numero_recu"))["m"] or 0
         return cls.objects.create(exercice=exercice, numero_recu=dernier + 1, **champs)
 
