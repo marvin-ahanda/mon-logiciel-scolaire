@@ -87,3 +87,8 @@ body { background: #f4f6f9; }
 .barre-h:hover .barre-h-trace { background: #1f5fae; }
 .barre-h-valeur { font-size: .875rem; text-align: right; font-variant-numeric: tabular-nums; color: #212529; }
 @media print { .histo-barre, .barre-h-trace { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* --- Fiche du code d'accès --- */
+.code-acces { font-size: 2.5rem; letter-spacing: .35em; font-weight: 600; padding: .5rem 1rem; border: 2px dashed #6c757d;
+  border-radius: .5rem; display: inline-block; margin-bottom: 1rem; }
+@media print { .fiche-code { border: 1px solid #000 !important; } }

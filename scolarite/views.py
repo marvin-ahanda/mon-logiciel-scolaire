@@ -204,7 +204,7 @@ class EnseignantListe(ListeGenerique):
     model = Enseignant
     titre = "Enseignants"
     colonnes = [("Matricule", "matricule"), ("Nom", "nom"), ("Prénom", "prenom"), ("Téléphone", "telephone"),
-                ("Compte", lambda e: e.utilisateur.username if e.utilisateur else "—")]
+                ("Accès au logiciel", lambda e: "oui" if e.utilisateur_id else "—")]
     url_creation = "enseignant_creer"
     url_modification = "enseignant_modifier"
 
@@ -214,14 +214,25 @@ class EnseignantListe(ListeGenerique):
         return qs.filter(Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(matricule__icontains=q)) if q else qs
 
 
-class EnseignantCreer(FormulaireGenerique, CreateView):
+class AccesEnseignantMixin:
+    """Après l'enregistrement, affiche le code d'accès s'il vient d'être généré."""
+
+    def form_valid(self, form):
+        reponse = super().form_valid(form)
+        if form.code:
+            from comptes.views import montrer_code
+            return montrer_code(self.request, self.object.utilisateur, form.code)
+        return reponse
+
+
+class EnseignantCreer(AccesEnseignantMixin, FormulaireGenerique, CreateView):
     model = Enseignant
     form_class = EnseignantForm
     titre = "Nouvel enseignant"
     url_retour = "enseignants"
 
 
-class EnseignantModifier(FormulaireGenerique, UpdateView):
+class EnseignantModifier(AccesEnseignantMixin, FormulaireGenerique, UpdateView):
     model = Enseignant
     form_class = EnseignantForm
     titre = "Modifier l'enseignant"

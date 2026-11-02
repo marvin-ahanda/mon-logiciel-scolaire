@@ -1,6 +1,5 @@
 from django import forms
 from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
 from django.core.files.uploadedfile import UploadedFile
 
 from .models import Attribution, Classe, Eleve, Enseignant, Exercice, Inscription, Matiere
@@ -35,9 +34,8 @@ class MatiereForm(BootstrapMixin, forms.ModelForm):
 
 
 class EnseignantForm(BootstrapMixin, forms.ModelForm):
-    identifiant = forms.CharField(required=False, help_text="Identifiant de connexion (facultatif).")
-    mot_de_passe = forms.CharField(required=False, widget=forms.PasswordInput(render_value=False),
-                                   help_text="Laisser vide pour ne pas changer le mot de passe.")
+    acces = forms.BooleanField(required=False, initial=True, label="Créer son accès au logiciel",
+                               help_text="Un code de connexion de 6 caractères est généré automatiquement et affiché une seule fois.")
 
     class Meta:
         model = Enseignant
@@ -45,42 +43,28 @@ class EnseignantForm(BootstrapMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance.pk and self.instance.utilisateur:
-            self.fields["identifiant"].initial = self.instance.utilisateur.username
-
-    def clean(self):
-        data = super().clean()
-        ident, mdp = data.get("identifiant"), data.get("mot_de_passe")
-        user = self.instance.utilisateur if self.instance.pk else None
-        if ident:
-            autre = User.objects.filter(username=ident).exclude(pk=getattr(user, "pk", None))
-            if autre.exists():
-                self.add_error("identifiant", "Cet identifiant est déjà utilisé.")
-            if user is None and not mdp:
-                self.add_error("mot_de_passe", "Un mot de passe est requis pour créer le compte.")
-        if mdp:
-            if not ident:
-                self.add_error("identifiant", "Indiquez un identifiant pour ce mot de passe.")
-            else:
-                try:
-                    validate_password(mdp, user)
-                except forms.ValidationError as e:
-                    self.add_error("mot_de_passe", e)
-        return data
+        self.code = None
+        if self.instance.pk and self.instance.utilisateur_id:
+            self.fields["acces"].initial = False
+            self.fields["acces"].label = "Générer un nouveau code d'accès"
+            self.fields["acces"].help_text = "L'ancien code ne fonctionnera plus. Le nouveau code s'affiche une seule fois."
 
     def save(self, commit=True):
+        from comptes.codes import attribuer_code, identifiant_libre
         ens = super().save(commit=commit)
-        ident, mdp = self.cleaned_data.get("identifiant"), self.cleaned_data.get("mot_de_passe")
-        if ident:
-            user = ens.utilisateur or User(username=ident)
-            user.username = ident
-            user.first_name, user.last_name, user.email = ens.prenom, ens.nom, ens.email
-            if mdp:
-                user.set_password(mdp)
-            user.save()
-            if ens.utilisateur_id != user.id:
-                ens.utilisateur = user
-                ens.save(update_fields=["utilisateur"])
+        user = ens.utilisateur
+        if user is None and not self.cleaned_data.get("acces"):
+            return ens
+        if user is None:
+            user = User(username=identifiant_libre(ens.prenom, ens.nom))
+            user.set_unusable_password()
+        user.first_name, user.last_name, user.email = ens.prenom[:150], ens.nom[:150], ens.email   # nom tenu à jour pour la connexion
+        user.save()
+        if ens.utilisateur_id != user.id:
+            ens.utilisateur = user
+            ens.save(update_fields=["utilisateur"])
+        if self.cleaned_data.get("acces"):
+            self.code = attribuer_code(user)
         return ens
 
 

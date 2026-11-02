@@ -130,29 +130,38 @@ class GestionComptesTests(RolesMixin, TestCase):
         self.client.force_login(self.admin)
 
     def creer(self, **data):
-        base = {"username": "nouveau", "first_name": "N", "last_name": "Ouveau", "email": "", "is_active": "on",
-                "role": CAISSE, "mot_de_passe": "Tres-Long-2025!"}
+        base = {"username": "nouveau", "first_name": "N", "last_name": "Ouveau", "email": "", "is_active": "on", "role": CAISSE}
         base.update(data)
-        return self.client.post(reverse("utilisateur_creer"), base)
+        return self.client.post(reverse("utilisateur_creer"), base, follow=True)
 
     def test_creer_un_caissier(self):
-        self.creer()
+        r = self.creer()
         u = User.objects.get(username="nouveau")
         self.assertTrue(est_caissier(u) and not est_administration(u) and not u.is_staff)
-        self.assertTrue(u.check_password("Tres-Long-2025!"))
+        self.assertRedirects(r, reverse("code_acces", args=[u.pk]))
+        code = r.context["code"]                                                        # code généré et affiché
+        self.assertRegex(code, r"^[a-z0-9]{6}$")
+        self.assertTrue(u.check_password(code))
+        self.assertIsNone(self.client.get(reverse("code_acces", args=[u.pk])).context["code"])   # affiché une seule fois
+
+    def test_identifiant_deduit_du_nom(self):
+        self.creer(username="", first_name="Élodie", last_name="Mbia")
+        self.assertTrue(User.objects.filter(username="elodie.mbia").exists())
+        self.creer(username="", first_name="Élodie", last_name="Mbia")
+        self.assertTrue(User.objects.filter(username="elodie.mbia2").exists())
 
     def test_creer_un_directeur_des_etudes(self):
         self.creer(username="dir", role=ADMINISTRATION)
         u = User.objects.get(username="dir")
         self.assertTrue(est_administration(u) and u.is_staff)
 
-    def test_mot_de_passe_faible_refuse(self):
-        self.creer(mot_de_passe="123")
+    def test_nom_obligatoire(self):
+        self.creer(last_name="")
         self.assertFalse(User.objects.filter(username="nouveau").exists())
 
     def test_changer_de_role(self):
         url = reverse("utilisateur_modifier", args=[self.caissier.pk])
-        self.client.post(url, {"username": "caisse", "is_active": "on", "role": ADMINISTRATION})
+        self.client.post(url, {"username": "caisse", "last_name": "Caisse", "is_active": "on", "role": ADMINISTRATION})
         self.caissier.refresh_from_db()
         self.assertTrue(est_administration(User.objects.get(pk=self.caissier.pk)))
         self.assertFalse(self.caissier.groups.filter(name=CAISSE).exists())
@@ -168,16 +177,16 @@ class GestionComptesTests(RolesMixin, TestCase):
         autre = User.objects.create_user("autre.admin", password="p")
         autre.groups.add(Group.objects.get(name=ADMINISTRATION))
         self.client.force_login(autre)
-        self.client.post(reverse("utilisateur_modifier", args=[self.admin.pk]), {"username": "admin", "role": ADMINISTRATION})
+        self.client.post(reverse("utilisateur_modifier", args=[self.admin.pk]), {"username": "admin", "last_name": "A", "role": ADMINISTRATION})
         self.assertFalse(User.objects.get(pk=self.admin.pk).is_active)                  # possible : il en reste un
-        r = self.client.post(reverse("utilisateur_modifier", args=[autre.pk]), {"username": "autre.admin", "is_active": "on", "role": CAISSE})
+        r = self.client.post(reverse("utilisateur_modifier", args=[autre.pk]), {"username": "autre.admin", "last_name": "B", "is_active": "on", "role": CAISSE})
         self.assertEqual(r.status_code, 200)                                            # refusé : il serait le dernier
         self.assertTrue(est_administration(User.objects.get(pk=autre.pk)))
 
     def test_compte_desactive_ne_peut_plus_se_connecter(self):
-        self.client.post(reverse("utilisateur_modifier", args=[self.caissier.pk]), {"username": "caisse", "role": CAISSE})
+        self.client.post(reverse("utilisateur_modifier", args=[self.caissier.pk]), {"username": "caisse", "last_name": "C", "role": CAISSE})
         self.client.logout()
-        r = self.client.post(reverse("login"), {"username": "caisse", "password": "Mot2Passe!x"})
+        r = self.client.post(reverse("login"), {"personnel": self.caissier.pk, "code": "Mot2Passe!x"})
         self.assertEqual(r.status_code, 200)                                            # reste sur la page de connexion
         self.assertNotIn("_auth_user_id", self.client.session)
 
@@ -224,7 +233,116 @@ class SurveillantTests(RolesMixin, TestCase):
 
     def test_creation_par_l_administration(self):
         self.client.force_login(self.admin)
-        self.client.post(reverse("utilisateur_creer"), {"username": "sg2", "is_active": "on", "role": SURVEILLANCE,
-                                                         "mot_de_passe": "Tres-Long-2025!"})
+        self.client.post(reverse("utilisateur_creer"), {"username": "sg2", "last_name": "Sg", "is_active": "on", "role": SURVEILLANCE})
         u = User.objects.get(username="sg2")
         self.assertTrue(est_surveillant(u) and not u.is_staff)
+
+
+class CodeAccesTests(TestCase):
+    def test_format_du_code(self):
+        from .codes import generer_code
+        codes = {generer_code() for _ in range(300)}
+        self.assertGreater(len(codes), 295)                                              # aléatoires
+        for c in codes:
+            self.assertRegex(c, r"^[a-hjkmnp-z0-9]{6}$")                                 # ni i, ni l, ni o
+            self.assertTrue(any(x.isdigit() for x in c) and any(x.isalpha() for x in c))
+
+
+class ConnexionTests(RolesMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        from .codes import attribuer_code
+        self.caissier.last_name, self.caissier.first_name = "Zang", "Paul"
+        self.caissier.save()
+        self.code = attribuer_code(self.caissier)
+
+    def connecter(self, code, user=None, **extra):
+        return self.client.post(reverse("login"), {"personnel": (user or self.caissier).pk, "code": code, **extra})
+
+    def test_liste_alphabetique_du_personnel(self):
+        ens = self.ens                                                                  # « Prof » : nom pris sur la fiche enseignant
+        User.objects.create_user("e1", password="p", last_name="Élan", first_name="Rose").groups.add(Group.objects.get(name=SURVEILLANCE))
+        User.objects.create_user("sans.role", password="p", last_name="Aaa")              # sans rôle : absent
+        inactif = User.objects.create_user("inactif", password="p", last_name="Abc", is_active=False)
+        inactif.groups.add(Group.objects.get(name=CAISSE))
+        noms = [n for _, n in self.client.get(reverse("login")).context["personnels"]]
+        self.assertEqual(noms, sorted(noms, key=lambda n: n.replace("É", "E").lower()))
+        self.assertIn("ÉLAN Rose", noms)
+        self.assertIn("ZANG Paul", noms)
+        self.assertIn(f"{ens.nom.upper()} {ens.prenom}".strip(), noms)
+        self.assertNotIn("AAA", noms)
+        self.assertNotIn("ABC", noms)
+        self.assertLess(noms.index("ÉLAN Rose"), noms.index("ZANG Paul"))
+
+    def test_homonymes_distingues(self):
+        for ident in ("h1", "h2"):
+            User.objects.create_user(ident, password="p", last_name="Atangana", first_name="Luc").groups.add(Group.objects.get(name=CAISSE))
+        noms = [n for _, n in self.client.get(reverse("login")).context["personnels"]]
+        self.assertIn("ATANGANA Luc (h1)", noms)
+        self.assertIn("ATANGANA Luc (h2)", noms)
+
+    def test_connexion_par_nom_et_code(self):
+        r = self.connecter(self.code.upper(), next="/finances/")                         # majuscules acceptées
+        self.assertRedirects(r, "/finances/", fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.caissier.pk)
+
+    def test_redirection_externe_refusee(self):
+        r = self.connecter(self.code, next="https://exemple.com/")
+        self.assertEqual(r.url, "/")
+
+    def test_code_d_un_autre_refuse(self):
+        from .codes import attribuer_code
+        autre = attribuer_code(self.admin)
+        r = self.connecter(autre)                                                       # bon code, mauvais nom
+        self.assertContains(r, "Code incorrect")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_blocage_apres_cinq_essais(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        for i in range(4):
+            self.assertContains(self.connecter("zzzzz9"), f"Encore {4 - i} essai")
+        self.assertContains(self.connecter("zzzzz9"), "bloqué")
+        r = self.connecter(self.code)                                                   # même le bon code est refusé
+        self.assertContains(r, "accès bloqué pendant encore")
+        self.assertNotIn("_auth_user_id", self.client.session)
+        acces = self.caissier.acces
+        acces.bloque_jusqu_a = timezone.now() - timedelta(seconds=1)                     # le délai est écoulé
+        acces.save()
+        self.assertEqual(self.connecter(self.code).status_code, 302)
+
+    def test_nouveau_code_debloque_et_remplace_l_ancien(self):
+        for _ in range(5):
+            self.connecter("zzzzz9")
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("regenerer_code", args=[self.caissier.pk]), follow=True)
+        nouveau = r.context["code"]
+        self.client.logout()
+        self.assertContains(self.connecter(self.code), "Code incorrect")                 # l'ancien ne marche plus
+        self.assertEqual(self.connecter(nouveau).status_code, 302)
+
+    def test_administrateur_change_son_propre_code_sans_etre_deconnecte(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("regenerer_code", args=[self.admin.pk]), follow=True)
+        self.assertTrue(r.context["code"])
+        self.assertEqual(self.client.get(reverse("utilisateurs")).status_code, 200)
+
+    def test_codes_reserves_a_l_administration(self):
+        self.client.force_login(self.caissier)
+        self.assertEqual(self.client.post(reverse("regenerer_code", args=[self.admin.pk])).status_code, 302)
+        self.assertEqual(self.client.get(reverse("code_acces", args=[self.admin.pk])).status_code, 302)
+        from .models import AccesPersonnel
+        self.assertFalse(AccesPersonnel.objects.filter(utilisateur=self.admin).exists())   # aucun code généré
+
+    def test_porte_unique_pour_l_administration_avancee(self):
+        r = self.client.get("/admin/login/?next=/admin/")
+        self.assertRedirects(r, reverse("login") + "?next=/admin/", fetch_redirect_response=False)
+
+    def test_commande_de_depannage(self):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command("code_acces", "caisse", stdout=out)
+        code = out.getvalue().strip().split()[-1]
+        self.caissier.refresh_from_db()
+        self.assertTrue(self.caissier.check_password(code))

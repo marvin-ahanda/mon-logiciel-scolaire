@@ -1,19 +1,23 @@
 {% extends "base.html" %}
-{% block titre %}Comptes utilisateurs{% endblock %}
+{% block titre %}Personnel et codes d'accès{% endblock %}
 {% block contenu %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-  <h1 class="h3 m-0">Comptes utilisateurs</h1>
-  <a class="btn btn-primary" href="{% url 'utilisateur_creer' %}">+ Nouveau compte</a>
+  <h1 class="h3 m-0">Personnel et codes d'accès</h1>
+  <a class="btn btn-primary" href="{% url 'utilisateur_creer' %}">+ Nouveau membre du personnel</a>
 </div>
-<p class="text-muted small">Administration : tous les droits (principal, directeurs des études…). Caissier : encaissement de l'écolage. Surveillant général : discipline (appel, infractions, suivi).
-  Enseignant : saisie de ses notes — ces comptes se créent depuis la <a href="{% url 'enseignants' %}">fiche de l'enseignant</a>.</p>
+<p class="text-muted small">Chaque membre du personnel se connecte en choisissant son nom dans la liste, puis en saisissant son code d'accès personnel
+  (6 caractères, généré automatiquement à la création). Administration : tous les droits (principal, directeurs des études…). Caissier : encaissement de l'écolage.
+  Surveillant général : discipline. Enseignant : saisie de ses notes — ces accès se créent depuis la <a href="{% url 'enseignants' %}">fiche de l'enseignant</a>.</p>
 <div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-  <thead class="table-light"><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>État</th><th>Dernière connexion</th><th></th></tr></thead>
-  <tbody>{% for u, role in lignes %}
-    <tr class="{% if not u.is_active %}text-muted{% endif %}"><td>{{ u.username }}</td><td>{{ u.get_full_name|default:"—" }}</td>
+  <thead class="table-light"><tr><th>Nom</th><th>Rôle</th><th>État</th><th>Code généré le</th><th>Dernière connexion</th><th></th></tr></thead>
+  <tbody>{% for u, nom, role in lignes %}
+    <tr class="{% if not u.is_active %}text-muted{% endif %}"><td>{{ nom }} <div class="small text-muted">{{ u.username }}</div></td>
       <td><span class="badge {% if role == 'Administration' %}text-bg-primary{% elif role == 'Caissier' %}text-bg-success{% elif role == 'Surveillant général' %}text-bg-warning{% elif role == 'Enseignant' %}text-bg-info{% else %}text-bg-light{% endif %}">{{ role }}</span></td>
-      <td>{% if u.is_active %}actif{% else %}désactivé{% endif %}</td><td>{{ u.last_login|date:"d/m/Y H:i"|default:"jamais" }}</td>
-      <td class="text-end">{% if role == "Enseignant" and u.enseignant %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'enseignant_modifier' u.enseignant.pk %}">Fiche enseignant</a>{% endif %}
+      <td>{% if not u.is_active %}désactivé{% elif u.acces.bloque %}<span class="text-danger">bloqué (essais erronés)</span>{% else %}actif{% endif %}</td>
+      <td>{{ u.acces.code_genere_le|date:"d/m/Y H:i"|default:"—" }}</td>
+      <td>{{ u.last_login|date:"d/m/Y H:i"|default:"jamais" }}</td>
+      <td class="text-end text-nowrap">{% if u.is_active %}<a class="btn btn-sm btn-outline-warning" href="{% url 'code_acces' u.pk %}">Code d'accès</a>{% endif %}
+        {% if role == "Enseignant" and u.enseignant %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'enseignant_modifier' u.enseignant.pk %}">Fiche enseignant</a>{% endif %}
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'utilisateur_modifier' u.pk %}">Modifier</a></td></tr>
   {% endfor %}</tbody>
 </table></div></div>

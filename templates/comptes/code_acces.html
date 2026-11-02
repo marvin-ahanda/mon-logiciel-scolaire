@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block titre %}Code d'accès{% endblock %}
+{% block contenu %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <div class="card fiche-code">
+      <div class="card-body p-4">
+        <p class="text-muted small mb-1">{{ etablissement.nom|default:"OtourixSchool" }} — accès au logiciel</p>
+        <h1 class="h4 mb-1">{{ nom }}</h1>
+        <p class="mb-4"><span class="badge text-bg-light border">{{ role }}</span></p>
+        {% if code %}
+        <p class="mb-1">Code d'accès personnel :</p>
+        <p class="code-acces font-monospace" aria-label="Code d'accès : {% for c in code %}{{ c }} {% endfor %}">{{ code }}</p>
+        <ol class="small mb-3">
+          <li>Sur la page de connexion, choisissez votre nom dans la liste.</li>
+          <li>Saisissez ce code dans le champ « Code d'accès ».</li>
+        </ol>
+        <div class="alert alert-warning small no-print mb-3">Notez ou imprimez ce code maintenant et remettez-le à la personne concernée :
+          il ne sera plus jamais affiché. En cas de perte, générez-en un nouveau.</div>
+        <p class="small text-muted d-none d-print-block">Ce code est strictement personnel : ne le communiquez à personne.</p>
+        <div class="d-flex gap-2 no-print">
+          <button class="btn btn-primary" onclick="window.print()">Imprimer la fiche</button>
+          <a class="btn btn-outline-secondary" href="{% url 'utilisateurs' %}">Terminé</a>
+        </div>
+        {% else %}
+        <p>Pour des raisons de sécurité, un code n'est affiché qu'une seule fois, au moment où il est généré.
+          Si ce membre du personnel a perdu son code, générez-en un nouveau : l'ancien cessera aussitôt de fonctionner.</p>
+        <form method="post" action="{% url 'regenerer_code' personne.pk %}" class="d-flex gap-2"
+              onsubmit="return confirm('Générer un nouveau code pour {{ nom|escapejs }} ? L\'ancien code ne fonctionnera plus.')">{% csrf_token %}
+          <button class="btn btn-warning" {% if not personne.is_active %}disabled{% endif %}>Générer un nouveau code</button>
+          <a class="btn btn-outline-secondary" href="{% url 'utilisateurs' %}">Retour</a>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,12 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.generic import RedirectView
+
+from comptes.connexion import connexion
 
 urlpatterns = [
-    path("connexion/", auth_views.LoginView.as_view(template_name="connexion.html", redirect_authenticated_user=True), name="login"),
+    path("connexion/", connexion, name="login"),
     path("deconnexion/", auth_views.LogoutView.as_view(), name="logout"),
-    path("mot-de-passe/", auth_views.PasswordChangeView.as_view(template_name="scolarite/formulaire.html",
-         success_url="/", extra_context={"titre": "Changer mon mot de passe", "url_retour": "/"}), name="password_change"),
+    # une seule porte d'entrée (avec blocage après 5 codes erronés), y compris pour l'administration avancée
+    path("admin/login/", RedirectView.as_view(pattern_name="login", query_string=True)),
     path("admin/", admin.site.urls),
     path("notes/", include("notes.urls")),
     path("discipline/", include("discipline.urls")),

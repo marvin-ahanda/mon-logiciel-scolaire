@@ -236,11 +236,12 @@ class AccesAdministrationTests(DonneesMixin, TestCase):
 
     def test_creation_enseignant_avec_compte(self):
         self.client.force_login(self.admin)
-        self.client.post(reverse("enseignant_creer"), {"matricule": "E9", "nom": "Ngono", "identifiant": "ngono",
-                                                       "mot_de_passe": "Tres-Long-2025!"})
-        u = User.objects.get(username="ngono")
-        self.assertTrue(u.check_password("Tres-Long-2025!"))
+        r = self.client.post(reverse("enseignant_creer"), {"matricule": "E9", "nom": "Ngono", "prenom": "Ange", "acces": "on"}, follow=True)
+        u = User.objects.get(username="ange.ngono")
+        self.assertTrue(u.check_password(r.context["code"]))                          # code généré, affiché une fois
         self.assertEqual(u.enseignant.matricule, "E9")
+        self.client.post(reverse("enseignant_creer"), {"matricule": "E10", "nom": "Sans", "prenom": "Acces"})
+        self.assertIsNone(Enseignant.objects.get(matricule="E10").utilisateur)       # case décochée : pas d'accès
 
 
 class PeriodesCalculTests(TestCase):
