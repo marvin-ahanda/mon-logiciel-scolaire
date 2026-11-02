@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titre %}Saisie des notes{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3">Saisie des notes</h1>
+<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-6"><select class="form-select" name="attribution" required>
+    <option value="">Classe et matière…</option>
+    {% for a in attributions %}<option value="{{ a.pk }}" {% if a.pk|stringformat:"s" == a_id %}selected{% endif %}>{{ a.classe }} — {{ a.matiere }}{% if a.enseignant %} ({{ a.enseignant }}){% endif %}</option>{% endfor %}
+  </select></div>
+  <div class="col-md-4"><select class="form-select" name="sequence" required>
+    <option value="">Séquence…</option>
+    {% for s in sequences %}<option value="{{ s.pk }}" {% if s.pk|stringformat:"s" == s_id %}selected{% endif %}>{{ s.libelle }}{% if s.verrouillee %} (verrouillée){% endif %}</option>{% endfor %}
+  </select></div>
+  <div class="col-md-2"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+</form>
+{% if not attributions %}<div class="alert alert-info">Aucune matière ne vous est attribuée pour l'exercice actif.</div>{% endif %}
+
+{% if attribution %}
+<div class="card">
+  <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+    <span><strong>{{ attribution.classe }}</strong> — {{ attribution.matiere }} · coef. {{ attribution.coefficient }} · {{ sequence.libelle }}</span>
+    <span class="text-muted small">{{ nb_notes }} note(s) sur {{ lignes|length }} élève(s)</span>
+  </div>
+  {% if sequence.verrouillee %}<div class="alert alert-secondary m-3 mb-0">Séquence fermée : consultation uniquement.</div>{% endif %}
+  <form method="post" id="form-notes">{% csrf_token %}
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0 table-notes">
+    <thead class="table-light"><tr><th>#</th><th>Matricule</th><th>Élève</th><th>Note /20</th><th></th></tr></thead>
+    <tbody>{% for l in lignes %}
+      <tr class="{% if l.erreur %}table-danger{% endif %}">
+        <td class="text-muted">{{ forloop.counter }}</td><td>{{ l.inscription.eleve.matricule }}</td><td>{{ l.inscription.eleve }}</td>
+        <td><input class="form-control form-control-sm saisie-note" name="note_{{ l.inscription.id }}" value="{{ l.valeur }}"
+             inputmode="decimal" autocomplete="off" {% if sequence.verrouillee %}disabled{% endif %} aria-label="Note de {{ l.inscription.eleve }}"></td>
+        <td class="small">{% if l.erreur %}<span class="text-danger">{{ l.erreur }}</span>{% elif not l.valeur %}<span class="text-muted">non évalué</span>{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Aucun élève inscrit dans cette classe.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if not sequence.verrouillee and lignes %}
+  <div class="card-footer d-flex flex-wrap gap-2 align-items-center">
+    <button class="btn btn-primary">Enregistrer les notes</button>
+    <span class="text-muted small">Note de 0 à 20 (virgule acceptée). Case vide = élève non évalué : la matière n'entre pas dans sa moyenne.</span>
+  </div>
+  {% endif %}
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+// Entrée passe à la case suivante, comme dans un tableur ; prévient avant de quitter sans enregistrer.
+(function () {
+  const champs = Array.from(document.querySelectorAll('.saisie-note'));
+  let modifie = false;
+  champs.forEach((c, i) => {
+    c.addEventListener('input', () => { modifie = true; });
+    c.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); (champs[i + 1] || c).focus(); (champs[i + 1] || c).select(); }
+    });
+  });
+  const form = document.getElementById('form-notes');
+  if (form) form.addEventListener('submit', () => { modifie = false; });
+  window.addEventListener('beforeunload', (e) => { if (modifie) { e.preventDefault(); e.returnValue = ''; } });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends "scolarite/liste.html" %}
+{% block entete_extra %}<th></th>{% endblock %}
+{% block cellule_extra %}<td class="text-end">{% if not l.obj.actif %}
+  <form method="post" action="{% url 'exercice_activer' l.obj.pk %}" class="d-inline">{% csrf_token %}
+    <button class="btn btn-sm btn-success">Activer</button></form>{% endif %}</td>{% endblock %}

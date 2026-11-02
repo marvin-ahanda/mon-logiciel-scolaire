@@ -1,0 +1,62 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}OtourixSchool{% endblock %} — OtourixSchool</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+{% if user.is_authenticated %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary no-print">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="{% url 'accueil' %}">OtourixSchool</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-label="Menu">
+      <span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="menu">
+      <ul class="navbar-nav me-auto">
+        {% if est_admin %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Paramètres</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'exercices' %}">Exercices</a></li>
+            <li><a class="dropdown-item" href="{% url 'sequences' %}">Séquences</a></li>
+            <li><a class="dropdown-item" href="{% url 'classes' %}">Classes et coefficients</a></li>
+            <li><a class="dropdown-item" href="{% url 'matieres' %}">Matières</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'admin:index' %}">Administration avancée</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'enseignants' %}">Enseignants</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'eleves' %}">Élèves</a></li>
+        {% endif %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'saisie' %}">Saisie des notes</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'resultats' %}">Résultats</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'bulletins' %}">Bulletins</a></li>
+      </ul>
+      <span class="navbar-text me-3 small">
+        Exercice : <strong>{{ exercice_actif|default:"aucun" }}</strong>
+      </span>
+      <div class="dropdown">
+        <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">{{ user.get_full_name|default:user.username }}</a>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'password_change' %}">Changer mon mot de passe</a></li>
+          <li><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="dropdown-item">Se déconnecter</button></form></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endif %}
+<main class="container-fluid py-3 px-3 px-lg-4">
+  {% for m in messages %}
+  <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show no-print" role="alert">
+    {{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button></div>
+  {% endfor %}
+  {% block contenu %}{% endblock %}
+</main>
+<script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

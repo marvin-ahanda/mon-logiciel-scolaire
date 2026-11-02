@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titre %}Séquences{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-1">Séquences</h1>
+<p class="text-muted">Exercice {{ exercice|default:"— aucun exercice actif" }}. Une séquence verrouillée n'accepte plus de saisie ni de modification de notes.</p>
+<div class="card"><table class="table align-middle mb-0">
+  <thead class="table-light"><tr><th>Séquence</th><th>Trimestre</th><th>État</th><th></th></tr></thead>
+  <tbody>{% for s in sequences %}
+    <tr><td>{{ s.libelle }}</td><td>{{ s.trimestre }}</td>
+      <td>{% if s.verrouillee %}<span class="badge text-bg-secondary">verrouillée</span>{% else %}<span class="badge text-bg-success">ouverte</span>{% endif %}</td>
+      <td class="text-end"><form method="post" action="{% url 'sequence_verrou' s.pk %}">{% csrf_token %}
+        <button class="btn btn-sm {% if s.verrouillee %}btn-outline-success{% else %}btn-outline-secondary{% endif %}">
+          {% if s.verrouillee %}Déverrouiller{% else %}Verrouiller{% endif %}</button></form></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}

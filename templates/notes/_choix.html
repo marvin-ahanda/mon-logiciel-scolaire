@@ -1,0 +1,7 @@
+<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-5"><select class="form-select" name="classe" required><option value="">Classe…</option>
+    {% for c in classes %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == c_id %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><select class="form-select" name="sequence" required><option value="">Séquence…</option>
+    {% for s in sequences %}<option value="{{ s.pk }}" {% if s.pk|stringformat:"s" == s_id %}selected{% endif %}>{{ s.libelle }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+</form>
