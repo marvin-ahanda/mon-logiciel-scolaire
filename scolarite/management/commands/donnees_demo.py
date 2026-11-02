@@ -19,6 +19,7 @@ from datetime import date, timedelta
 from discipline.models import Absence, Incident, Infraction, ParametresDiscipline, Retard, Sanction
 from finances.models import Paiement, Reduction, Rubrique, Tarif
 from finances.services import compte
+from emploi.models import Cours, Creneau
 from notes.models import BaremeDistinction, Note
 from scolarite.models import (Attribution, Classe, Cycle, Eleve, Enseignant, Etablissement, Exercice, Inscription,
                               Matiere, Niveau)
@@ -109,6 +110,26 @@ class Command(BaseCommand):
             d.text((150, 130), (e.prenom[:1] + e.nom[:1]).upper(), fill=(60, 60, 60), anchor="mm", font_size=56)
             tampon = BytesIO(); img.save(tampon, format="JPEG", quality=85)
             e.photo.save("demo.jpg", ContentFile(tampon.getvalue()), save=True)
+        # Emploi du temps : créneaux et grilles sans conflit (volume horaire = coefficient)
+        from datetime import time
+        horaires = [(7, 30, 8, 25), (8, 25, 9, 20), (9, 20, 10, 15), (10, 15, 10, 30, True), (10, 30, 11, 25),
+                    (11, 25, 12, 20), (13, 30, 14, 25), (14, 25, 15, 20)]
+        creneaux = [Creneau.objects.create(ordre=i, heure_debut=time(h[0], h[1]), heure_fin=time(h[2], h[3]), pause=len(h) > 4)
+                    for i, h in enumerate(horaires, 1)]
+        places = [(j, c) for j in range(1, 6) for c in creneaux if not c.pause]
+        occupe = set()                                    # (enseignant, jour, créneau)
+        for classe in classes:
+            libres = places[:]
+            rnd.shuffle(libres)
+            for a in Attribution.objects.filter(exercice=ex, classe=classe):
+                for _ in range(a.coefficient):
+                    for k, (j, c) in enumerate(libres):
+                        if (a.enseignant_id, j, c.id) not in occupe:
+                            Cours.objects.create(exercice=ex, classe=classe, jour=j, creneau=c, attribution=a,
+                                                 salle=f"Salle {classes.index(classe) + 1}")
+                            occupe.add((a.enseignant_id, j, c.id))
+                            libres.pop(k)
+                            break
         # Écolage
         rubriques = [Rubrique.objects.create(libelle=l, ordre=i, echeance=e) for i, (l, e) in enumerate(
             [("Inscription", "à l'inscription"), ("1re tranche", "avant le 31 octobre"), ("2e tranche", "avant le 31 janvier")], 1)]

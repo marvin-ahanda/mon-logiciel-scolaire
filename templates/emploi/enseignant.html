@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titre %}Emploi du temps{% if enseignant %} — {{ enseignant }}{% endif %}{% endblock %}
+{% block contenu %}
+<h1 class="h3 mb-3 no-print">Emploi du temps par enseignant</h1>
+{% if enseignants %}<form class="row g-2 mb-3 no-print" method="get">
+  <div class="col-md-5"><select class="form-select" name="enseignant" aria-label="Enseignant"><option value="">Enseignant…</option>
+    {% for e in enseignants %}<option value="{{ e.pk }}" {% if e.pk == enseignant.pk %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><button class="btn btn-outline-primary w-100">Afficher</button></div>
+</form>{% endif %}
+{% if not enseignant %}<div class="alert alert-info">{% if enseignants %}Choisissez un enseignant.{% else %}Aucune fiche enseignant n'est liée à votre compte.{% endif %}</div>
+{% elif lignes %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="h5 m-0">{{ enseignant }} — {{ nb_heures }} créneau{{ nb_heures|pluralize:"x" }} par semaine</h2>
+  <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Imprimer</button>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-bordered align-middle mb-0 emploi">
+  <thead class="table-light"><tr><th>Horaire</th>{% for j, nom in jours %}<th>{{ nom }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for l in lignes %}<tr class="{% if l.creneau.pause %}table-secondary{% endif %}"><th class="text-nowrap">{{ l.creneau }}</th>
+    {% if l.creneau.pause %}<td colspan="{{ jours|length }}" class="text-center text-muted small">Pause</td>
+    {% else %}{% for c in l.cellules %}<td>{% if c %}<strong>{{ c.classe }}</strong><div class="small">{{ c.attribution.matiere }}{% if c.salle %} · {{ c.salle }}{% endif %}</div>{% endif %}</td>{% endfor %}{% endif %}</tr>
+  {% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+{% endblock %}

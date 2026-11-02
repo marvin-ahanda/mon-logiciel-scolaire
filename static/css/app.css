@@ -36,3 +36,7 @@ body { background: #f4f6f9; }
 /* --- Photos des élèves --- */
 .bulletin td.photo-cellule { width: 2.4cm; padding: .1rem; text-align: center; }
 .photo-bulletin { width: 2.2cm; height: 2.75cm; object-fit: cover; display: block; margin: auto; }
+
+/* --- Emploi du temps --- */
+.emploi td { min-width: 9rem; vertical-align: top; }
+@media print { .emploi { font-size: .8rem; } .emploi td { min-width: 0; } }

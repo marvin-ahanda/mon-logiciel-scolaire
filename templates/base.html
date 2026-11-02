@@ -66,6 +66,9 @@
         <li class="nav-item"><a class="nav-link" href="{% url 'resultats' %}">Résultats</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'bulletins' %}">Bulletins</a></li>
         {% endif %}
+        {% if est_admin or est_enseignant or est_surveillant %}
+        <li class="nav-item"><a class="nav-link" href="{% if est_enseignant and not est_admin and not est_surveillant %}{% url 'emploi_enseignant' %}{% else %}{% url 'emploi_classe' %}{% endif %}">Emploi du temps</a></li>
+        {% endif %}
         {% if est_admin or est_enseignant or est_caissier %}
         <li class="nav-item"><a class="nav-link" href="{% url 'echanges' %}">Excel</a></li>
         {% endif %}
