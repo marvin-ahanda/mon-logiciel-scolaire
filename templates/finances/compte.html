@@ -20,6 +20,20 @@
           {% if compte.rembourse %}<tr><td colspan="4">Remboursé</td><td class="text-end">{{ compte.rembourse|fcfa }}</td></tr>{% endif %}</tfoot>
       </table></div></div>
 
+    {% if plan %}
+    <div class="card mb-3 {% if plan_retard %}border-danger{% endif %}"><div class="card-header d-flex justify-content-between align-items-center">
+      <span>Plan de financement{% if plan.motif %} — <span class="small">{{ plan.motif }}</span>{% endif %}</span>
+      {% if plan_retard %}<span class="badge text-bg-danger">en retard de {{ plan_retard|fcfa }}</span>{% else %}<span class="badge text-bg-success">à jour</span>{% endif %}</div>
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light"><tr><th>Échéance</th><th class="text-end">Montant</th><th class="text-end">Couvert</th><th>État</th></tr></thead>
+        <tbody>{% for l in plan_lignes %}<tr class="{% if l.etat == 'en retard' %}table-danger{% elif l.etat == 'payée' %}table-success{% endif %}">
+          <td>{{ l.echeance.date|date:"d/m/Y" }}</td><td class="text-end">{{ l.echeance.montant|fcfa }}</td><td class="text-end">{{ l.couvert|fcfa }}</td><td>{{ l.etat }}</td></tr>{% endfor %}</tbody>
+        <tfoot class="table-light"><tr><td>Total du plan</td><td class="text-end fw-semibold">{{ plan_total|fcfa }}</td><td colspan="2" class="small">Dû à ce jour : {{ plan_du|fcfa }}</td></tr></tfoot>
+      </table>
+      {% if peut_decider %}<div class="card-body py-2 text-end"><form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="supprimer_plan">
+        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce plan de financement ?')">Supprimer le plan</button></form></div>{% endif %}
+    </div>
+    {% endif %}
     <div class="card mb-3"><div class="card-header">Chronologie des paiements</div>
       <div class="table-responsive"><table class="table table-sm align-middle mb-0">
         <thead class="table-light"><tr><th>Reçu</th><th>Date</th><th>Rubrique</th><th>Mode</th><th class="text-end">Montant</th><th></th></tr></thead>
@@ -60,6 +74,12 @@
         <button class="btn btn-outline-primary w-100">Enregistrer la réduction</button></form>
       {% else %}<p class="mb-0 text-muted small">Aucun reste à payer.</p>{% endif %}
     </div></div>
+    {% if not plan and compte.total_reste %}<div class="card mb-3"><div class="card-header">Accorder un plan de financement</div><div class="card-body">
+      <p class="small text-muted">Le reste à payer ({{ compte.total_reste|fcfa }}) est réparti en échéances mensuelles.</p>
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="plan">
+        {% for f in form_plan %}<div class="mb-2"><label class="form-label small" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+          {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-outline-primary w-100">Créer l'échéancier</button></form></div></div>{% endif %}
     <div class="card"><div class="card-header">Remboursement</div><div class="card-body">
       <p class="small text-muted">Remboursable : {{ compte.remboursable|fcfa }}</p>
       {% if compte.remboursable %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="remboursement">

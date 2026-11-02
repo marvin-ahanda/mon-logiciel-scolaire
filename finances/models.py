@@ -201,3 +201,69 @@ class MouvementCaisse(Annulable):
         champs["sens"] = champs["libelle"].sens
         dernier = cls.objects.filter(exercice=exercice, sens=champs["sens"]).aggregate(m=Max("numero"))["m"] or 0
         return cls.objects.create(exercice=exercice, numero=dernier + 1, **champs)
+
+
+# --- Plan de financement (échéancier personnalisé) ---------------------------------------------------
+
+class PlanFinancement(models.Model):
+    """Échéancier accordé à un élève pour régler le reste de son écolage (plan_financement de l'original)."""
+
+    inscription = models.OneToOneField(Inscription, on_delete=models.CASCADE, related_name="plan_financement")
+    motif = models.CharField(max_length=200, blank=True)
+    deja_verse = models.PositiveIntegerField("déjà versé à la création", default=0)
+    cree_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    cree_le = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "plan de financement"
+        verbose_name_plural = "plans de financement"
+
+    def __str__(self):
+        return f"Plan de financement — {self.inscription.eleve}"
+
+    def situation(self, total_verse, aujourd_hui=None):
+        """Échéances avec état, montant dû à ce jour et retard.
+
+        Les versements postérieurs à la création couvrent les échéances dans l'ordre chronologique.
+        """
+        aujourd_hui = aujourd_hui or timezone.localdate()
+        verse_depuis = max(0, total_verse - self.deja_verse)
+        disponible, lignes, du_a_date, echu = verse_depuis, [], 0, 0
+        for e in self.echeances.all():
+            couvert = min(e.montant, disponible)
+            disponible -= couvert
+            if e.date <= aujourd_hui:
+                du_a_date += e.montant
+            if e.date < aujourd_hui:            # une échéance du jour n'est pas encore en retard
+                echu += e.montant
+            etat = "payée" if couvert == e.montant else ("en retard" if e.date < aujourd_hui else "à venir")
+            lignes.append({"echeance": e, "couvert": couvert, "etat": etat})
+        return lignes, du_a_date, max(0, echu - verse_depuis)
+
+
+class Echeance(models.Model):
+    plan = models.ForeignKey(PlanFinancement, on_delete=models.CASCADE, related_name="echeances")
+    date = models.DateField()
+    montant = models.PositiveIntegerField("montant (F CFA)", validators=[MinValueValidator(1)])
+
+    class Meta:
+        ordering = ["date"]
+        verbose_name = "échéance"
+
+    def __str__(self):
+        return f"{self.date:%d/%m/%Y} : {self.montant} F"
+
+
+def repartir(reste, nombre, premiere_date):
+    """Répartit `reste` en `nombre` échéances mensuelles (montants arrondis à 500 F, la dernière absorbe l'écart)."""
+    from calendar import monthrange
+    if nombre < 1 or reste < 1:
+        return []
+    base = (reste // nombre) // 500 * 500 or reste // nombre
+    dates, annee, mois, jour = [], premiere_date.year, premiere_date.month, premiere_date.day
+    for i in range(nombre):
+        m = mois + i
+        a, m = annee + (m - 1) // 12, (m - 1) % 12 + 1
+        dates.append(premiere_date.replace(year=a, month=m, day=min(jour, monthrange(a, m)[1])))
+    montants = [base] * (nombre - 1) + [reste - base * (nombre - 1)]
+    return list(zip(dates, montants))

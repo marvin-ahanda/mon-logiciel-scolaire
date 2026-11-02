@@ -220,3 +220,52 @@ class CaisseGeneraleTests(FinancesMixin, TestCase):
         self.client.force_login(self.u_ens)
         self.assertEqual(self.client.get(reverse("caisse_generale")).status_code, 302)
         self.assertEqual(self.client.get(reverse("journal_caisse")).status_code, 302)
+
+
+class PlanFinancementTests(FinancesMixin, TestCase):
+    def creer_plan(self, nombre=3, premiere=None, i=0):
+        return self.client.post(reverse("compte_eleve", args=[self.ins[i].pk]), {
+            "action": "plan", "pl-nombre": nombre, "pl-premiere_date": (premiere or timezone.localdate()).isoformat(), "pl-motif": "Difficultés"})
+
+    def test_creation_repartit_le_reste(self):
+        from .models import PlanFinancement
+        self.payer(self.ins[0], self.inscr, 10000)                       # reste : 50 000
+        self.creer_plan(3)
+        plan = PlanFinancement.objects.get()
+        self.assertEqual((plan.deja_verse, plan.motif), (10000, "Difficultés"))
+        self.assertEqual([e.montant for e in plan.echeances.all()], [16500, 16500, 17000])
+        self.assertEqual(sum(e.montant for e in plan.echeances.all()), 50000)
+        self.creer_plan(2)                                                # pas de second plan
+        self.assertEqual(PlanFinancement.objects.count(), 1)
+
+    def test_situation_a_une_date(self):
+        from datetime import date
+        from .models import Echeance, PlanFinancement
+        plan = PlanFinancement.objects.create(inscription=self.ins[0], deja_verse=10000)
+        for d, m in [(date(2026, 1, 10), 20000), (date(2026, 2, 10), 20000), (date(2026, 3, 10), 10000)]:
+            Echeance.objects.create(plan=plan, date=d, montant=m)
+        # 25 000 versés au total (dont 15 000 depuis la création), au 15 février : 40 000 échus
+        lignes, du, retard = plan.situation(25000, aujourd_hui=date(2026, 2, 15))
+        self.assertEqual([l["etat"] for l in lignes], ["en retard", "en retard", "à venir"])
+        self.assertEqual([l["couvert"] for l in lignes], [15000, 0, 0])
+        self.assertEqual((du, retard), (40000, 25000))
+        lignes, du, retard = plan.situation(25000, aujourd_hui=date(2026, 2, 10))   # échéance du jour : pas encore en retard
+        self.assertEqual(retard, 5000)
+        lignes, du, retard = plan.situation(60000, aujourd_hui=date(2026, 3, 20))
+        self.assertEqual(([l["etat"] for l in lignes], retard), (["payée", "payée", "payée"], 0))
+
+    def test_droits_et_liste(self):
+        from datetime import timedelta
+        from django.contrib.auth.models import Group, User
+        from .models import PlanFinancement
+        self.creer_plan(2, premiere=timezone.localdate() - timedelta(days=40))   # première échéance déjà passée
+        self.creer_plan(2, premiere=timezone.localdate() + timedelta(days=10), i=1)
+        r = self.client.get(reverse("plans_financement"), {"retard": "1"})
+        self.assertEqual([l["ins"] for l in r.context["lignes"]], [self.ins[0]])
+        caissier = User.objects.create_user("c3", password="p")
+        caissier.groups.add(Group.objects.get(name="Caisse"))
+        self.client.force_login(caissier)
+        self.assertEqual(self.client.get(reverse("plans_financement")).status_code, 200)
+        PlanFinancement.objects.filter(inscription=self.ins[0]).delete()
+        self.creer_plan(2)
+        self.assertFalse(PlanFinancement.objects.filter(inscription=self.ins[0]).exists())   # réservé à l'administration

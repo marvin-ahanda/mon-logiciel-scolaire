@@ -14,9 +14,10 @@ from comptes.roles import est_administration, peut_encaisser, role_requis
 from scolarite.models import Classe, Etablissement, Exercice, Inscription, Niveau
 from scolarite.views import admin_requis
 
-from .forms import AnnulationForm, MouvementCaisseForm, PaiementForm, ReductionForm, RemboursementForm
+from .forms import AnnulationForm, MouvementCaisseForm, PaiementForm, PlanFinancementForm, ReductionForm, RemboursementForm
 from .lettres import montant_en_lettres
-from .models import LibelleCaisse, MouvementCaisse, Paiement, Reduction, Remboursement, Rubrique, Tarif
+from .models import (Echeance, LibelleCaisse, MouvementCaisse, Paiement, PlanFinancement, Reduction, Remboursement, Rubrique,
+                     Tarif, repartir)
 from .services import compte, comptes, journal_caisse, paiements_periode, situation_classe
 
 
@@ -63,12 +64,13 @@ def compte_eleve(request, pk):
     c = compte(ins)
     action = request.POST.get("action") if request.method == "POST" else None
     admin = est_administration(request.user)
-    if action in ("reduction", "remboursement") and not admin:
-        messages.error(request, "Les réductions et les remboursements sont réservés à l'administration.")
+    if action in ("reduction", "remboursement", "plan", "supprimer_plan") and not admin:
+        messages.error(request, "Les réductions, remboursements et plans de financement sont réservés à l'administration.")
         return redirect("compte_eleve", pk=pk)
     form_p = PaiementForm(request.POST if action == "paiement" else None, compte=c, prefix="p")
     form_r = ReductionForm(request.POST if action == "reduction" else None, compte=c, prefix="r")
     form_rb = RemboursementForm(request.POST if action == "remboursement" else None, prefix="rb")
+    form_plan = PlanFinancementForm(request.POST if action == "plan" else None, prefix="pl")
 
     if action == "paiement" and form_p.is_valid():
         with transaction.atomic():
@@ -91,6 +93,24 @@ def compte_eleve(request, pk):
                 Reduction.objects.create(inscription=ins, saisi_par=request.user, **form_r.cleaned_data)
                 messages.success(request, "Réduction enregistrée.")
                 return redirect("compte_eleve", pk=pk)
+    elif action == "plan" and form_plan.is_valid():
+        with transaction.atomic():
+            ins, c = _verrouiller_compte(pk)
+            if PlanFinancement.objects.filter(inscription=ins).exists():
+                messages.error(request, "Cet élève a déjà un plan de financement.")
+            elif c.total_reste <= 0:
+                messages.error(request, "Aucun reste à payer : plan inutile.")
+            else:
+                d = form_plan.cleaned_data
+                plan = PlanFinancement.objects.create(inscription=ins, motif=d["motif"], deja_verse=c.total_verse, cree_par=request.user)
+                for date_e, montant in repartir(c.total_reste, d["nombre"], d["premiere_date"]):
+                    Echeance.objects.create(plan=plan, date=date_e, montant=montant)
+                messages.success(request, f"Plan de financement accordé : {d['nombre']} échéances.")
+                return redirect("compte_eleve", pk=pk)
+    elif action == "supprimer_plan":
+        PlanFinancement.objects.filter(inscription_id=pk).delete()
+        messages.success(request, "Plan de financement supprimé.")
+        return redirect("compte_eleve", pk=pk)
     elif action == "remboursement" and form_rb.is_valid():
         with transaction.atomic():
             ins, c = _verrouiller_compte(pk)
@@ -107,8 +127,40 @@ def compte_eleve(request, pk):
                       Paiement.objects.filter(inscription=ins).select_related("rubrique", "saisi_par", "annule_par")],
         "reductions": Reduction.objects.filter(inscription=ins).select_related("rubrique"),
         "remboursements": Remboursement.objects.filter(inscription=ins),
-        "form_annulation": AnnulationForm(), "peut_decider": admin,
+        "form_annulation": AnnulationForm(), "peut_decider": admin, "form_plan": form_plan, **_contexte_plan(ins, c),
     })
+
+
+def _contexte_plan(ins, c):
+    plan = PlanFinancement.objects.filter(inscription=ins).prefetch_related("echeances").first()
+    if not plan:
+        return {"plan": None}
+    lignes, du_a_date, retard = plan.situation(c.total_verse)
+    return {"plan": plan, "plan_lignes": lignes, "plan_du": du_a_date, "plan_retard": retard,
+            "plan_total": sum(l["echeance"].montant for l in lignes)}
+
+
+@role_requis(peut_encaisser)
+def plans_financement(request):
+    exercice = _exercice(request)
+    if not exercice:
+        return redirect("accueil")
+    en_retard = request.GET.get("retard") == "1"
+    plans = list(PlanFinancement.objects.filter(inscription__exercice=exercice)
+                 .select_related("inscription__eleve", "inscription__classe__niveau").prefetch_related("echeances"))
+    cs = comptes([p.inscription for p in plans], exercice)
+    lignes = []
+    for p in plans:
+        c = cs[p.inscription_id]
+        details, du_a_date, retard = p.situation(c.total_verse)
+        prochaine = next((d["echeance"] for d in details if d["etat"] != "payée" and d["echeance"].date >= timezone.localdate()), None)
+        if en_retard and not retard:
+            continue
+        lignes.append({"plan": p, "ins": p.inscription, "total": sum(d["echeance"].montant for d in details),
+                       "verse": max(0, c.total_verse - p.deja_verse), "retard": retard, "prochaine": prochaine, "reste": c.total_reste})
+    lignes.sort(key=lambda l: (-l["retard"], str(l["ins"].eleve)))
+    return render(request, "finances/plans.html", {"lignes": lignes, "en_retard": en_retard,
+                                                    "total_retard": sum(l["retard"] for l in lignes)})
 
 
 @require_POST

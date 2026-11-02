@@ -17,7 +17,8 @@ from django.db import transaction
 from datetime import date, timedelta
 
 from discipline.models import Absence, Incident, Infraction, ParametresDiscipline, Retard, Sanction
-from finances.models import LibelleCaisse, MouvementCaisse, Paiement, Reduction, Rubrique, Tarif
+from finances.models import (Echeance, LibelleCaisse, MouvementCaisse, Paiement, PlanFinancement, Reduction, Rubrique, Tarif,
+                             repartir)
 from finances.services import compte
 from emploi.models import Cours, Creneau
 from notes.models import BaremeDistinction, Note
@@ -157,6 +158,14 @@ class Command(BaseCommand):
                                          reference=f"TX{rnd.randrange(10**8):08}" if mode in ("OM", "MTN") else "", saisi_par=caissier)
             if rnd.random() < 0.08 and compte(ins).ligne(rubriques[2].id).reste >= 10000:
                 Reduction.objects.create(inscription=ins, rubrique=rubriques[2], montant=10000, motif="Enfant du personnel", saisi_par=caissier)
+        # Plans de financement pour quelques élèves ayant un reste à payer (certains déjà en retard)
+        aujourd_hui = date.today()
+        avec_reste = [i for i in Inscription.objects.filter(exercice=ex) if compte(i).total_reste > 0][:5]
+        for k, ins in enumerate(avec_reste):
+            c = compte(ins)
+            plan = PlanFinancement.objects.create(inscription=ins, deja_verse=c.total_verse, motif="Difficultés passagères", cree_par=directeur)
+            for d, m in repartir(c.total_reste, 3, aujourd_hui - timedelta(days=45 - 20 * k)):
+                Echeance.objects.create(plan=plan, date=d, montant=m)
         # Caisse générale
         entrees = [LibelleCaisse.objects.create(libelle=l, sens="E") for l in ["Vente de tenues", "Frais d'examen blanc", "Location de salle"]]
         sorties = [LibelleCaisse.objects.create(libelle=l, sens="S") for l in ["Fournitures de bureau", "Salaires vacataires", "Entretien et réparations"]]
