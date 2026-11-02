@@ -348,3 +348,28 @@ def photo_eleve(request, pk):
     reponse["Cache-Control"] = "private, max-age=600"
     reponse["X-Content-Type-Options"] = "nosniff"
     return reponse
+
+
+# --- Cartes scolaires ----------------------------------------------------------------------------------
+
+@admin_requis
+def cartes_scolaires(request):
+    """Cartes scolaires au format carte bancaire (85,6 x 54 mm), 10 par page A4, par classe ou pour un élève."""
+    exercice = Exercice.actif_courant()
+    if not exercice:
+        messages.error(request, "Aucun exercice actif.")
+        return redirect("accueil")
+    c_id, e_id = request.GET.get("classe"), request.GET.get("eleve")
+    ctx = {"classes": Classe.objects.all(), "c_id": c_id, "exercice": exercice}
+    if c_id:
+        classe = get_object_or_404(Classe, pk=c_id)
+        inscriptions = (Inscription.objects.filter(exercice=exercice, classe=classe).select_related("eleve", "classe")
+                        .order_by("eleve__nom", "eleve__prenom"))
+        ctx.update(classe=classe, eleves_classe=inscriptions)
+        if e_id:
+            inscriptions = inscriptions.filter(eleve_id=e_id)
+        cartes = list(inscriptions)
+        ctx["cartes"] = cartes
+        ctx["pages"] = [cartes[i:i + 10] for i in range(0, len(cartes), 10)]     # 10 cartes par page A4
+        ctx["sans_photo"] = sum(1 for i in cartes if not i.eleve.photo)
+    return render(request, "scolarite/cartes.html", ctx)

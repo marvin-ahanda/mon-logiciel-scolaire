@@ -10,7 +10,7 @@ from PIL import Image
 
 from notes.tests import DonneesMixin
 
-from .models import Eleve
+from .models import Eleve, Inscription
 
 MEDIA_TEMP = tempfile.mkdtemp(prefix="otourix-tests-")
 
@@ -112,3 +112,26 @@ class PhotosTests(DonneesMixin, TestCase):
         img = reverse("photo_eleve", args=[self.eleve.pk])
         self.assertContains(self.client.get(url, params), img)
         self.assertNotContains(self.client.get(url, {**params, "photo": "0"}), img)
+
+
+class CartesScolairesTests(DonneesMixin, TestCase):
+    def test_cartes_de_la_classe_et_d_un_eleve(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse("cartes_scolaires"), {"classe": self.classe.pk})
+        self.assertEqual(len(r.context["cartes"]), 3)
+        self.assertContains(r, "CARTE SCOLAIRE / SCHOOL ID CARD")
+        self.assertEqual(r.context["sans_photo"], 3)
+        r = self.client.get(reverse("cartes_scolaires"), {"classe": self.classe.pk, "eleve": self.ins[1].eleve_id})
+        self.assertEqual([i.eleve for i in r.context["cartes"]], [self.ins[1].eleve])
+
+    def test_dix_cartes_par_page(self):
+        for n in range(9):
+            Inscription.objects.create(eleve=Eleve.objects.create(matricule=f"P{n}", nom=f"P{n}", sexe="M"),
+                                       classe=self.classe, exercice=self.ex)
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse("cartes_scolaires"), {"classe": self.classe.pk})
+        self.assertEqual([len(p) for p in r.context["pages"]], [10, 2])
+
+    def test_reserve_a_l_administration(self):
+        self.client.force_login(self.u_ens)
+        self.assertEqual(self.client.get(reverse("cartes_scolaires"), {"classe": self.classe.pk}).status_code, 302)
