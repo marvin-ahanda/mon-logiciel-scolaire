@@ -21,6 +21,7 @@ from finances.models import (Echeance, LibelleCaisse, MouvementCaisse, Paiement,
                              repartir)
 from finances.services import compte
 from emploi.models import Cours, Creneau
+from sms.models import CreditSMS
 from notes.models import BaremeDistinction, Note
 from scolarite.models import (Attribution, Classe, Cycle, Eleve, Enseignant, Etablissement, Exercice, Inscription,
                               Matiere, Niveau)
@@ -63,8 +64,9 @@ class Command(BaseCommand):
                             for m, p, (_, _, coef, gr) in zip(matieres, profs, MATIERES)]
             for _ in range(12):
                 n += 1
+                tel = rnd.choice([f"+237 6{rnd.randrange(50, 99)} {rnd.randrange(10, 99)} {rnd.randrange(10, 99)} {rnd.randrange(10, 99)}"] * 8 + ["", "12 34"])
                 e = Eleve.objects.create(matricule=f"DEMO{n:04}", nom=rnd.choice(NOMS), prenom=rnd.choice(PRENOMS),
-                                         sexe=rnd.choice("MF"), lieu_naissance="Yaoundé")
+                                         sexe=rnd.choice("MF"), lieu_naissance="Yaoundé", telephone_parent=tel)
                 ins = Inscription.objects.create(eleve=e, classe=classe, exercice=ex, statut=rnd.choice("AAN"))
                 niveau = rnd.uniform(6, 16)
                 progression = rnd.uniform(-0.4, 0.6)       # évolution au fil de l'année
@@ -192,6 +194,7 @@ class Command(BaseCommand):
             if k % 2:
                 MouvementCaisse.enregistrer(ex, libelle=rnd.choice(sorties), montant=rnd.choice([10000, 25000, 40000]), date=jour,
                                             tiers=rnd.choice(["Librairie du Centre", "M. Vacataire", "Quincaillerie Mvog-Ada"]), saisi_par=caissier)
+        CreditSMS.objects.create(quantite=500, note="Crédit de démonstration", ajoute_par=directeur)
         self.stdout.write(self.style.SUCCESS(
             f"Données de démonstration créées : {len(classes)} classes, {n} élèves, {len(profs)} enseignants.\n"
             "Comptes : admin / Demo-Admin-2025 ; dir.etudes / Demo-Directeur-2025 ; caisse / Demo-Caisse-2025 ; surveillant / Demo-Surveillant-2025 ; prof.math / Demo-Prof-2025 (et prof.fr, prof.ang…)."))
