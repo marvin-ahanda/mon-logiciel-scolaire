@@ -97,6 +97,18 @@ class Command(BaseCommand):
                     Incident.objects.create(inscription=ins, sequence=seq, infraction=rnd.choice(infractions),
                                             date=debut + timedelta(days=(seq.numero - 1) * 42 + rnd.randrange(0, 40)))
         BaremeDistinction.objects.create(exercice=ex, type="BLA", borne_sup=Decimal("8"))
+        # Photos fictives : initiales sur fond de couleur (aucun vrai visage)
+        from io import BytesIO
+        from django.core.files.base import ContentFile
+        from PIL import Image, ImageDraw
+        for e in Eleve.objects.all()[::2]:
+            img = Image.new("RGB", (300, 375), tuple(rnd.randrange(60, 200) for _ in range(3)))
+            d = ImageDraw.Draw(img)
+            d.ellipse((90, 70, 210, 190), fill=(235, 235, 235))
+            d.rectangle((60, 220, 240, 375), fill=(235, 235, 235))
+            d.text((150, 130), (e.prenom[:1] + e.nom[:1]).upper(), fill=(60, 60, 60), anchor="mm", font_size=56)
+            tampon = BytesIO(); img.save(tampon, format="JPEG", quality=85)
+            e.photo.save("demo.jpg", ContentFile(tampon.getvalue()), save=True)
         # Écolage
         rubriques = [Rubrique.objects.create(libelle=l, ordre=i, echeance=e) for i, (l, e) in enumerate(
             [("Inscription", "à l'inscription"), ("1re tranche", "avant le 31 octobre"), ("2e tranche", "avant le 31 janvier")], 1)]

@@ -4,7 +4,8 @@
 <div class="row justify-content-center"><div class="col-lg-8 col-xl-6">
 <h1 class="h3 mb-3">{{ titre }}</h1>
 <div class="card"><div class="card-body">
-<form method="post" novalidate>{% csrf_token %}
+<form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+  {% if apercu_photo %}<div class="mb-3"><img src="{{ apercu_photo }}" alt="Photo actuelle de l'élève" class="rounded border" style="width:96px;height:120px;object-fit:cover"></div>{% endif %}
   {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
   {% for f in form %}
     <div class="mb-3">

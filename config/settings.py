@@ -106,6 +106,12 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Fichiers envoyés (photos des élèves). Ne JAMAIS publier ce dossier tel quel sur le serveur web :
+# les photos sont servies par une vue protégée (scolarite.views.photo_eleve).
+MEDIA_ROOT = Path(os.environ.get("OTOURIX_MEDIA_ROOT", BASE_DIR / "media"))
+MEDIA_URL = "/fichiers-proteges/"   # non servi directement
+FILE_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"

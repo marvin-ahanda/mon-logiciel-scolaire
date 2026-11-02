@@ -16,7 +16,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Séquences | Verrouillage et déverrouillage : une séquence fermée refuse toute saisie |
 | Classes | Niveaux, cycles, section anglophone, classe d'examen, effectif maximal |
 | Matières | Par classe : enseignant, coefficient, groupe (1er, 2e, 3e) |
-| Élèves | Fiche, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
+| Élèves | Fiche avec photo, inscription dans une classe pour l'exercice actif, recherche et filtre par classe |
 | Saisie des notes | Grille par classe, matière et séquence ; navigation au clavier (Entrée) ; case vide = non évalué |
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
 | Discipline | Appel du jour (heures d'absence non justifiées et justifiées avec motif, retards), infractions liées à des sanctions, suivi disciplinaire par période, note de discipline sur les bulletins |
@@ -66,6 +66,10 @@ des groupes Django (« Administration », « Caisse », « Surveillance ») ; un
   (*Very good*, *Fairly good*…), compétences (*Not acquired*, *Being acquired*, *Acquired*, *Expert*), distinctions,
   décision et format des nombres suivent la langue. Noms anglais facultatifs pour les matières et l'établissement ;
   les libellés saisis en français (types d'infractions…) restent en français.
+- **Photos des élèves** (« Insérer la photo de l'élève » dans l'original) : JPEG, PNG ou WebP de 5 Mo au plus,
+  redimensionnées à 400 px et réencodées en JPEG (métadonnées EXIF/GPS supprimées), sous un nom aléatoire.
+  Données de mineurs : elles ne sont servies que par une vue protégée (administration, caisse, surveillance,
+  enseignants de la classe), jamais comme fichiers publics. Option d'affichage sur les bulletins.
 - **Appréciations** : [0;3[ Nul · [3;4,5[ Très faible · [4,5;7,5[ Faible · [7,5;9[ Insuffisant · [9;10[ Médiocre ·
   [10;12[ Passable · [12;14[ Assez bien · [14;16[ Bien · [16;18[ Très bien · [18;20] Excellent.
 - **Compétences** : [0;10] Non acquis · ]10;14] En cours d'acquisition · ]14;17] Acquis · ]17;20] Expert.
@@ -129,6 +133,9 @@ Variables d'environnement :
 | `DATABASE_URL` | `postgres://utilisateur:motdepasse@hote:5432/base` (nécessite `pip install "psycopg[binary]"`) |
 | `OTOURIX_HTTPS=0` | Uniquement pour un serveur sur le réseau local sans certificat (cookies non chiffrés en transit) |
 
+Les photos sont stockées dans `media/` (ou `OTOURIX_MEDIA_ROOT`) : **ne publiez jamais ce dossier** sur le
+serveur web, et incluez-le dans vos sauvegardes avec la base de données.
+
 Puis `python manage.py collectstatic` et un serveur d'application (par ex. gunicorn derrière nginx,
 ou waitress sous Windows). Ne réutilisez jamais un compte administrateur de base de données
 pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
@@ -136,4 +143,4 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 ## Feuille de route (modules de l'original non encore repris)
 
 Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
-photos des élèves, import et export Excel.
+import et export Excel.

@@ -17,6 +17,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 
+from .photos import chemin_photo
+
 
 class Etablissement(models.Model):
     nom = models.CharField(max_length=200)
@@ -180,6 +182,8 @@ class Eleve(models.Model):
     nom_pere = models.CharField("nom du père", max_length=150, blank=True)
     nom_mere = models.CharField("nom de la mère", max_length=150, blank=True)
     telephone_parent = models.CharField("téléphone du parent", max_length=50, blank=True)
+    photo = models.ImageField(upload_to=chemin_photo, blank=True,
+                              help_text="Photo d'identité (JPEG, PNG ou WebP, 5 Mo au plus) ; redimensionnée automatiquement.")
 
     class Meta:
         ordering = ["nom", "prenom"]
