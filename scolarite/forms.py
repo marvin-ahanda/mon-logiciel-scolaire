@@ -29,7 +29,7 @@ class ClasseForm(BootstrapMixin, forms.ModelForm):
 class MatiereForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Matiere
-        fields = ["code", "libelle"]
+        fields = ["code", "libelle", "libelle_en"]
 
 
 class EnseignantForm(BootstrapMixin, forms.ModelForm):

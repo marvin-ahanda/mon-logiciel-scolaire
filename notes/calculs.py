@@ -85,6 +85,7 @@ class LigneMatiere:
     rang: int | None = None
     ex_aequo: bool = False
     details: list = field(default_factory=list)
+    matiere_en: str = ""          # désignation anglaise (bulletins en anglais), vide = française
 
     @property
     def points(self):
@@ -199,6 +200,7 @@ def calculer_resultats(eleves, attributions, notes, baremes=(), coef_min=0, deta
                 attribution_id=a.id, matiere=str(a.matiere), enseignant=str(a.enseignant or ""),
                 groupe=a.groupe, coefficient=a.coefficient, note=notes.get((inscription_id, a.id)),
                 details=details.get((inscription_id, a.id), []),
+                matiere_en=getattr(a.matiere, "libelle_en", "") or "",
             ))
         for g in sorted({l.groupe for l in r.lignes}):
             lignes_g = [l for l in r.lignes if l.groupe == g]

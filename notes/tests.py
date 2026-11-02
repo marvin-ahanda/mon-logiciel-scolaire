@@ -323,3 +323,63 @@ class TrimestreAnneeTests(DonneesMixin, TestCase):
         r = self.client.get(reverse("resultats"), {"classe": self.classe.pk, "periode": "a"})
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Décision proposée")
+
+
+class BilinguismeTests(DonneesMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        for ins, m, f in zip(self.ins, ["16", "9"], ["14", "11"]):
+            Note.objects.create(inscription=ins, attribution=self.maths, sequence=self.s1, valeur=D(m))
+            Note.objects.create(inscription=ins, attribution=self.fr, sequence=self.s1, valeur=D(f))
+        self.maths.matiere.libelle_en = "Mathematics"
+        self.maths.matiere.save()
+        self.client.force_login(self.admin)
+
+    def bulletin(self, **params):
+        return self.client.get(reverse("bulletins"), {"classe": self.classe.pk, "periode": f"s{self.s1.pk}",
+                                                       "eleve": self.ins[0].id, **params})
+
+    def test_toutes_les_valeurs_calculees_sont_traduites(self):
+        from .calculs import APPRECIATIONS, COMPETENCES
+        from .traductions import VALEURS_EN, traduire
+        valeurs = [lib for _, _, lib in APPRECIATIONS] + [lib for _, _, lib in COMPETENCES]
+        valeurs += [lib for _, lib in BaremeDistinction.TYPES] + ["Admis(e) en classe supérieure", "Redouble"]
+        for v in valeurs:
+            with self.subTest(valeur=v):
+                self.assertIn(v, VALEURS_EN)
+        self.assertEqual(traduire("Séquence 3", "en"), "Sequence 3")
+        self.assertEqual(traduire("Trim. 2", "en"), "Term 2")
+        self.assertEqual(traduire("Bien", "fr"), "Bien")
+
+    def test_francais_par_defaut(self):
+        r = self.bulletin()
+        self.assertEqual(r.context["langue"], "fr")
+        self.assertContains(r, "BULLETIN DE NOTES SÉQUENTIEL")
+        self.assertContains(r, "15,14")
+        self.assertContains(r, "Mathématiques")
+
+    def test_anglais_force(self):
+        r = self.bulletin(langue="en")
+        self.assertContains(r, "SEQUENCE REPORT CARD")
+        self.assertContains(r, "Mathematics")          # désignation anglaise renseignée
+        self.assertContains(r, "Français")             # pas de désignation anglaise : français repris
+        self.assertContains(r, "Very good")            # 16 en mathématiques
+        self.assertContains(r, "Acquired")
+        self.assertContains(r, "15.14")                # format anglais des nombres
+        self.assertNotContains(r, "15,14")
+        self.assertNotContains(r, "Appréciation :")
+
+    def test_section_anglophone_automatique(self):
+        self.classe.section_anglophone = True
+        self.classe.save()
+        r = self.bulletin()
+        self.assertEqual(r.context["langue"], "en")
+        self.assertContains(r, "Class average")
+        r = self.bulletin(langue="fr")                 # forcer le français reste possible
+        self.assertContains(r, "Moyenne de la classe")
+
+    def test_bulletin_annuel_en_anglais(self):
+        r = self.client.get(reverse("bulletins"), {"classe": self.classe.pk, "periode": "a", "eleve": self.ins[0].id, "langue": "en"})
+        self.assertContains(r, "ANNUAL REPORT CARD")
+        self.assertContains(r, "Term 1")
+        self.assertContains(r, "Promoted to the next class")

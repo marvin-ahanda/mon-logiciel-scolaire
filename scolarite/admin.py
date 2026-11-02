@@ -41,8 +41,8 @@ class ClasseAdmin(admin.ModelAdmin):
 
 @admin.register(Matiere)
 class MatiereAdmin(admin.ModelAdmin):
-    list_display = ["code", "libelle"]
-    search_fields = ["code", "libelle"]
+    list_display = ["code", "libelle", "libelle_en"]
+    search_fields = ["code", "libelle", "libelle_en"]
 
 
 @admin.register(Enseignant)

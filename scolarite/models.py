@@ -21,6 +21,8 @@ from django.db import models, transaction
 class Etablissement(models.Model):
     nom = models.CharField(max_length=200)
     devise = models.CharField(max_length=200, blank=True)
+    nom_en = models.CharField("nom en anglais", max_length=200, blank=True, help_text="Pour les bulletins en anglais.")
+    devise_en = models.CharField("devise en anglais", max_length=200, blank=True)
     adresse = models.CharField(max_length=200, blank=True)
     telephone = models.CharField(max_length=50, blank=True)
     ville = models.CharField(max_length=100, blank=True)
@@ -140,6 +142,8 @@ class Classe(models.Model):
 class Matiere(models.Model):
     code = models.CharField(max_length=20, unique=True)
     libelle = models.CharField("désignation", max_length=100)
+    libelle_en = models.CharField("désignation en anglais", max_length=100, blank=True,
+                                  help_text="Pour les bulletins en anglais (ex. : Mathematics). Vide = désignation française.")
 
     class Meta:
         ordering = ["libelle"]

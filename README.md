@@ -21,7 +21,7 @@ SQLite pour le développement et PostgreSQL recommandé en production.
 | Résultats | Par séquence, trimestre ou année : moyennes pondérées, rangs (ex æquo), moyennes par groupe, statistiques de classe |
 | Discipline | Appel du jour (heures d'absence non justifiées et justifiées avec motif, retards), infractions liées à des sanctions, suivi disciplinaire par période, note de discipline sur les bulletins |
 | Écolage | Rubriques et tarifs par niveau et statut (ancien / nouvel élève), caisse avec reçus numérotés (montant en lettres, 2 exemplaires), espèces, Orange Money, MTN Mobile Money, Campost ; réductions, remboursements, annulation tracée ; insolvables / solvables par classe et rubrique ; journal des encaissements |
-| Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe) : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
+| Bulletins | Séquentiels, trimestriels et annuels, A4 imprimables (un élève ou toute la classe), **en français ou en anglais** : appréciations, compétences, distinctions ; bulletin annuel avec moyennes trimestrielles et décision de passage proposée |
 
 ## Rôles d'accès
 
@@ -61,6 +61,11 @@ des groupes Django (« Administration », « Caisse », « Surveillance ») ; un
   le reste à verser de la rubrique ; un remboursement ne peut pas dépasser le montant versé. Une erreur de
   paiement s'annule avec un motif (l'original gardait un historique des « paiements modifiés »).
   Filtre écolage des bulletins : n'imprimer que pour les élèves dont les versements dépassent un montant.
+- **Bulletins bilingues** (option « Français / Anglais » de l'original) : par défaut, anglais pour une classe de la
+  section anglophone, français sinon ; la langue peut être forcée au moment d'imprimer. Libellés, appréciations
+  (*Very good*, *Fairly good*…), compétences (*Not acquired*, *Being acquired*, *Acquired*, *Expert*), distinctions,
+  décision et format des nombres suivent la langue. Noms anglais facultatifs pour les matières et l'établissement ;
+  les libellés saisis en français (types d'infractions…) restent en français.
 - **Appréciations** : [0;3[ Nul · [3;4,5[ Très faible · [4,5;7,5[ Faible · [7,5;9[ Insuffisant · [9;10[ Médiocre ·
   [10;12[ Passable · [12;14[ Assez bien · [14;16[ Bien · [16;18[ Très bien · [18;20] Excellent.
 - **Compétences** : [0;10] Non acquis · ]10;14] En cours d'acquisition · ]14;17] Acquis · ]17;20] Expert.
@@ -131,4 +136,4 @@ pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
 ## Feuille de route (modules de l'original non encore repris)
 
 Caisse générale (autres entrées et sorties), plan de financement, dettes des années antérieures, SMS aux parents, emploi du temps, cartes scolaires, statistiques avancées,
-bulletins bilingues (français / anglais), photos des élèves, import et export Excel.
+photos des élèves, import et export Excel.
