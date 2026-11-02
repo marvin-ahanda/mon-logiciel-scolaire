@@ -269,3 +269,49 @@ class PlanFinancementTests(FinancesMixin, TestCase):
         PlanFinancement.objects.filter(inscription=self.ins[0]).delete()
         self.creer_plan(2)
         self.assertFalse(PlanFinancement.objects.filter(inscription=self.ins[0]).exists())   # réservé à l'administration
+
+
+class DettesAnterieuresTests(FinancesMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        from scolarite.models import Eleve
+        self.ex0 = Exercice.objects.create(libelle="2024-2025")              # année antérieure (non active)
+        niv = self.classe.niveau
+        Tarif.objects.create(exercice=self.ex0, rubrique=self.t1, niveau=niv, statut="N", montant=40000)
+        self.ancienne = Inscription.objects.create(eleve=self.ins[0].eleve, classe=self.classe, exercice=self.ex0)
+        # paiement partiel de l'année antérieure, encaissé à l'époque dans l'exercice 2024-2025
+        Paiement.objects.create(exercice=self.ex0, inscription=self.ancienne, rubrique=self.t1, montant=15000, numero_recu=1)
+        self.parti = Eleve.objects.create(matricule="PARTI", nom="Parti", sexe="M")
+        Inscription.objects.create(eleve=self.parti, classe=self.classe, exercice=self.ex0)   # parti sans payer
+
+    def test_dette_sur_le_compte_et_la_caisse(self):
+        r = self.client.get(reverse("compte_eleve", args=[self.ins[0].pk]))
+        self.assertEqual(r.context["total_dettes"], 25000)
+        self.assertContains(r, "Dettes des années antérieures")
+        r = self.client.get(reverse("caisse"), {"q": "M0"})
+        self.assertEqual(r.context["resultats"][0][2], 25000)
+
+    def test_reglement_encaisse_dans_l_exercice_actif(self):
+        self.payer(self.ins[0], self.inscr, 10000)                               # reçu n° 1 de 2025-2026
+        r = self.client.get(reverse("compte_eleve", args=[self.ancienne.pk]))
+        self.assertTrue(r.context["arriere"])
+        self.payer(self.ancienne, self.t1, 25000)
+        p = Paiement.objects.get(montant=25000)
+        self.assertEqual((p.exercice, p.numero_recu, p.est_arriere), (self.ex, 2, True))
+        self.assertContains(self.client.get(reverse("recu", args=[p.pk])), "arriérés de l'année 2024-2025")
+        self.assertEqual(self.client.get(reverse("journal_encaissements")).context["total"], 35000)   # dans le journal du jour
+        r = self.client.get(reverse("compte_eleve", args=[self.ins[0].pk]))
+        self.assertFalse(r.context["dettes"])                                    # dette soldée
+
+    def test_etat_des_debiteurs(self):
+        r = self.client.get(reverse("debiteurs_anterieurs"))
+        self.assertEqual([(str(l["eleve"]), l["total"]) for l in r.context["lignes"]], [("Eleve0", 25000)])
+        r = self.client.get(reverse("debiteurs_anterieurs"), {"filtre": "tous"})
+        self.assertEqual([(str(l["eleve"]), l["total"]) for l in r.context["lignes"]], [("Parti", 40000), ("Eleve0", 25000)])
+
+    def test_exercice_futur_non_compte(self):
+        from .services import dettes_anterieures
+        futur = Exercice.objects.create(libelle="2026-2027")
+        Tarif.objects.create(exercice=futur, rubrique=self.t1, niveau=self.classe.niveau, statut="N", montant=99000)
+        Inscription.objects.create(eleve=self.ins[1].eleve, classe=self.classe, exercice=futur)
+        self.assertNotIn(self.ins[1].eleve_id, dettes_anterieures([self.ins[1].eleve_id], self.ex))

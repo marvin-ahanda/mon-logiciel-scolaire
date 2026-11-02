@@ -15,4 +15,5 @@ urlpatterns = [
     path("caisse-generale/<int:pk>/annuler/", views.annuler_mouvement, name="annuler_mouvement"),
     path("journal-de-caisse/", views.journal_de_caisse, name="journal_caisse"),
     path("plans-de-financement/", views.plans_financement, name="plans_financement"),
+    path("dettes-anterieures/", views.debiteurs_anterieurs, name="debiteurs_anterieurs"),
 ]

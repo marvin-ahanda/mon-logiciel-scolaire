@@ -16,8 +16,8 @@
 {% if q or c_id %}
 <div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
   <thead class="table-light"><tr><th>Matricule</th><th>Élève</th><th>Classe</th><th>Statut</th><th class="text-end">Dû</th><th class="text-end">Versé</th><th class="text-end">Reste</th><th></th></tr></thead>
-  <tbody>{% for ins, c in resultats %}
-    <tr><td>{{ ins.eleve.matricule }}</td><td>{{ ins.eleve }}</td><td>{{ ins.classe }}</td><td>{{ ins.get_statut_display }}</td>
+  <tbody>{% for ins, c, dette in resultats %}
+    <tr><td>{{ ins.eleve.matricule }}</td><td>{{ ins.eleve }}{% if dette %} <span class="badge text-bg-danger" title="Dette des années antérieures">dette {{ dette|fcfa }}</span>{% endif %}</td><td>{{ ins.classe }}</td><td>{{ ins.get_statut_display }}</td>
       <td class="text-end">{{ c.total_du|fcfa }}</td><td class="text-end">{{ c.total_verse|fcfa }}</td>
       <td class="text-end {% if c.total_reste %}text-danger fw-semibold{% else %}text-success{% endif %}">{{ c.total_reste|fcfa }}</td>
       <td class="text-end"><a class="btn btn-sm btn-primary" href="{% url 'compte_eleve' ins.pk %}">Ouvrir le compte</a></td></tr>

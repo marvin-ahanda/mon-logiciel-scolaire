@@ -166,6 +166,22 @@ class Command(BaseCommand):
             plan = PlanFinancement.objects.create(inscription=ins, deja_verse=c.total_verse, motif="Difficultés passagères", cree_par=directeur)
             for d, m in repartir(c.total_reste, 3, aujourd_hui - timedelta(days=45 - 20 * k)):
                 Echeance.objects.create(plan=plan, date=d, montant=m)
+        # Année antérieure 2024-2025 : quelques élèves n'ont pas tout réglé, un élève est parti en devant de l'argent
+        ex0 = Exercice.objects.create(libelle="2024-2025")
+        for niv in niveaux:
+            for statut in "AN":
+                for r, prix in zip(rubriques, [10000, 40000, 35000]):
+                    Tarif.objects.create(exercice=ex0, rubrique=r, niveau=niv, statut=statut, montant=prix)
+        num = 0
+        for ins in list(Inscription.objects.filter(exercice=ex).select_related("eleve", "classe"))[::6]:
+            ancienne = Inscription.objects.create(eleve=ins.eleve, classe=ins.classe, exercice=ex0, statut="N")
+            for r, verse in zip(rubriques, [10000, 40000, rnd.choice([0, 15000, 20000])]):
+                if verse:
+                    num += 1
+                    Paiement.objects.create(exercice=ex0, inscription=ancienne, rubrique=r, montant=verse, numero_recu=num,
+                                            date=date(2025, 3, 1), saisi_par=caissier)
+        parti = Eleve.objects.create(matricule="DEMO-PARTI", nom="EBODE", prenom="Samuel", sexe="M", telephone_parent="+237 690 000 000")
+        Inscription.objects.create(eleve=parti, classe=classes[0], exercice=ex0, statut="N")
         # Caisse générale
         entrees = [LibelleCaisse.objects.create(libelle=l, sens="E") for l in ["Vente de tenues", "Frais d'examen blanc", "Location de salle"]]
         sorties = [LibelleCaisse.objects.create(libelle=l, sens="S") for l in ["Fournitures de bureau", "Salaires vacataires", "Entretien et réparations"]]

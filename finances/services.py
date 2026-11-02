@@ -163,3 +163,26 @@ def journal_caisse(exercice, debut, fin):
     totaux = {"ecolage": ecolage, "autres_entrees": autres, "entrees": ecolage + autres, "sorties": sorties,
               "solde": ecolage + autres - sorties}
     return lignes, totaux, sorted((mode, e, s, e - s) for mode, (e, s) in par_mode.items())
+
+
+def dettes_anterieures(eleve_ids, exercice_courant):
+    """Arriérés des exercices antérieurs, par élève.
+
+    Renvoie {eleve_id: [compte d'une inscription antérieure avec reste > 0, ...]} (du plus récent au plus ancien).
+    Chaque compte est calculé avec les tarifs de son propre exercice.
+    """
+    from scolarite.models import Inscription
+    anterieures = (Inscription.objects.filter(eleve_id__in=eleve_ids).exclude(exercice=exercice_courant)
+                   .filter(exercice__libelle__lt=exercice_courant.libelle)
+                   .select_related("exercice", "classe__niveau", "eleve"))
+    par_exercice = defaultdict(list)
+    for ins in anterieures:
+        par_exercice[ins.exercice].append(ins)
+    dettes = defaultdict(list)
+    for exercice, inscriptions in par_exercice.items():
+        for c in comptes(inscriptions, exercice).values():
+            if c.total_reste > 0:
+                dettes[c.inscription.eleve_id].append(c)
+    for liste in dettes.values():
+        liste.sort(key=lambda c: c.inscription.exercice.libelle, reverse=True)
+    return dict(dettes)
