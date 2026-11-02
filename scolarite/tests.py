@@ -12,7 +12,7 @@ from notes.tests import DonneesMixin
 
 from .models import Eleve, Inscription
 
-MEDIA_TEMP = tempfile.mkdtemp(prefix="otourix-tests-")
+MEDIA_TEMP = tempfile.mkdtemp(prefix="nexiaschool-tests-")
 
 
 def image(fmt="PNG", taille=(1200, 900), exif=False):

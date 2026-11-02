@@ -1,4 +1,4 @@
-"""Rôles d'accès d'OtourixSchool.
+"""Rôles d'accès de NexIASchool.
 
 - Administration : le principal et ses proches collaborateurs (directeurs des études…). Tous les droits.
 - Caissier : encaissement de l'écolage, reçus, situation des classes, journal. Les réductions, remboursements,
@@ -23,9 +23,9 @@ ROLES = [(ADMINISTRATION, "Administration (tous les droits)"), (CAISSE, "Caissie
 
 
 def _groupes(user):
-    if not hasattr(user, "_groupes_otourix"):
-        user._groupes_otourix = set(user.groups.values_list("name", flat=True)) if user.is_authenticated else set()
-    return user._groupes_otourix
+    if not hasattr(user, "_groupes_nexia"):
+        user._groupes_nexia = set(user.groups.values_list("name", flat=True)) if user.is_authenticated else set()
+    return user._groupes_nexia
 
 
 def est_administration(user):

@@ -117,8 +117,8 @@ class EnvoiTests(SMSMixin, TestCase):
         self.assertEqual(CreditSMS.solde(), 9)                                  # l'échec n'est pas décompté
         self.assertEqual(MessageSMS.objects.get(statut=MessageSMS.ECHEC).erreur, "refusé par le fournisseur")
 
-    @mock.patch.dict("os.environ", {"OTOURIX_SMS_URL": "https://sms.exemple.test/api", "OTOURIX_SMS_TOKEN": "jeton-test",
-                                     "OTOURIX_SMS_EXPEDITEUR": "COLLEGE"})
+    @mock.patch.dict("os.environ", {"NEXIA_SMS_URL": "https://sms.exemple.test/api", "NEXIA_SMS_TOKEN": "jeton-test",
+                                     "NEXIA_SMS_EXPEDITEUR": "COLLEGE"})
     def test_requete_http(self):
         reponse = mock.MagicMock(status=200)
         reponse.__enter__.return_value = reponse
@@ -129,7 +129,7 @@ class EnvoiTests(SMSMixin, TestCase):
         self.assertEqual(requete.headers["Authorization"], "Bearer jeton-test")
         self.assertEqual(json.loads(requete.data), {"to": "+237690000001", "from": "COLLEGE", "text": "Bonjour"})
 
-    @mock.patch.dict("os.environ", {"OTOURIX_SMS_URL": "http://non-chiffre.test"})
+    @mock.patch.dict("os.environ", {"NEXIA_SMS_URL": "http://non-chiffre.test"})
     def test_http_non_chiffre_refuse(self):
         with self.assertRaises(ErreurEnvoi):
             PasserelleHTTP()

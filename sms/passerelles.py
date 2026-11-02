@@ -1,9 +1,9 @@
 """Passerelles d'envoi des SMS.
 
-OTOURIX_SMS_BACKEND :
+NEXIA_SMS_BACKEND :
 - « journal » (par défaut) : n'envoie rien, enregistre le message comme simulé. Sans risque.
-- « http » : POST JSON vers OTOURIX_SMS_URL avec le jeton OTOURIX_SMS_TOKEN (en-tête Authorization: Bearer)
-  et le corps {"to": "+237…", "from": OTOURIX_SMS_EXPEDITEUR, "text": "…"}. À adapter à l'API du fournisseur choisi.
+- « http » : POST JSON vers NEXIA_SMS_URL avec le jeton NEXIA_SMS_TOKEN (en-tête Authorization: Bearer)
+  et le corps {"to": "+237…", "from": NEXIA_SMS_EXPEDITEUR, "text": "…"}. À adapter à l'API du fournisseur choisi.
 """
 
 import json
@@ -29,11 +29,11 @@ class PasserelleHTTP:
     reel = True
 
     def __init__(self):
-        self.url = os.environ.get("OTOURIX_SMS_URL", "")
-        self.jeton = os.environ.get("OTOURIX_SMS_TOKEN", "")
-        self.expediteur = os.environ.get("OTOURIX_SMS_EXPEDITEUR", "ECOLE")[:11]
+        self.url = os.environ.get("NEXIA_SMS_URL", "")
+        self.jeton = os.environ.get("NEXIA_SMS_TOKEN", "")
+        self.expediteur = os.environ.get("NEXIA_SMS_EXPEDITEUR", "ECOLE")[:11]
         if not self.url.startswith("https://"):
-            raise ErreurEnvoi("OTOURIX_SMS_URL doit être une adresse https://")
+            raise ErreurEnvoi("NEXIA_SMS_URL doit être une adresse https://")
 
     def envoyer(self, telephone, texte):
         corps = json.dumps({"to": telephone, "from": self.expediteur, "text": texte}).encode()
@@ -57,7 +57,10 @@ def passerelle():
     """Passerelle configurée (les tests peuvent en imposer une avec forcer_passerelle)."""
     if _FORCEE is not None:
         return _FORCEE
-    return PasserelleHTTP() if os.environ.get("OTOURIX_SMS_BACKEND", "journal") == "http" else PasserelleJournal()
+    from django.db import connection
+    if getattr(getattr(connection, "tenant", None), "demonstration", False):
+        return PasserelleJournal()                 # établissement de démonstration : jamais de SMS réel
+    return PasserelleHTTP() if os.environ.get("NEXIA_SMS_BACKEND", "journal") == "http" else PasserelleJournal()
 
 
 def forcer_passerelle(p):

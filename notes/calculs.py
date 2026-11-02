@@ -1,6 +1,6 @@
 """Calculs de moyennes, rangs, appréciations et distinctions.
 
-Les seuils d'appréciation et de compétence sont ceux de l'OtourixSchool d'origine,
+Les seuils d'appréciation et de compétence sont ceux du logiciel d'origine,
 relevés dans le binaire (fonctions 0x97aef0 et 0x98e460).
 """
 

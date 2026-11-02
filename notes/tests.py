@@ -12,7 +12,7 @@ from .models import BaremeDistinction, Note
 
 
 class AppreciationTests(TestCase):
-    """Seuils relevés dans l'OtourixSchool d'origine (fonction 0x97aef0)."""
+    """Seuils relevés dans le logiciel d'origine (fonction 0x97aef0)."""
 
     def test_bornes(self):
         cas = [("0", "Nul"), ("2.99", "Nul"), ("3", "Très faible"), ("4.49", "Très faible"), ("4.5", "Faible"),

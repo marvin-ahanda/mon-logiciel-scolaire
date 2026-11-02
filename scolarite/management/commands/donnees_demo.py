@@ -38,14 +38,15 @@ MATIERES = [("FR", "Français", 4, 1), ("ANG", "Anglais", 3, 1), ("MATH", "Math�
 
 class Command(BaseCommand):
     help = "Crée des données de démonstration fictives."
+    codes_aleatoires = False        # vrai pour une démonstration en ligne : codes générés, jamais publiés
 
     @transaction.atomic
     def handle(self, *args, **opts):
         if Exercice.objects.exists():
             raise CommandError("La base contient déjà des données : commande réservée à une base vide.")
         rnd = random.Random(2025)
-        Etablissement.objects.create(nom="Collège de démonstration Otourix", devise="Travail – Discipline – Réussite",
-                                     nom_en="Otourix Demonstration College", devise_en="Work – Discipline – Success",
+        Etablissement.objects.create(nom="Collège de démonstration NexIASchool", devise="Travail – Discipline – Réussite",
+                                     nom_en="NexIASchool Demonstration College", devise_en="Work – Discipline – Success",
                                      ville="Yaoundé", telephone="+237 600 000 000", nom_chef="M. Le Principal")
         ex = Exercice.objects.create(libelle="2025-2026", actif=True)
         sequences = list(ex.sequences.all())
@@ -53,13 +54,17 @@ class Command(BaseCommand):
         niveaux = [Niveau.objects.create(libelle=l, cycle=cycle, ordre=i) for i, l in enumerate(["6e", "5e"], 1)]
         classes = [Classe.objects.create(libelle=f"{n.libelle} {s}", niveau=n, effectif_max=60,
                                          section_anglophone=(n.libelle == "5e" and s == "B")) for n in niveaux for s in "AB"]
-        codes = {}
+        codes, self.acces = {}, []
 
         def personnel(ident, code, **champs):
             u = (User.objects.create_superuser if champs.pop("superutilisateur", False) else User.objects.create_user)(
                 ident, password=code, **champs)
-            AccesPersonnel.objects.create(utilisateur=u, code_genere_le=timezone.now())
+            if self.codes_aleatoires:
+                from comptes.codes import attribuer_code
+                code = attribuer_code(u)
+            AccesPersonnel.objects.update_or_create(utilisateur=u, defaults={"code_genere_le": timezone.now()})
             codes[f"{champs.get('last_name', '')} {champs.get('first_name', '')}".strip()] = code
+            self.acces.append((u, code))
             return u
 
         personnel("admin", "ad2m25", first_name="Joël", last_name="OWONA", superutilisateur=True)

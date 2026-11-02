@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block titre %}Console NexIASchool{% endblock %}
+{% block contenu %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h1 class="h3 m-0">Console NexIASchool — établissements</h1>
+  <form method="post" action="{% url 'console_deconnexion' %}">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm">Se déconnecter</button></form>
+</div>
+
+{% if codes %}
+<div class="card border-warning mb-3 fiche-code"><div class="card-body">
+  <h2 class="h5">{{ codes.espace }}</h2>
+  <p class="mb-1">Code de l'établissement :</p>
+  <p class="code-acces font-monospace">{{ codes.code }}</p>
+  {% if codes.acces %}
+  <p class="mb-1">Codes personnels :</p>
+  <table class="table table-sm w-auto"><tbody>{% for nom, role, code in codes.acces %}
+    <tr><td>{{ nom }}</td><td class="small text-muted">{{ role }}</td><td class="font-monospace fw-semibold">{{ code }}</td></tr>{% endfor %}</tbody></table>
+  {% endif %}
+  <div class="alert alert-warning small mb-2 no-print">Ces codes ne seront plus jamais affichés : imprimez cette fiche ou notez-les maintenant,
+    puis remettez-les à l'établissement.</div>
+  <button class="btn btn-primary btn-sm no-print" onclick="window.print()">Imprimer</button>
+</div></div>
+{% endif %}
+
+<div class="row g-3 no-print">
+  <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+    <thead class="table-light"><tr><th>Établissement</th><th>Ville</th><th>Créé le</th><th>Code généré le</th><th>État</th><th></th></tr></thead>
+    <tbody>{% for e in espaces %}
+      <tr class="{% if not e.actif %}text-muted{% endif %}"><td>{{ e.nom }}{% if e.demonstration %} <span class="badge text-bg-info">démo</span>{% endif %}
+          <div class="small text-muted">{{ e.schema_name }}</div></td>
+        <td>{{ e.ville|default:"—" }}</td><td>{{ e.cree_le|date:"d/m/Y" }}</td><td>{{ e.code_genere_le|date:"d/m/Y H:i"|default:"—" }}</td>
+        <td>{% if e.actif %}actif{% else %}désactivé{% endif %}</td>
+        <td class="text-end text-nowrap">
+          <form class="d-inline" method="post" action="{% url 'console_nouveau_code' e.pk %}" onsubmit="return confirm('Nouveau code pour {{ e.nom|escapejs }} ? L\'ancien ne fonctionnera plus.')">{% csrf_token %}
+            <button class="btn btn-sm btn-outline-warning">Nouveau code</button></form>
+          <form class="d-inline" method="post" action="{% url 'console_activer' e.pk %}" onsubmit="return confirm('Confirmer ?')">{% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary">{% if e.actif %}Désactiver{% else %}Réactiver{% endif %}</button></form></td></tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aucun établissement pour l'instant.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+  <form method="post" action="{% url 'console_migrer' %}" class="mt-3" onsubmit="this.querySelector('button').disabled=true">{% csrf_token %}
+    <button class="btn btn-outline-secondary btn-sm">Mettre à jour la base de tous les établissements</button>
+    <span class="small text-muted ms-2">À faire après chaque nouvelle version de NexIASchool.</span></form>
+  </div>
+
+  <div class="col-lg-4"><div class="card"><div class="card-body">
+    <h2 class="h5">Nouvel établissement</h2>
+    <form method="post" action="{% url 'console_creer' %}" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Création en cours (jusqu\'à une minute)…'">{% csrf_token %}
+      <div class="mb-2"><label class="form-label" for="n">Nom de l'établissement</label><input class="form-control" id="n" name="nom" required maxlength="200"></div>
+      <div class="mb-2"><label class="form-label" for="v">Ville</label><input class="form-control" id="v" name="ville" maxlength="100"></div>
+      <div class="row g-2 mb-2">
+        <div class="col"><label class="form-label" for="an">Nom de l'administrateur</label><input class="form-control" id="an" name="admin_nom" maxlength="150"></div>
+        <div class="col"><label class="form-label" for="ap">Prénom</label><input class="form-control" id="ap" name="admin_prenom" maxlength="150"></div>
+      </div>
+      <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="demonstration" value="1" id="d">
+        <label class="form-check-label" for="d">Établissement de démonstration (données fictives, aucun SMS réel)</label></div>
+      <button class="btn btn-primary w-100">Créer l'établissement</button>
+    </form>
+    <p class="small text-muted mt-2 mb-0">Le code de l'établissement et le code personnel de l'administrateur s'affichent une seule fois.
+      L'administrateur crée ensuite les autres membres du personnel dans l'établissement.</p>
+  </div></div></div>
+</div>
+{% endblock %}

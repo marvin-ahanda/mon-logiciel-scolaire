@@ -5,8 +5,14 @@
   <div class="col-sm-8 col-md-6 col-lg-4">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h1 class="h4 mb-1 text-primary">OtourixSchool</h1>
+        <h1 class="h4 mb-1 text-primary">NexIASchool</h1>
+        {% if espace %}
+        <p class="mb-0 fw-semibold">{{ espace.nom }}</p>
+        <form method="post" action="{% url 'changer_etablissement' %}" class="mb-4">{% csrf_token %}
+          <button class="btn btn-link btn-sm p-0">Changer d'établissement</button></form>
+        {% else %}
         <p class="text-muted mb-4">Gestion des notes scolaires</p>
+        {% endif %}
         {% if erreur %}<div class="alert alert-danger" role="alert">{{ erreur }}</div>{% endif %}
         <form method="post">{% csrf_token %}
           <div class="mb-3"><label class="form-label" for="id_personnel">Nom du personnel</label>

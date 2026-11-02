@@ -1,4 +1,4 @@
-"""Modele scolaire d'OtourixSchool.
+"""Modele scolaire de NexIASchool.
 
 Correspondance avec la base d'origine (Nouvelle_Vision) :
 - Etablissement            <- etablissement_republique
@@ -239,3 +239,14 @@ class Attribution(models.Model):
 
     def __str__(self):
         return f"{self.matiere} — {self.classe} (coef. {self.coefficient})"
+
+
+class FichierStocke(models.Model):
+    """Fichier envoyé (photo d'élève) rangé dans la base, utilisé en mode SaaS faute de disque persistant."""
+    nom = models.CharField(max_length=255, unique=True)
+    contenu = models.BinaryField()
+    taille = models.PositiveIntegerField(default=0)
+    cree_le = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "fichier stocké"

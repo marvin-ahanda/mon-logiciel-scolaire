@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titre %}Console NexIASchool{% endblock %}
+{% block contenu %}
+<div class="row justify-content-center mt-5"><div class="col-sm-8 col-md-6 col-lg-4"><div class="card shadow-sm"><div class="card-body p-4">
+  <h1 class="h4 mb-1 text-primary">Console NexIASchool</h1>
+  <p class="text-muted mb-4">Réservée au propriétaire du service</p>
+  {% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="mb-3"><label class="form-label" for="i">Identifiant</label><input class="form-control" id="i" name="identifiant" required autocomplete="username"></div>
+    <div class="mb-4"><label class="form-label" for="m">Mot de passe</label><input class="form-control" id="m" type="password" name="mot_de_passe" required autocomplete="current-password"></div>
+    <button class="btn btn-primary w-100">Se connecter</button>
+  </form>
+</div></div></div></div>
+{% endblock %}

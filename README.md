@@ -1,8 +1,8 @@
-# OtourixSchool (version web)
+# NexIASchool (version web)
 
-Nouvelle version web d'OtourixSchool, le logiciel de gestion des notes scolaires.
+Nouvelle version web de NexIASchool, le logiciel de gestion des notes scolaires.
 Elle remplace l'application Visual Basic 6 d'origine, dont les sources et les données sont perdues.
-Les règles de calcul ont été reprises par rétro-ingénierie du binaire d'origine (`OtourixSchool.exe`, 2023).
+Les règles de calcul ont été reprises par rétro-ingénierie du binaire du logiciel d'origine (2023).
 
 **Pile technique :** Python 3.11+, Django 5.2 LTS, Bootstrap 5.3 (intégré localement, fonctionne sans Internet),
 SQLite pour le développement et PostgreSQL recommandé en production.
@@ -184,18 +184,18 @@ Variables d'environnement :
 
 | Variable | Rôle |
 |---|---|
-| `OTOURIX_DEBUG=0` | Obligatoire en production |
-| `OTOURIX_SECRET_KEY` | Clé secrète longue et aléatoire (obligatoire) |
-| `OTOURIX_ALLOWED_HOSTS` | Noms d'hôte autorisés, séparés par des virgules |
+| `NEXIA_DEBUG=0` | Obligatoire en production |
+| `NEXIA_SECRET_KEY` | Clé secrète longue et aléatoire (obligatoire) |
+| `NEXIA_ALLOWED_HOSTS` | Noms d'hôte autorisés, séparés par des virgules |
 | `DATABASE_URL` | `postgres://utilisateur:motdepasse@hote:5432/base` (nécessite `pip install "psycopg[binary]"`) |
-| `OTOURIX_HTTPS=0` | Uniquement pour un serveur sur le réseau local sans certificat (cookies non chiffrés en transit) |
+| `NEXIA_HTTPS=0` | Uniquement pour un serveur sur le réseau local sans certificat (cookies non chiffrés en transit) |
 
-Les photos sont stockées dans `media/` (ou `OTOURIX_MEDIA_ROOT`) : **ne publiez jamais ce dossier** sur le
+Les photos sont stockées dans `media/` (ou `NEXIA_MEDIA_ROOT`) : **ne publiez jamais ce dossier** sur le
 serveur web, et incluez-le dans vos sauvegardes avec la base de données.
 
-**SMS** : par défaut (`OTOURIX_SMS_BACKEND=journal`), **aucun SMS n'est envoyé**, les messages sont seulement
-enregistrés. Pour envoyer réellement : `OTOURIX_SMS_BACKEND=http`, `OTOURIX_SMS_URL=https://…` (adresse de l'API
-du fournisseur), `OTOURIX_SMS_TOKEN` (jeton, à garder secret) et `OTOURIX_SMS_EXPEDITEUR` (11 caractères au plus).
+**SMS** : par défaut (`NEXIA_SMS_BACKEND=journal`), **aucun SMS n'est envoyé**, les messages sont seulement
+enregistrés. Pour envoyer réellement : `NEXIA_SMS_BACKEND=http`, `NEXIA_SMS_URL=https://…` (adresse de l'API
+du fournisseur), `NEXIA_SMS_TOKEN` (jeton, à garder secret) et `NEXIA_SMS_EXPEDITEUR` (11 caractères au plus).
 La passerelle HTTP envoie `{"to", "from", "text"}` en JSON avec `Authorization: Bearer` : adaptez
 `sms/passerelles.py` au format exact de votre fournisseur (BulkSms, IyamSms, Orange, MTN…) et testez d'abord
 avec un seul numéro.
@@ -203,6 +203,46 @@ avec un seul numéro.
 Puis `python manage.py collectstatic` et un serveur d'application (par ex. gunicorn derrière nginx,
 ou waitress sous Windows). Ne réutilisez jamais un compte administrateur de base de données
 pour l'application : l'original se connectait en `sa`, ce qui est à proscrire.
+
+## Mode SaaS (plusieurs établissements, en ligne)
+
+Avec `NEXIA_MULTI=1` et une base PostgreSQL, NexIASchool devient un service en ligne partagé par plusieurs établissements.
+
+**Connexion en deux étapes**
+
+1. *Nom de mon établissement* et *code de mon établissement* (8 caractères, ex. `k7m2x9qa`) : on entre dans
+   l'espace de son établissement. Le nom est reconnu sans tenir compte des accents ni des majuscules.
+2. Liste déroulante du personnel **de cet établissement uniquement** (A à Z) et code personnel (6 caractères).
+
+L'établissement reste mémorisé sur l'appareil après la déconnexion (lien « Changer d'établissement »).
+Après 10 codes d'établissement erronés depuis un même appareil, les essais sont bloqués 15 minutes.
+
+**Isolation des données.** Chaque établissement a son propre schéma PostgreSQL (bibliothèque django-tenants) :
+élèves, notes, finances, comptes du personnel et photos y sont rangés séparément. Une connexion ouverte dans un
+établissement ne vaut jamais dans un autre. Les tables communes (liste des établissements, sessions) sont protégées
+par la sécurité par ligne (RLS) : l'API de données de Supabase n'y a pas accès.
+
+**Console du propriétaire** (`/plateforme/`) : création d'un établissement (son schéma, ses tables et son premier
+administrateur, ou des données de démonstration), nouveau code d'établissement, désactivation, mise à jour de la base
+après une nouvelle version. Les codes s'affichent une seule fois. L'administration de chaque établissement peut aussi
+changer le code de son établissement (*Paramètres → Code de l'établissement*).
+
+**Variables d'environnement**
+
+| Variable | Rôle |
+|---|---|
+| `NEXIA_MULTI=1` | active le mode SaaS |
+| `DATABASE_URL` | `postgresql://role.ref-projet:mot-de-passe@aws-…pooler.supabase.com:5432/postgres?sslmode=require` (pooler Supabase en mode session) |
+| `NEXIA_SECRET_KEY`, `NEXIA_DEBUG=0`, `NEXIA_ALLOWED_HOSTS` | réglages Django habituels (`.vercel.app` accepte tous les sous-domaines) |
+| `NEXIA_PROPRIETAIRE`, `NEXIA_PROPRIETAIRE_MDP` | identifiant de la console et empreinte du mot de passe (`python -c "from django.contrib.auth.hashers import make_password; print(make_password('…'))"` dans le projet) |
+| `NEXIA_JETON_INSTALLATION` | jeton (32 caractères ou plus) pour `/plateforme/installer/?jeton=…`, qui crée les tables communes au premier déploiement ; à retirer ensuite |
+| `NEXIA_DERRIERE_PROXY=1` | lit l'adresse IP réelle dans les en-têtes de Vercel |
+
+**Hébergement Vercel.** `vercel.json` route toutes les requêtes vers `api/index.py` (fonction Python WSGI, région
+Paris `cdg1`) ; les fichiers statiques sont servis par WhiteNoise, les photos sont rangées dans la base.
+
+**Tests du mode SaaS** (PostgreSQL local) : `NEXIA_MULTI=1 DATABASE_URL=postgres://… python manage.py test plateforme`.
+Les autres tests se lancent sans `NEXIA_MULTI` (SQLite).
 
 ## Feuille de route
 

@@ -2,8 +2,8 @@ from django.contrib import admin
 
 from .models import Attribution, Classe, Cycle, Eleve, Enseignant, Etablissement, Exercice, Inscription, Matiere, Niveau, Sequence
 
-admin.site.site_header = "OtourixSchool — administration"
-admin.site.site_title = "OtourixSchool"
+admin.site.site_header = "NexIASchool — administration"
+admin.site.site_title = "NexIASchool"
 
 
 @admin.register(Etablissement)

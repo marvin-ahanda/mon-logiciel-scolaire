@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titre %}OtourixSchool{% endblock %} — OtourixSchool</title>
+  <title>{% block titre %}NexIASchool{% endblock %} — NexIASchool</title>
   <link rel="stylesheet" href="{% static 'vendor/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
@@ -11,7 +11,7 @@
 {% if user.is_authenticated %}
 <nav class="navbar navbar-expand-xxl navbar-dark bg-primary no-print">
   <div class="container-fluid">
-    <a class="navbar-brand fw-semibold" href="{% url 'accueil' %}">OtourixSchool</a>
+    <a class="navbar-brand fw-semibold" href="{% url 'accueil' %}">NexIASchool</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-label="Menu">
       <span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="menu">
@@ -27,6 +27,7 @@
             <li><a class="dropdown-item" href="{% url 'cartes_scolaires' %}">Cartes scolaires</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'utilisateurs' %}">Personnel et codes d'accès</a></li>
+            {% if request.espace %}<li><a class="dropdown-item" href="{% url 'code_etablissement' %}">Code de l'établissement</a></li>{% endif %}
             <li><a class="dropdown-item" href="{% url 'admin:index' %}">Administration avancée</a></li>
           </ul>
         </li>
@@ -100,6 +101,7 @@
       <div class="dropdown">
         <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">{{ user.get_full_name|default:user.username }} <span class="badge text-bg-light text-primary ms-1">{{ role }}</span></a>
         <ul class="dropdown-menu dropdown-menu-end">
+          {% if request.espace %}<li><span class="dropdown-item-text small text-muted">{{ request.espace.nom }}</span></li>{% endif %}
           <li><span class="dropdown-item-text small text-muted">Exercice : {{ exercice_actif|default:"aucun" }}</span></li>
           <li><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="dropdown-item">Se déconnecter</button></form></li>
         </ul>

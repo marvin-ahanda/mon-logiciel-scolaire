@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titre %}Code de l'établissement{% endblock %}
+{% block contenu %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <div class="card fiche-code"><div class="card-body p-4">
+      <p class="text-muted small mb-1">NexIASchool — accès à l'espace de l'établissement</p>
+      <h1 class="h4 mb-3">{{ espace.nom }}</h1>
+      {% if code %}
+      <p class="mb-1">Nouveau code de l'établissement :</p>
+      <p class="code-acces font-monospace" aria-label="Code : {% for c in code %}{{ c }} {% endfor %}">{{ code }}</p>
+      <ol class="small mb-3">
+        <li>Sur NexIASchool, saisissez le nom de l'établissement (« {{ espace.nom }} ») et ce code.</li>
+        <li>Choisissez ensuite votre nom dans la liste du personnel et saisissez votre code personnel.</li>
+      </ol>
+      <div class="alert alert-warning small no-print">L'ancien code ne fonctionne plus. Communiquez ce code au personnel de
+        l'établissement uniquement ; il ne sera plus affiché.</div>
+      <div class="d-flex gap-2 no-print"><button class="btn btn-primary" onclick="window.print()">Imprimer</button>
+        <a class="btn btn-outline-secondary" href="{% url 'accueil' %}">Terminé</a></div>
+      {% else %}
+      <p>Le code de l'établissement permet à tout le personnel d'entrer dans l'espace « {{ espace.nom }} » avant de choisir son nom.
+        Il est enregistré chiffré et ne peut pas être relu.</p>
+      <p class="small text-muted">Dernier code généré le {{ espace.code_genere_le|date:"d/m/Y à H:i"|default:"—" }}.
+        Changez-le par exemple après le départ d'un membre du personnel : chacun garde son code personnel.</p>
+      <form method="post" onsubmit="return confirm('Générer un nouveau code ? L\'ancien ne fonctionnera plus pour personne.')">{% csrf_token %}
+        <button class="btn btn-warning">Générer un nouveau code d'établissement</button></form>
+      {% endif %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}
