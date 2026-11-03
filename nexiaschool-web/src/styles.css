@@ -1,0 +1,21 @@
+body { background: #f4f6fa; }
+.note-faible { color: #b02a37; }
+.code-acces { font-size: 2.4rem; letter-spacing: .35em; font-weight: 600; padding: .4rem 1rem; border: 2px dashed #6c757d;
+  border-radius: .5rem; display: inline-block; margin-bottom: 1rem; }
+.vignette { width: 36px; height: 36px; object-fit: cover; border-radius: 50%; display: inline-block; }
+.vignette.vide { background: #dee2e6; }
+.photo-bulletin { width: 72px; height: 90px; object-fit: cover; border-radius: 4px; flex: none; }
+.photo-bulletin.vide { background: #e9ecef; border: 1px dashed #adb5bd; }
+.tableau-bulletin td, .tableau-bulletin th { padding: .2rem .4rem; font-size: .85rem; }
+.signature { min-height: 5rem; }
+
+@media print {
+  @page { size: A4; margin: 10mm; }
+  body { background: #fff; }
+  .no-print, nav { display: none !important; }
+  main { padding: 0 !important; }
+  .card { border: 1px solid #999 !important; box-shadow: none !important; }
+  .bulletin { break-after: page; margin: 0 !important; border: none !important; }
+  .bulletin:last-child { break-after: auto; }
+  .fiche-code { break-inside: avoid; }
+}

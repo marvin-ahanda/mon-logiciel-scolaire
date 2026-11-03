@@ -1,0 +1,42 @@
+import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import { supabase, verifier } from "./supabase.js"
+
+const Contexte = createContext(null)
+
+export function SessionProvider({ children }) {
+  const [etat, setEtat] = useState({ pret: false, session: null, profil: null, etablissement: null, exercice: null })
+
+  const charger = useCallback(async (session) => {
+    if (!session) return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
+    try {
+      const profil = verifier(await supabase.from("personnels").select("*").eq("id", session.user.id).maybeSingle())
+      if (!profil || !profil.actif) {
+        await supabase.auth.signOut()
+        return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
+      }
+      const etablissement = verifier(await supabase.from("etablissements").select("*").eq("id", profil.etablissement_id).single())
+      const exercice = verifier(await supabase.from("exercices").select("*").eq("actif", true).maybeSingle())
+      setEtat({ pret: true, session, profil, etablissement, exercice })
+    } catch {
+      setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: true })
+    }
+  }, [])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => charger(data.session))
+    const { data } = supabase.auth.onAuthStateChange((evenement, session) => {
+      if (evenement === "SIGNED_IN" || evenement === "SIGNED_OUT") setTimeout(() => charger(session), 0)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [charger])
+
+  const recharger = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    await charger(data.session)
+  }, [charger])
+
+  const valeur = { ...etat, estAdmin: etat.profil?.role === "admin", recharger }
+  return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>
+}
+
+export const useSession = () => useContext(Contexte)

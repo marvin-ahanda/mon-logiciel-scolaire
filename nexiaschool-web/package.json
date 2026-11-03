@@ -1,0 +1,26 @@
+{
+  "name": "nexiaschool-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "NexIASchool — gestion des notes scolaires (React + Supabase, hébergé sur Netlify)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.3",
+    "bootstrap": "5.3.8",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
+    "react-router-dom": "7.18.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "5.2.0",
+    "vite": "7.3.7",
+    "vitest": "3.2.7"
+  },
+  "engines": { "node": ">=20" }
+}
