@@ -109,14 +109,21 @@ export function Confidentialite() {
       <p>{EDITEUR.service} n'utilise <strong>aucun cookie publicitaire ni outil de mesure d'audience</strong>. Le navigateur conserve seulement
         la session de connexion et l'établissement choisi sur l'appareil (stockage local), indispensables au fonctionnement du service.</p>
 
-      <h2>10. Vos droits</h2>
+      <h2>10. Agents d'intelligence artificielle (API et MCP)</h2>
+      <p>L'administration d'un établissement peut activer l'accès des agents IA (Claude ou autre) dans l'Espace développeur ; cet accès est
+        <strong> désactivé par défaut</strong>. Un membre du personnel peut alors créer une clé API ou autoriser une application : l'agent agit
+        avec les mêmes droits que son compte. Les données consultées par l'agent (par exemple des notes et des noms d'élèves) sont transmises
+        au fournisseur d'IA choisi par l'utilisateur, selon les conditions de ce fournisseur, sous la responsabilité de l'établissement.
+        Les clés sont enregistrées chiffrées, révocables, et les actions d'écriture sont inscrites dans un journal consultable par l'administration.</p>
+
+      <h2>11. Vos droits</h2>
       <p>Conformément à la législation applicable en matière de protection des données personnelles (notamment au {EDITEUR.pays} et, lorsqu'il s'applique,
         le Règlement général sur la protection des données de l'Union européenne), vous disposez d'un droit d'accès, de rectification, d'effacement,
         de limitation et d'opposition. Pour les données scolaires, adressez-vous d'abord à l'administration de votre établissement, qui peut les consulter,
         les corriger ou les supprimer directement. Pour toute autre demande, contactez {EDITEUR.nom} : {contactTexte()}. Vous pouvez également saisir
         l'autorité de protection des données compétente.</p>
 
-      <h2>11. Modifications</h2>
+      <h2>12. Modifications</h2>
       <p>Cette politique peut évoluer. La date de mise à jour figure en haut de la page ; en cas de changement important, les administrateurs
         des établissements en seront informés.</p>
     </PageLegale>
@@ -159,7 +166,13 @@ export function Conditions() {
         codes d'autrui, de perturber le fonctionnement du service (envois automatisés massifs, attaques), d'y déposer des contenus illicites ou d'utiliser
         le service pour une autre finalité que la gestion scolaire.</p>
 
-      <h2>5. Données et propriété</h2>
+      <h2>5. Accès par API et agents IA</h2>
+      <p>Lorsque l'administration active l'accès des agents IA, les clés API et autorisations données à des applications tierces sont personnelles,
+        confidentielles et révocables. Chaque utilisateur est responsable des actions faites en son nom par l'agent qu'il connecte et de la vérification
+        des récapitulatifs avant toute écriture. L'établissement décide de transmettre ou non ses données à un fournisseur d'IA. Il est interdit d'utiliser
+        l'API pour extraire massivement des données sans rapport avec la gestion scolaire ou pour contourner les limites d'utilisation.</p>
+
+      <h2>5 bis. Données et propriété</h2>
       <p>L'établissement reste propriétaire de ses données. {EDITEUR.nom} les traite uniquement pour fournir le service, comme décrit dans la
         <Link to="/confidentialite"> politique de confidentialité</Link>. Le logiciel, son interface et sa marque restent la propriété de {EDITEUR.nom}.</p>
 

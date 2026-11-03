@@ -151,3 +151,4 @@
 .lp-legal a { color: var(--lp-bleu); text-decoration: underline; }
 .lp-app-pied { margin-top: auto; padding-top: .5em; display: flex; justify-content: space-between; font-size: .78em; color: #6c757d; }
 .lp-app-pied b { color: #198754; }
+.lp-code { background: #0f1729; color: #e2e8f0; padding: 14px 18px; border-radius: 12px; font-size: .95rem; white-space: pre-wrap; word-break: break-all; margin: 0; }

@@ -59,6 +59,7 @@ export default function MiseEnPage() {
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">Statistiques</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">Paramètres</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/personnel">Personnel</NavLink></li>}
+              {(estAdmin || etablissement?.api_active) && <li className="nav-item"><NavLink className={lien} to="/developpeur">IA et API</NavLink></li>}
             </ul>
             <div className="navbar-text text-white small me-3">{etablissement?.nom} · Exercice {exercice?.libelle || "non défini"}</div>
             <div className="d-flex align-items-center gap-2">

@@ -6,6 +6,9 @@ import { Connexion, Etablissement, Inscription } from "./pages/Acces.jsx"
 import Accueil from "./pages/Accueil.jsx"
 import Landing from "./pages/Landing.jsx"
 import { Conditions, Confidentialite } from "./pages/Legal.jsx"
+import Developpeur from "./pages/Developpeur.jsx"
+import Developpeurs from "./pages/Developpeurs.jsx"
+import OAuthAutoriser from "./pages/OAuthAutoriser.jsx"
 import PageBulletins from "./pages/Bulletins.jsx"
 import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
 import Eleves from "./pages/Eleves.jsx"
@@ -47,8 +50,13 @@ export default function App() {
           <Route path="/connexion" element={<Connexion />} />
           <Route path="/confidentialite" element={<Confidentialite />} />
           <Route path="/conditions" element={<Conditions />} />
+          <Route path="/developpeurs" element={<Developpeurs />} />
+          <Route path="/oauth/autoriser" element={<OAuthAutoriser />} />
           <Route path="/" element={<Racine />}>
             <Route index element={<Accueil />} />
+          </Route>
+          <Route element={<Protege />}>
+            <Route path="/developpeur" element={<Developpeur />} />
           </Route>
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />

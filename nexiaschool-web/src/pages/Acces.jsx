@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { Alerte, Chargement, FicheCode } from "../composants/Communs.jsx"
 import { enregistrerAppareil, lireAppareil, oublierAppareil } from "../lib/appareil.js"
 import { comparerNoms } from "../lib/format.js"
+import { consommerRetour } from "../lib/retour.js"
 import { connexionGoogle, rpc, supabase } from "../supabase.js"
 import { useSession } from "../Session.jsx"
 
@@ -188,7 +189,7 @@ export function Connexion() {
   const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false)
 
   useEffect(() => {
-    if (session && profil) { naviguer("/"); return }
+    if (session && profil) { naviguer(consommerRetour() || "/"); return }
     if (!appareil) { naviguer("/etablissement"); return }
     rpc("personnels_etablissement", { p_jeton: appareil.jeton }).then((r) => {
       if (r.erreur) { oublierAppareil(); naviguer("/etablissement"); return }
@@ -207,7 +208,7 @@ export function Connexion() {
       if (r.erreur) { setCode(""); return setErreur(r.erreur) }
       const { error } = await supabase.auth.signInWithPassword({ email: r.email, password: r.secret })
       if (error) return setErreur("Connexion impossible pour le moment. Réessayez.")
-      naviguer("/")
+      naviguer(consommerRetour() || "/")
     } catch (err) { setErreur(err.message) } finally { setEnvoi(false) }
   }
 

@@ -202,4 +202,108 @@ do $$ begin
   raise exception 'auto-rétrogradation acceptée';
 exception when sqlstate 'P0001' then raise notice 'ok : un administrateur ne se retire pas ses droits'; end $$;
 reset role;
+
+-- ================================ API (serveur MCP) et OAuth ================================
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+do $$ begin perform public.creer_cle_api('Claude', false, 30); raise exception 'clé créée sans activation';
+exception when sqlstate 'P0001' then raise notice 'ok : API désactivée par défaut'; end $$;
+select public.definir_api_active(true) \g /dev/null
+select public.creer_cle_api('Lecture', false, 30)->>'cle' as cle_lect \gset
+select public.creer_cle_api('Admin écriture', true, 0)->>'cle' as cle_admin \gset
+select pg_temp.verifier(:'cle_lect' ~ '^nxs_[0-9a-f]{48}$', 'clé API au format nxs_…');
+select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select public.creer_cle_api('Prof', true, 30)->>'cle' as cle_prof \gset
+select set_config('request.jwt.claim.sub', :'surv_a', false) \g /dev/null
+select public.creer_cle_api('Surveillant', true, 30)->>'cle' as cle_surv \gset
+select set_config('request.jwt.claim.sub', :'admin_b', false) \g /dev/null
+select public.definir_api_active(true) \g /dev/null
+select public.creer_cle_api('B', true, 30)->>'cle' as cle_b \gset
+reset role;
+select pg_temp.verifier((select count(*) from public.cles_api where cle_hash like 'nxs%') = 0, 'clés stockées sous forme d''empreinte');
+select set_config('request.jwt.claim.sub', '', false) \g /dev/null
+set role anon;
+select pg_temp.verifier((public.api_contexte(:'cle_lect')->'etablissement'->>'nom') = 'Collège Saint-Joseph', 'outil contexte');
+select pg_temp.verifier(json_array_length(public.api_classes(:'cle_lect')) = 1, 'outil classes');
+select pg_temp.verifier(json_array_length(public.api_donnees_classe(:'cle_lect', '6E a')->'eleves') >= 1, 'outil données de classe (nom de classe tolérant)');
+do $$ begin perform public.api_contexte('nxs_faux'); raise exception 'clé fausse acceptée';
+exception when sqlstate '28000' then raise notice 'ok : clé inconnue refusée'; end $$;
+select set_config('app.cle_b', :'cle_b', false), set_config('app.cle_lect', :'cle_lect', false), set_config('app.cle_prof', :'cle_prof', false),
+       set_config('app.cle_surv', :'cle_surv', false), set_config('app.cle_admin', :'cle_admin', false) \g /dev/null
+do $$ begin perform public.api_donnees_classe(current_setting('app.cle_b'), '6e A'); raise exception 'B lit une classe de A';
+exception when sqlstate 'P0001' then raise notice 'ok : la clé de B ne voit pas les classes de A'; end $$;
+do $$ begin perform public.api_saisir_notes(current_setting('app.cle_lect'), '6e A', 'MATH', 2, '[{"matricule":"M1","note":12}]');
+  raise exception 'écriture avec une clé en lecture';
+exception when insufficient_privilege then raise notice 'ok : clé en lecture seule refusée en écriture'; end $$;
+select pg_temp.verifier((public.api_saisir_notes(:'cle_prof', '6e A', 'Mathématiques', 2, '[{"matricule":"M1","note":"13,5"},{"matricule":"M2","note":null}]')->>'notes_enregistrees')::int = 1,
+       'l''enseignant saisit ses notes par l''API');
+do $$ begin perform public.api_saisir_notes(current_setting('app.cle_prof'), '6e A', 'MATH', 2, '[{"matricule":"M1","note":19},{"matricule":"INCONNU","note":10}]');
+  raise exception 'saisie partielle acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : saisie par l''API tout ou rien'; end $$;
+reset role;
+select pg_temp.verifier((select valeur from public.notes n join public.sequences s on s.id = n.sequence_id where s.numero = 2 limit 1) = 13.5, 'aucune note modifiée après erreur');
+select pg_temp.verifier((select saisi_par from public.notes n join public.sequences s on s.id = n.sequence_id where s.numero = 2 limit 1) = :'prof_a', 'auteur de la note = propriétaire de la clé');
+set role anon;
+do $$ begin perform public.api_enregistrer_appel(current_setting('app.cle_prof'), '6e A', current_date, 2, '[]'); raise exception 'appel par un enseignant';
+exception when insufficient_privilege then raise notice 'ok : l''appel par API reste au surveillant et à l''administration'; end $$;
+select pg_temp.verifier((public.api_enregistrer_appel(:'cle_surv', '6e A', current_date, 2, '[{"matricule":"M1","heures_non_justifiees":2,"retard":true}]')->>'retards')::int = 1,
+       'le surveillant fait l''appel par l''API');
+do $$ begin perform public.api_ajouter_eleve(current_setting('app.cle_prof'), 'X9', 'X', '', 'M', null, ''); raise exception 'élève ajouté par un enseignant';
+exception when insufficient_privilege then raise notice 'ok : ajout d''élève réservé à l''administration'; end $$;
+select pg_temp.verifier((public.api_ajouter_eleve(:'cle_admin', 'API1', 'Nkoulou', 'Paul', 'm', '2014-05-02', '6e A')->>'matricule') = 'API1', 'l''administration ajoute un élève par l''API');
+reset role;
+select pg_temp.verifier((select count(*) from public.journal_api) = 3, 'journal : 3 actions d''écriture tracées');
+-- Limite d'appels
+set role anon;
+do $$ declare k int; begin
+  for k in 1 .. 70 loop perform public.api_contexte(current_setting('app.cle_lect')); end loop;
+  raise exception 'pas de limite';
+exception when sqlstate 'P0429' then raise notice 'ok : limite de 60 appels par minute'; end $$;
+-- Révocation
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select public.revoquer_cle_api((select id from public.cles_api where nom = 'Prof')) \g /dev/null
+reset role; set role anon;
+do $$ begin perform public.api_contexte(current_setting('app.cle_prof')); raise exception 'clé révoquée acceptée';
+exception when sqlstate '28000' then raise notice 'ok : clé révoquée refusée'; end $$;
+
+-- OAuth
+reset role;
+select pg_temp.verifier(public._b64url_sha256('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk') = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', 'PKCE S256 conforme à la RFC 7636') from (select 1) x;
+set role anon;
+do $$ begin perform public.oauth_enregistrer_client('Pirate', array['http://evil.example/cb']); raise exception 'adresse http acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : adresse de retour non https refusée'; end $$;
+select public.oauth_enregistrer_client('Claude', array['https://claude.ai/api/mcp/auth_callback'])->>'client_id' as client \gset
+select pg_temp.verifier((public.oauth_info_client(:'client', 'https://claude.ai/api/mcp/auth_callback')->>'nom') = 'Claude', 'client enregistré');
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+select public.oauth_autoriser(:'client', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', 'S256', false)->>'code' as code1 \gset
+reset role; set role anon;
+select pg_temp.verifier((public.oauth_echanger_code(:'code1', 'mauvais-verificateur', :'client', 'https://claude.ai/api/mcp/auth_callback')->>'error') = 'invalid_grant', 'mauvais vérificateur PKCE refusé');
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+select public.oauth_autoriser(:'client', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', 'S256', false)->>'code' as code2 \gset
+reset role; set role anon;
+select public.oauth_echanger_code(:'code2', 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk', :'client', 'https://claude.ai/api/mcp/auth_callback') as jetons \gset
+select pg_temp.verifier((:'jetons'::json->>'access_token') like 'nxo_%' and (:'jetons'::json->>'expires_in')::int = 3600, 'code échangé contre des jetons');
+select pg_temp.verifier((public.oauth_echanger_code(:'code2', 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk', :'client', 'https://claude.ai/api/mcp/auth_callback')->>'error') = 'invalid_grant', 'code à usage unique');
+select pg_temp.verifier((public.api_contexte(:'jetons'::json->>'access_token')->'utilisateur'->>'role') = 'admin', 'le jeton OAuth ouvre les outils MCP');
+select set_config('app.acces', :'jetons'::json->>'access_token', false) \g /dev/null
+do $$ begin perform public.api_ajouter_eleve(current_setting('app.acces'), 'O1', 'X', '', 'M', null, ''); raise exception 'écriture avec jeton lecture';
+exception when insufficient_privilege then raise notice 'ok : jeton OAuth en lecture seule'; end $$;
+select public.oauth_rafraichir(:'jetons'::json->>'refresh_token', :'client') as jetons2 \gset
+select pg_temp.verifier((:'jetons2'::json->>'access_token') like 'nxo_%', 'rafraîchissement');
+do $$ begin perform public.api_contexte(current_setting('app.acces')); raise exception 'ancien jeton accepté';
+exception when sqlstate '28000' then raise notice 'ok : ancien jeton révoqué après rafraîchissement'; end $$;
+select pg_temp.verifier((public.oauth_rafraichir(:'jetons'::json->>'refresh_token', :'client')->>'error') = 'invalid_grant', 'ancien jeton de rafraîchissement refusé');
+-- Désactivation de l'API par l'administration : tout est révoqué
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+select public.definir_api_active(false) \g /dev/null
+reset role; set role anon;
+select set_config('app.acces2', :'jetons2'::json->>'access_token', false) \g /dev/null
+do $$ begin perform public.api_contexte(current_setting('app.acces2')); raise exception 'jeton accepté après désactivation';
+exception when sqlstate '28000' then raise notice 'ok : désactiver l''API révoque clés et applications'; end $$;
+reset role;
 \echo SCÉNARIO TERMINÉ

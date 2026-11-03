@@ -82,6 +82,7 @@ const BENEFICES = [
   ["🧭", "Discipline au quotidien", "Appel du jour, retards, infractions et sanctions : la note de discipline se calcule seule."],
   ["📥", "Import et export Excel", "Importez vos listes d'élèves et vos notes depuis Excel, exportez résultats et listes en un clic."],
   ["📈", "Statistiques de pilotage", "Répartition des moyennes, comparaison des classes, effectifs par sexe et par âge."],
+  ["🤖", "Connecté à votre IA", "Interrogez vos résultats ou saisissez des notes depuis Claude ou votre agent IA, avec vos droits (protocole MCP)."],
 ]
 const ETAPES = [
   ["Créez l'espace", "Le chef d'établissement se connecte avec Google et renseigne le nom et les informations de l'école."],
@@ -121,6 +122,7 @@ export default function Landing() {
             <a href="#fonctionnement">Comment ça marche</a>
             <a href="#securite">Sécurité</a>
             <a href="#faq">Questions</a>
+            <Link to="/developpeurs">Développeurs</Link>
           </nav>
           <Link className="lp-connexion" to="/etablissement">Se connecter</Link>
         </div>
@@ -202,6 +204,7 @@ export default function Landing() {
           <nav aria-label="Liens légaux">
             <Link to="/confidentialite">Politique de confidentialité</Link>
             <Link to="/conditions">Conditions d'utilisation</Link>
+            <Link to="/developpeurs">Développeurs (API et MCP)</Link>
             <Link to="/etablissement">Se connecter</Link>
           </nav>
           <p>© {new Date().getFullYear()} {EDITEUR.nom} — {EDITEUR.service}</p>
