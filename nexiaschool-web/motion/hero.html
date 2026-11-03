@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>NexIA School — motion</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #f4f3ff; }
+  body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #0f1729; -webkit-font-smoothing: antialiased; }
+  #scene { position: relative; width: 1920px; height: 1080px; overflow: hidden; perspective: 2200px;
+    background: linear-gradient(160deg, #eef0ff 0%, #f6f4ff 45%, #ffffff 100%); }
+  .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .6; }
+  #b1 { width: 760px; height: 760px; background: #c7d2fe; } #b2 { width: 820px; height: 700px; background: #ddd6fe; }
+  #b3 { width: 620px; height: 520px; background: #bfdbfe; } #b4 { width: 420px; height: 420px; background: #fbcfe8; opacity: .35; }
+  .point { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #6366f1; opacity: .25; }
+  .abs { position: absolute; will-change: transform, opacity; }
+  .grad { background: linear-gradient(90deg, #2563eb, #7c3aed); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .marque { display: grid; place-items: center; width: 150px; height: 150px; border-radius: 40px; color: #fff; font-size: 92px; font-weight: 800;
+    background: linear-gradient(135deg, #2563eb, #7c3aed); box-shadow: 0 30px 70px rgba(79, 70, 229, .35); }
+  /* Ouverture */
+  #ouverture { left: 0; top: 0; width: 1920px; height: 1080px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; }
+  #titre { font-size: 104px; font-weight: 800; letter-spacing: -4px; text-align: center; line-height: 1.05; }
+  #titre span { display: inline-block; margin: 0 14px; }
+  #puce { font-size: 30px; font-weight: 600; color: #4f46e5; background: rgba(255,255,255,.75); border: 1px solid #e0e7ff; padding: 14px 30px; border-radius: 999px; }
+  /* Mot clé à gauche */
+  #mot { left: 150px; top: 360px; font-size: 150px; font-weight: 800; letter-spacing: -6px; line-height: 1; }
+  #sousmot { left: 156px; top: 540px; width: 600px; font-size: 34px; line-height: 1.35; color: #3d4a63; font-weight: 500; }
+  /* Cartes */
+  .carte { background: #fff; border-radius: 34px; border: 1px solid #e3e7f2; box-shadow: 0 50px 120px rgba(30, 41, 90, .18), 0 6px 18px rgba(30, 41, 90, .06); }
+  #notes { left: 880px; top: 170px; width: 900px; padding: 46px 52px; }
+  .entete-carte { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+  .entete-carte b { font-size: 34px; } .entete-carte em { font-style: normal; font-size: 24px; color: #6b7690; }
+  .ligne { display: grid; grid-template-columns: 1fr 210px 140px; align-items: center; padding: 18px 0; border-bottom: 2px solid #f0f2f7; font-size: 30px; }
+  .ligne.titres { font-size: 22px; color: #6b7690; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; padding-top: 0; }
+  .champ { justify-self: start; min-width: 150px; height: 64px; display: flex; align-items: center; padding: 0 20px; border-radius: 16px; border: 2px solid #e3e7f2;
+    font-weight: 700; font-variant-numeric: tabular-nums; background: #fafbff; }
+  .champ.actif { border-color: #2563eb; box-shadow: 0 0 0 6px rgba(37, 99, 235, .15); background: #fff; }
+  .curseur { display: inline-block; width: 3px; height: 34px; background: #2563eb; margin-left: 3px; }
+  .rang { justify-self: end; min-width: 84px; height: 56px; display: grid; place-items: center; border-radius: 999px; font-weight: 800; font-size: 26px; color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed); }
+  .rang.or { background: linear-gradient(135deg, #f59e0b, #f97316); }
+  .pied-carte { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; padding: 26px 30px; border-radius: 22px; background: #f3f5ff; }
+  .pied-carte span { font-size: 26px; color: #3d4a63; } .pied-carte b { font-size: 52px; font-variant-numeric: tabular-nums; }
+  /* Tableau de bord */
+  #tableau { left: 860px; top: 150px; width: 940px; padding: 44px 48px; }
+  .tuiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 30px; }
+  .tuile { padding: 22px 20px; border-radius: 22px; background: #f6f7fc; border: 1px solid #e8ebf5; }
+  .tuile span { display: block; font-size: 19px; color: #6b7690; margin-bottom: 8px; } .tuile b { font-size: 46px; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+  .graph { display: flex; align-items: flex-end; gap: 26px; height: 300px; padding: 0 10px; border-bottom: 2px solid #e3e7f2; }
+  .barre { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .barre i { width: 100%; border-radius: 14px 14px 0 0; background: linear-gradient(180deg, #4f8df5, #2563eb); }
+  .barre span { position: absolute; bottom: -44px; font-size: 22px; color: #6b7690; }
+  .barre u { text-decoration: none; position: absolute; font-size: 22px; font-weight: 700; color: #1e3a8a; }
+  .puces { display: flex; gap: 14px; margin-top: 70px; flex-wrap: wrap; }
+  .puce-appel { font-size: 22px; font-weight: 600; padding: 12px 20px; border-radius: 999px; background: #dcfce7; color: #15803d; }
+  /* Bulletin */
+  #bulletin { left: 900px; top: 110px; width: 860px; padding: 48px 54px; transform-origin: 50% 50%; }
+  .bul-entete { display: flex; justify-content: space-between; border-bottom: 3px solid #0f1729; padding-bottom: 20px; margin-bottom: 22px; }
+  .bul-entete b { font-size: 30px; } .bul-entete span { font-size: 22px; color: #3d4a63; text-align: right; }
+  .eleve { display: flex; gap: 22px; align-items: center; margin-bottom: 22px; }
+  .photo { width: 92px; height: 110px; border-radius: 14px; background: linear-gradient(160deg, #c7d2fe, #a5b4fc); }
+  .eleve b { font-size: 34px; display: block; } .eleve span { font-size: 22px; color: #6b7690; }
+  .bl { display: grid; grid-template-columns: 1fr 120px 200px; padding: 13px 0; border-bottom: 1px solid #edf0f6; font-size: 25px; }
+  .bl b { text-align: right; font-variant-numeric: tabular-nums; } .bl em { font-style: normal; text-align: right; color: #6b7690; }
+  .bilan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 26px; }
+  .bilan div { padding: 18px 20px; border-radius: 18px; background: #f3f5ff; } .bilan span { display: block; font-size: 19px; color: #6b7690; } .bilan b { font-size: 36px; }
+  #tampon { left: 1400px; top: 892px; padding: 18px 30px; border: 6px solid #16a34a; color: #16a34a; border-radius: 20px; font-size: 34px; font-weight: 900;
+    letter-spacing: 1px; text-transform: uppercase; background: rgba(255,255,255,.85); }
+  /* Final */
+  #final { left: 0; top: 0; width: 1920px; height: 1080px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px; }
+  #nom { font-size: 120px; font-weight: 800; letter-spacing: -4px; } #nom strong { color: #2563eb; }
+  #promesse { font-size: 50px; font-weight: 700; letter-spacing: -1px; text-align: center; }
+  #adresse { font-size: 28px; color: #6b7690; font-weight: 500; }
+</style></head>
+<body><div id="scene">
+  <div id="b1" class="blob"></div><div id="b2" class="blob"></div><div id="b3" class="blob"></div><div id="b4" class="blob"></div>
+  <div id="points"></div>
+
+  <div id="ouverture" class="abs">
+    <div id="marque1" class="marque">N</div>
+    <div id="titre"><span>Les</span><span>notes</span><span>de</span><span>votre</span><br><span class="grad">établissement,</span><span class="grad">simplement.</span></div>
+    <div id="puce">Gestion scolaire en ligne · NexIA School</div>
+  </div>
+
+  <div id="mot" class="abs grad"></div>
+  <div id="sousmot" class="abs"></div>
+
+  <div id="notes" class="abs carte">
+    <div class="entete-carte"><b>6e A · Mathématiques</b><em>Séquence 1 · coef. 4</em></div>
+    <div class="ligne titres"><span>Élève</span><span>Note /20</span><span style="text-align:right">Rang</span></div>
+  </div>
+
+  <div id="tableau" class="abs carte">
+    <div class="entete-carte"><b>Collège Saint-Joseph</b><em>Trimestre 1 · 2026-2027</em></div>
+    <div class="tuiles"></div>
+    <div class="graph"></div>
+    <div class="puces"></div>
+  </div>
+
+  <div id="bulletin" class="abs carte">
+    <div class="bul-entete"><b>Collège Saint-Joseph de Yaoundé</b><span>Bulletin du 1er trimestre<br>Année 2026-2027</span></div>
+    <div class="eleve"><div class="photo"></div><div><b>ABENA Lucie</b><span>6e A · Matricule 2026-0142</span></div></div>
+    <div id="lignes-bul"></div>
+    <div class="bilan"><div><span>Moyenne</span><b id="bul-moy">0,00</b></div><div><span>Rang</span><b>1<sup>re</sup> / 42</b></div><div><span>Appréciation</span><b>Très bien</b></div></div>
+  </div>
+  <div id="tampon" class="abs">✓ Prêt à imprimer</div>
+
+  <div id="final" class="abs">
+    <div id="marque2" class="marque">N</div>
+    <div id="nom">NexIA <strong>School</strong></div>
+    <div id="promesse">Vos notes <span class="grad">calculées, classées et prêtes à imprimer.</span></div>
+    <div id="adresse">nexiaschool.netlify.app</div>
+  </div>
+</div>
+<script>
+const DUREE = 16
+const $ = (s) => document.querySelector(s)
+const c = (x) => Math.min(1, Math.max(0, x))
+const p = (t, a, d) => c((t - a) / d)
+const eo = (x) => 1 - Math.pow(1 - x, 3)
+const eio = (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+const back = (x) => { const k = 1.7, k3 = k + 1; return 1 + k3 * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2) }
+const lerp = (a, b, x) => a + (b - a) * x
+const fr = (v, d = 2) => v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d })
+const st = (el, o) => Object.assign(el.style, o)
+
+// Données
+const ELEVES = [["ABENA Lucie", "16,50", 1], ["ESSOMBA Carine", "15,00", 2], ["NGO Marie", "14,25", 3], ["FOUDA Daniel", "12,75", 4], ["BELLA Bruno", "9,50", 5]]
+const notes = $("#notes")
+ELEVES.forEach(([n]) => notes.insertAdjacentHTML("beforeend",
+  `<div class="ligne"><span>${n}</span><span class="champ"><span class="val"></span><span class="curseur"></span></span><span class="rang"></span></div>`))
+notes.insertAdjacentHTML("beforeend", `<div class="pied-carte"><span>Moyenne de la classe<br><small>Taux de réussite : <b id="taux" style="font-size:26px">0 %</b></small></span><b id="moy">0,00</b></div>`)
+const TUILES = [["Élèves inscrits", 642, 0, ""], ["Classes", 18, 0, ""], ["Taux de réussite", 71, 0, " %"], ["Moyenne", 11.84, 2, ""]]
+$(".tuiles").innerHTML = TUILES.map(([l]) => `<div class="tuile"><span>${l}</span><b>0</b></div>`).join("")
+const BARRES = [["6e", 11.2], ["5e", 12.4], ["4e", 10.6], ["3e", 13.1], ["2nde", 11.9], ["1re", 14.2]]
+$(".graph").innerHTML = BARRES.map(([l]) => `<div class="barre"><u></u><i></i><span>${l}</span></div>`).join("")
+const APPEL = ["Appel 6e A ✓", "Appel 5e B ✓", "Retards notés ✓", "Absences justifiées ✓"]
+$(".puces").innerHTML = APPEL.map((a) => `<span class="puce-appel">${a}</span>`).join("")
+const BUL = [["Mathématiques", "16,50", "Très bien"], ["Français", "15,75", "Bien"], ["Anglais", "17,25", "Très bien"], ["Sciences", "16,00", "Très bien"], ["Histoire-Géographie", "16,60", "Très bien"]]
+$("#lignes-bul").innerHTML = BUL.map(([m, n, a]) => `<div class="bl"><span>${m}</span><b>${n}</b><em>${a}</em></div>`).join("")
+const pts = $("#points")
+const POINTS = Array.from({ length: 18 }, (_, k) => ({ x: (k * 431) % 1900, y: (k * 277) % 1060, r: 6 + (k % 4) * 3, ph: k * 0.7 }))
+pts.innerHTML = POINTS.map(() => `<span class="point"></span>`).join("")
+
+/** Entrée / sortie d'un élément : renvoie la visibilité (0..1) et applique translation, échelle et flou. */
+function phase(el, t, debut, fin, { dx = 0, dy = 60, echelle = .96, entree = .7, sortie = .5, rot = 0, flou = 12 } = {}) {
+  const e = eo(p(t, debut, entree)), s = eio(p(t, fin - sortie, sortie))
+  const v = e * (1 - s)
+  st(el, { opacity: v, display: v <= 0.001 ? "none" : "",
+           transform: `translate(${(1 - e) * dx - s * dx * .6}px, ${(1 - e) * dy - s * 40}px) scale(${lerp(echelle, 1, e) - s * .04}) rotateY(${(1 - e) * rot}deg)`,
+           filter: `blur(${(1 - e) * flou + s * 8}px)` })
+  return v
+}
+
+const MOTS = [["Saisir.", "Chaque enseignant saisit ses notes, depuis un ordinateur ou un téléphone.", 3.1, 4.95],
+              ["Calculer.", "Moyennes pondérées, trimestrielles et annuelles, sans aucune erreur.", 4.95, 6.2],
+              ["Classer.", "Rangs et ex æquo établis automatiquement pour toute la classe.", 6.2, 7.45],
+              ["Piloter.", "Statistiques, comparaison des classes et appel du jour en un coup d'œil.", 7.45, 10.75],
+              ["Imprimer.", "Bulletins complets, avec photo, appréciations et conduite.", 10.75, 13.75]]
+
+function render(t) {
+  t = ((t % DUREE) + DUREE) % DUREE
+  const w = (2 * Math.PI * t) / DUREE
+  st($("#b1"), { left: `${-180 + 90 * Math.sin(w)}px`, top: `${-200 + 70 * Math.cos(w)}px` })
+  st($("#b2"), { left: `${1200 + 110 * Math.cos(w)}px`, top: `${-120 + 90 * Math.sin(w)}px` })
+  st($("#b3"), { left: `${640 + 140 * Math.sin(w + 1)}px`, top: `${640 + 80 * Math.cos(w + 2)}px` })
+  st($("#b4"), { left: `${1400 + 120 * Math.sin(w + 2)}px`, top: `${700 + 70 * Math.cos(w)}px` })
+  pts.querySelectorAll(".point").forEach((el, k) => {
+    const q = POINTS[k]
+    st(el, { left: `${q.x + 30 * Math.sin(w + q.ph)}px`, top: `${q.y + 40 * Math.cos(w * 2 + q.ph)}px`, width: `${q.r}px`, height: `${q.r}px`,
+             opacity: .12 + .12 * (1 + Math.sin(w * 2 + q.ph)) / 2 })
+  })
+
+  // 1. Ouverture
+  const vO = c(1 - eio(p(t, 2.6, .6)))
+  st($("#ouverture"), { opacity: vO, display: vO <= 0.001 ? "none" : "", transform: `translateY(${-eio(p(t, 2.6, .6)) * 80}px) scale(${1 - eio(p(t, 2.6, .6)) * .05})` })
+  const m = back(p(t, .15, .8))
+  st($("#marque1"), { transform: `scale(${m}) rotate(${(1 - eo(p(t, .15, .8))) * -90}deg)`, opacity: c(p(t, .15, .3)) })
+  $("#titre").querySelectorAll("span").forEach((el, k) => {
+    const x = eo(p(t, .7 + k * .12, .6))
+    st(el, { opacity: x, transform: `translateY(${(1 - x) * 70}px)`, filter: `blur(${(1 - x) * 10}px)` })
+  })
+  const xp = eo(p(t, 1.7, .6))
+  st($("#puce"), { opacity: xp, transform: `translateY(${(1 - xp) * 30}px)` })
+
+  // Mot clé et phrase à gauche
+  let motActuel = null
+  for (const mm of MOTS) if (t >= mm[2] && t < mm[3]) motActuel = mm
+  const mot = $("#mot"), sous = $("#sousmot")
+  if (motActuel) {
+    const [texte, phrase, a, b] = motActuel
+    mot.textContent = texte; sous.textContent = phrase
+    const premier = motActuel === MOTS[0], dernier = motActuel === MOTS[4]
+    phase(mot, t, a, b, { dy: 80, entree: premier ? .7 : .45, sortie: dernier ? .5 : .3, flou: 16 })
+    phase(sous, t, a + .15, b, { dy: 40, entree: .6, sortie: dernier ? .5 : .3, flou: 6 })
+  } else { mot.style.display = "none"; sous.style.display = "none" }
+
+  // 2. Grille de notes
+  phase(notes, t, 3.0, 7.5, { dx: 260, dy: 0, rot: -24, entree: .9, sortie: .55 })
+  notes.querySelectorAll(".ligne:not(.titres)").forEach((ligne, k) => {
+    const [, val, rang] = ELEVES[k]
+    const debut = 3.75 + k * .3, n = Math.round(c((t - debut) / .26) * val.length)
+    ligne.querySelector(".val").textContent = val.slice(0, n)
+    const actif = t >= debut - .05 && t < debut + .3
+    ligne.querySelector(".champ").classList.toggle("actif", actif)
+    ligne.querySelector(".curseur").style.opacity = actif && Math.floor(t * 4) % 2 === 0 ? 1 : 0
+    const r = ligne.querySelector(".rang"), x = back(p(t, 6.25 + k * .1, .45))
+    r.textContent = rang === 1 ? "1er" : `${rang}e`; r.classList.toggle("or", rang === 1)
+    st(r, { opacity: c(p(t, 6.25 + k * .1, .15)), transform: `scale(${x})` })
+  })
+  const cm = eio(p(t, 5.3, .8))
+  $("#moy").textContent = fr(13.6 * cm); $("#taux").textContent = `${Math.round(80 * cm)} %`
+
+  // 3. Tableau de bord
+  phase($("#tableau"), t, 7.45, 10.85, { dx: 0, dy: 140, rot: 0, echelle: .9, entree: .8, sortie: .5 })
+  $(".tuiles").querySelectorAll(".tuile b").forEach((b, k) => {
+    const [, v, d, suf] = TUILES[k], x = eo(p(t, 7.9 + k * .12, 1.1))
+    b.textContent = fr(v * x, d) + suf
+  })
+  $(".graph").querySelectorAll(".barre").forEach((el, k) => {
+    const x = eo(p(t, 8.2 + k * .12, .9)), h = (BARRES[k][1] / 15) * 100 * x
+    st(el.querySelector("i"), { height: `${h}%` })
+    const u = el.querySelector("u"); u.textContent = fr(BARRES[k][1] * x); st(u, { bottom: `calc(${h}% + 10px)`, opacity: x })
+  })
+  $(".puces").querySelectorAll(".puce-appel").forEach((el, k) => {
+    const x = back(p(t, 9.1 + k * .18, .45)); st(el, { opacity: c(p(t, 9.1 + k * .18, .2)), transform: `scale(${x})` })
+  })
+
+  // 4. Bulletin (pivot 3D)
+  const vb = phase($("#bulletin"), t, 10.75, 13.85, { dx: 0, dy: 40, rot: 70, echelle: .85, entree: 1.0, sortie: .55, flou: 4 })
+  if (vb > 0) {
+    const flot = Math.sin((t - 10.75) * 1.4) * 3
+    $("#bulletin").style.transform += ` rotateX(${flot * .6}deg) rotateZ(${-1.2 + flot * .2}deg)`
+  }
+  $("#lignes-bul").querySelectorAll(".bl").forEach((el, k) => {
+    const x = eo(p(t, 11.4 + k * .13, .45)); st(el, { opacity: x, transform: `translateX(${(1 - x) * 40}px)` })
+  })
+  $("#bul-moy").textContent = fr(16.42 * eio(p(t, 12.0, .8)))
+  const tp = p(t, 12.75, .35), tf = eio(p(t, 13.35, .5))
+  st($("#tampon"), { opacity: c(tp * 3) * (1 - tf), display: tp <= 0 || tf >= 1 ? "none" : "",
+                     transform: `scale(${lerp(2.4, 1, eo(tp))}) rotate(-8deg)` })
+
+  // 5. Final puis retour au fond (boucle)
+  const ef = eo(p(t, 13.75, .8)), sf = eio(p(t, 15.25, .7))
+  st($("#final"), { opacity: ef * (1 - sf), display: ef * (1 - sf) <= .001 ? "none" : "", transform: `scale(${lerp(.94, 1, ef) + sf * .03})`, filter: `blur(${(1 - ef) * 10 + sf * 10}px)` })
+  const m2 = back(p(t, 13.8, .8)); st($("#marque2"), { transform: `scale(${m2})` })
+  ;["#nom", "#promesse", "#adresse"].forEach((s, k) => {
+    const x = eo(p(t, 14.0 + k * .2, .6)); st($(s), { opacity: x, transform: `translateY(${(1 - x) * 40}px)` })
+  })
+}
+window.render = render
+render(Number(new URLSearchParams(location.search).get("t") || 0))
+</script></body></html>
