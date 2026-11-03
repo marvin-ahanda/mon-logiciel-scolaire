@@ -26,7 +26,7 @@ export default function Developpeur() {
   const [msg, setMsg] = useState({}), [nouvelle, setNouvelle] = useState(null)
   const [f, setF] = useState({ nom: "", ecriture: false, jours: 90 })
   const [d, erreur, rafraichir] = useDonnees(async () => ({
-    cles: verifier(await supabase.from("cles_api").select("*").order("cree_le", { ascending: false })),
+    cles: verifier(await supabase.from("cles_api").select("id, personnel_id, nom, prefixe, ecriture, expire_le, cree_le, derniere_utilisation, revoquee_le").order("cree_le", { ascending: false })),
     applis: verifier(await supabase.from("jetons_oauth").select("id, personnel_id, ecriture, cree_le, derniere_utilisation, revoque_le, rafraichissement_expire_le, oauth_clients(nom)")
       .is("revoque_le", null).gt("rafraichissement_expire_le", new Date().toISOString()).order("cree_le", { ascending: false })),
     journal: verifier(await supabase.from("journal_api").select("*").order("cree_le", { ascending: false }).limit(30)),
