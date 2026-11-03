@@ -17,6 +17,7 @@ function Carte({ titre, children }) {
             {children}
           </div>
         </div>
+        <p className="small text-center text-muted mt-3"><Link to="/">Accueil</Link> · <Link to="/confidentialite">Confidentialité</Link> · <Link to="/conditions">Conditions d'utilisation</Link></p>
       </div>
     </div>
   )
@@ -161,7 +162,9 @@ export function Inscription() {
           <div className="col-md-6"><label className="form-label" htmlFor="an">Nom</label><input className="form-control" id="an" required maxLength={150} {...champ("admin_nom")} /></div>
           <div className="col-md-6"><label className="form-label" htmlFor="ap">Prénom</label><input className="form-control" id="ap" maxLength={150} {...champ("admin_prenom")} /></div>
         </div>
-        <button className="btn btn-primary w-100 mt-4" disabled={envoi}>{envoi ? "Création…" : "Créer l'espace de l'établissement"}</button>
+        <p className="small text-muted mt-3 mb-0">En créant l'espace, vous confirmez être habilité à représenter l'établissement et acceptez les{" "}
+          <Link to="/conditions" target="_blank">conditions d'utilisation</Link> et la <Link to="/confidentialite" target="_blank">politique de confidentialité</Link>.</p>
+        <button className="btn btn-primary w-100 mt-3" disabled={envoi}>{envoi ? "Création…" : "Créer l'espace de l'établissement"}</button>
       </form>
     </div></div></div></div>
   )

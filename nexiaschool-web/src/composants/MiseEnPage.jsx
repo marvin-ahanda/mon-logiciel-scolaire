@@ -38,7 +38,7 @@ export default function MiseEnPage() {
 
   async function deconnecter() {
     await supabase.auth.signOut()
-    naviguer(profil?.compte_google ? "/etablissement" : "/connexion")
+    naviguer(profil?.compte_google ? "/" : "/connexion")
   }
 
   return (

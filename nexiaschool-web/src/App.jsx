@@ -4,6 +4,8 @@ import MiseEnPage from "./composants/MiseEnPage.jsx"
 import { lireAppareil } from "./lib/appareil.js"
 import { Connexion, Etablissement, Inscription } from "./pages/Acces.jsx"
 import Accueil from "./pages/Accueil.jsx"
+import Landing from "./pages/Landing.jsx"
+import { Conditions, Confidentialite } from "./pages/Legal.jsx"
 import PageBulletins from "./pages/Bulletins.jsx"
 import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
 import Eleves from "./pages/Eleves.jsx"
@@ -26,6 +28,15 @@ function Protege({ admin = false, droit }) {
   return <MiseEnPage />
 }
 
+/** « / » : page d'accueil publique pour les visiteurs, tableau de bord pour le personnel connecté. */
+function Racine() {
+  const { pret, session, profil, sansEtablissement } = useSession()
+  if (!pret) return <Chargement />
+  if (sansEtablissement) return <Navigate to="/inscription" replace />
+  if (session && profil) return <MiseEnPage />
+  return <Landing />
+}
+
 export default function App() {
   return (
     <SessionProvider>
@@ -34,8 +45,10 @@ export default function App() {
           <Route path="/etablissement" element={<Etablissement />} />
           <Route path="/inscription" element={<Inscription />} />
           <Route path="/connexion" element={<Connexion />} />
-          <Route element={<Protege />}>
-            <Route path="/" element={<Accueil />} />
+          <Route path="/confidentialite" element={<Confidentialite />} />
+          <Route path="/conditions" element={<Conditions />} />
+          <Route path="/" element={<Racine />}>
+            <Route index element={<Accueil />} />
           </Route>
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />
