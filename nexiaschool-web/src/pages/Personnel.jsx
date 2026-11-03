@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
 import { comparerNoms, dateHeure, nomComplet } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
+import { COLONNES_PERSONNEL } from "../lib/colonnes.js"
 import { rpc, supabase, verifier } from "../supabase.js"
 
 const VIDE = { nom: "", prenom: "", role: "enseignant", matricule: "", telephone: "", actif: true }
@@ -11,7 +12,7 @@ export default function Personnel() {
   const { profil, etablissement, recharger } = useSession()
   const [edition, setEdition] = useState(null), [erreur, setErreur] = useState(""), [fiche, setFiche] = useState(null)
   const [liste, erreurChargement, rafraichir] = useDonnees(async () =>
-    verifier(await supabase.from("personnels").select("*")).sort((a, b) => b.actif - a.actif || comparerNoms(nomComplet(a), nomComplet(b))), [])
+    verifier(await supabase.from("personnels").select(COLONNES_PERSONNEL)).sort((a, b) => b.actif - a.actif || comparerNoms(nomComplet(a), nomComplet(b))), [])
   const champ = (k) => ({ value: edition[k], onChange: (e) => setEdition({ ...edition, [k]: e.target.value }) })
 
   async function enregistrer(e) {

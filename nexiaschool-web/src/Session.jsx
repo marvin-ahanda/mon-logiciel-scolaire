@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
 import { supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
@@ -9,7 +10,7 @@ export function SessionProvider({ children }) {
   const charger = useCallback(async (session) => {
     if (!session) return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
     try {
-      const profil = verifier(await supabase.from("personnels").select("*").eq("id", session.user.id).maybeSingle())
+      const profil = verifier(await supabase.from("personnels").select(COLONNES_PERSONNEL).eq("id", session.user.id).maybeSingle())
       const google = session.user.app_metadata?.provider === "google"
       if (!profil && google) {
         // connecté avec Google mais sans établissement : il peut créer l'espace de son établissement
@@ -19,11 +20,12 @@ export function SessionProvider({ children }) {
         await supabase.auth.signOut()
         return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
       }
-      const etablissement = verifier(await supabase.from("etablissements").select("*").eq("id", profil.etablissement_id).single())
+      const etablissement = verifier(await supabase.from("etablissements").select(COLONNES_ETABLISSEMENT).eq("id", profil.etablissement_id).single())
       const exercice = verifier(await supabase.from("exercices").select("*").eq("actif", true).maybeSingle())
       setEtat({ pret: true, session, profil, etablissement, exercice })
-    } catch {
-      setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: true })
+    } catch (e) {
+      console.error("NexIASchool : chargement du profil impossible", e)
+      setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: e?.message || "erreur" })
     }
   }, [])
 

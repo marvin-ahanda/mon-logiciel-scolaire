@@ -88,7 +88,7 @@ export function BoutonGoogle({ chemin, texte = "Continuer avec Google" }) {
 // --- Création de l'espace d'un établissement (fondateur connecté avec Google) --------------------------------
 export function Inscription() {
   const naviguer = useNavigate()
-  const { pret, session, profil, sansEtablissement, recharger } = useSession()
+  const { pret, session, profil, sansEtablissement, recharger, erreur: erreurSession } = useSession()
   const meta = session?.user?.user_metadata || {}
   const [f, setF] = useState({ nom: "", ville: "", adresse: "", telephone: "", devise: "", nom_chef: "",
                                admin_nom: meta.family_name || "", admin_prenom: meta.given_name || "" })
@@ -125,6 +125,14 @@ export function Inscription() {
                              "Vous, fondateur, vous connectez simplement avec Google."]} />
       <button className="btn btn-success no-print" onClick={terminer}>Accéder à mon espace</button>
     </div>
+  )
+
+  if (session && erreurSession) return (
+    <Carte titre="Créer l'espace de mon établissement">
+      <Alerte>Votre compte Google est bien connecté ({session.user.email}), mais votre profil n'a pas pu être chargé : {erreurSession}</Alerte>
+      <div className="d-flex gap-2"><button className="btn btn-primary" onClick={recharger}>Réessayer</button>
+        <button className="btn btn-outline-secondary" onClick={() => supabase.auth.signOut()}>Changer de compte</button></div>
+    </Carte>
   )
 
   if (!session || !sansEtablissement) return (
