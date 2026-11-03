@@ -83,36 +83,38 @@ create or replace function public._libelle(p_nom text, p_prenom text) returns te
 language sql immutable set search_path = '' as $$ select btrim(upper(btrim(p_nom)) || ' ' || btrim(coalesce(p_prenom, ''))) $$;
 
 -- ---------------------------------------------------------------------------------------------------------
--- 1. Inscription d'un nouvel établissement (visiteur anonyme)
+-- 1. Création d'un établissement par une personne connectée avec Google : elle en devient l'administrateur
+--    fondateur (connexion par Google, sans code personnel). Renvoie le code de l'établissement (affiché une fois).
 -- ---------------------------------------------------------------------------------------------------------
-create or replace function public.inscrire_etablissement(p_nom text, p_ville text, p_admin_nom text, p_admin_prenom text)
+create or replace function public.creer_etablissement_google(p_nom text, p_ville text, p_adresse text, p_telephone text,
+                                                             p_devise text, p_nom_chef text, p_admin_nom text, p_admin_prenom text)
 returns json language plpgsql volatile security definer set search_path = '' as $$
-declare
-  cle text := 'inscription:' || public._ip();
-  v_etab uuid; v_admin uuid := gen_random_uuid();
-  code_etab text := public._generer_code(8); code_admin text := public._generer_code(6);
+declare v_etab uuid; code_etab text := public._generer_code(8);
 begin
-  if public._minutes_de_blocage(cle) > 0 then
-    raise exception 'Trop d''inscriptions depuis cet appareil. Réessayez plus tard.' using errcode = 'P0001';
+  if auth.uid() is null or coalesce(auth.jwt() -> 'app_metadata' ->> 'provider', '') <> 'google' then
+    raise exception 'Connectez-vous d''abord avec votre compte Google.' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.personnels where id = auth.uid()) then
+    raise exception 'Ce compte Google gère déjà un établissement.' using errcode = 'P0001';
   end if;
   if (select count(*) from public.etablissements where cree_le > now() - interval '1 day') >= 100 then
-    raise exception 'Limite quotidienne d''inscriptions atteinte. Réessayez demain.' using errcode = 'P0001';
+    raise exception 'Limite quotidienne de créations atteinte. Réessayez demain.' using errcode = 'P0001';
   end if;
   if char_length(btrim(coalesce(p_nom, ''))) < 3 or char_length(btrim(coalesce(p_admin_nom, ''))) < 1 then
-    raise exception 'Indiquez le nom complet de l''établissement et le nom de l''administrateur.' using errcode = 'P0001';
+    raise exception 'Indiquez le nom complet de l''établissement et votre nom.' using errcode = 'P0001';
   end if;
   if exists (select 1 from public.etablissements where nom_normalise = public._normaliser(p_nom)) then
     raise exception 'Un établissement porte déjà ce nom (accents et majuscules ignorés).' using errcode = 'P0001';
   end if;
-  perform public._echec(cle, 3, 24 * 60);         -- au plus 3 établissements par appareil et par jour
-  insert into public.etablissements (nom, nom_normalise, ville, code_hash)
-  values (btrim(p_nom), public._normaliser(p_nom), btrim(coalesce(p_ville, '')), public._hacher(code_etab))
+  insert into public.etablissements (nom, nom_normalise, ville, adresse, telephone, devise, nom_chef, code_hash)
+  values (btrim(p_nom), public._normaliser(p_nom), left(btrim(coalesce(p_ville, '')), 100), left(btrim(coalesce(p_adresse, '')), 200),
+          left(btrim(coalesce(p_telephone, '')), 50), left(btrim(coalesce(p_devise, '')), 200), left(btrim(coalesce(p_nom_chef, '')), 150),
+          public._hacher(code_etab))
   returning id into v_etab;
-  perform public._creer_compte_auth(v_admin);
-  insert into public.personnels (id, etablissement_id, nom, prenom, role, code_hash)
-  values (v_admin, v_etab, upper(btrim(p_admin_nom)), btrim(coalesce(p_admin_prenom, '')), 'admin', public._hacher(code_admin));
-  return json_build_object('etablissement', btrim(p_nom), 'code_etablissement', code_etab,
-                           'administrateur', public._libelle(p_admin_nom, p_admin_prenom), 'code_personnel', code_admin);
+  insert into public.personnels (id, etablissement_id, nom, prenom, role, compte_google, code_hash)
+  values (auth.uid(), v_etab, upper(left(btrim(p_admin_nom), 150)), left(btrim(coalesce(p_admin_prenom, '')), 150), 'admin', true,
+          public._hacher(encode(extensions.gen_random_bytes(16), 'hex')));
+  return json_build_object('etablissement', btrim(p_nom), 'code_etablissement', code_etab);
 end $$;
 
 -- ---------------------------------------------------------------------------------------------------------
@@ -157,7 +159,7 @@ begin
     'etablissement', (select nom from public.etablissements where id = v_etab),
     'personnels', coalesce((select json_agg(json_build_object('id', p.id, 'nom', public._libelle(p.nom, p.prenom))
                                             order by public._normaliser(p.nom), public._normaliser(p.prenom), p.id)
-                              from public.personnels p where p.etablissement_id = v_etab and p.actif), '[]'::json));
+                              from public.personnels p where p.etablissement_id = v_etab and p.actif and not p.compte_google), '[]'::json));
 end $$;
 
 -- ---------------------------------------------------------------------------------------------------------
@@ -172,7 +174,7 @@ declare
   p record; secret text; attente int;
 begin
   if v_etab is null then return json_build_object('erreur', 'jeton'); end if;
-  select * into p from public.personnels where id = p_personnel and etablissement_id = v_etab and actif for update;
+  select * into p from public.personnels where id = p_personnel and etablissement_id = v_etab and actif and not compte_google for update;
   if p.id is null then return json_build_object('erreur', 'Choisissez votre nom dans la liste.'); end if;
   if p.bloque_jusqu_a > now() then
     attente := ceil(extract(epoch from (p.bloque_jusqu_a - now())) / 60);
@@ -207,7 +209,7 @@ create or replace function public.creer_personnel(p_nom text, p_prenom text, p_r
 returns json language plpgsql volatile security definer set search_path = '' as $$
 declare v_etab uuid := public._exiger_admin(); v_id uuid := gen_random_uuid(); code text := public._generer_code(6);
 begin
-  if p_role not in ('admin', 'enseignant') then raise exception 'Rôle inconnu.' using errcode = 'P0001'; end if;
+  if p_role not in ('admin', 'enseignant', 'surveillant') then raise exception 'Rôle inconnu.' using errcode = 'P0001'; end if;
   if char_length(btrim(coalesce(p_nom, ''))) < 1 then raise exception 'Le nom est obligatoire.' using errcode = 'P0001'; end if;
   if (select count(*) from public.personnels where etablissement_id = v_etab) >= 300 then
     raise exception 'Nombre maximal de comptes atteint (300).' using errcode = 'P0001';
@@ -224,7 +226,7 @@ create or replace function public.modifier_personnel(p_id uuid, p_nom text, p_pr
 returns void language plpgsql volatile security definer set search_path = '' as $$
 declare v_etab uuid := public._exiger_admin();
 begin
-  if p_role not in ('admin', 'enseignant') then raise exception 'Rôle inconnu.' using errcode = 'P0001'; end if;
+  if p_role not in ('admin', 'enseignant', 'surveillant') then raise exception 'Rôle inconnu.' using errcode = 'P0001'; end if;
   if not exists (select 1 from public.personnels where id = p_id and etablissement_id = v_etab) then
     raise exception 'Membre du personnel introuvable.' using errcode = 'P0001';
   end if;
@@ -244,8 +246,8 @@ returns json language plpgsql volatile security definer set search_path = '' as 
 declare v_etab uuid := public._exiger_admin(); code text := public._generer_code(6);
 begin
   update public.personnels set code_hash = public._hacher(code), code_genere_le = now(), echecs = 0, bloque_jusqu_a = null
-   where id = p_id and etablissement_id = v_etab and actif;
-  if not found then raise exception 'Membre du personnel introuvable ou désactivé.' using errcode = 'P0001'; end if;
+   where id = p_id and etablissement_id = v_etab and actif and not compte_google;
+  if not found then raise exception 'Membre du personnel introuvable, désactivé ou connecté par Google.' using errcode = 'P0001'; end if;
   return json_build_object('code', code);
 end $$;
 
@@ -263,8 +265,9 @@ create or replace function public.ping() returns text language sql stable set se
 
 -- Droits d'exécution ---------------------------------------------------------------------------------------
 revoke execute on all functions in schema public from public, anon, authenticated;
-grant execute on function public.inscrire_etablissement(text, text, text, text), public.ouvrir_etablissement(text, text),
-  public.personnels_etablissement(text), public.connexion_personnel(text, uuid, text), public.ping() to anon, authenticated;
+grant execute on function public.ouvrir_etablissement(text, text), public.personnels_etablissement(text),
+  public.connexion_personnel(text, uuid, text), public.ping() to anon, authenticated;
+grant execute on function public.creer_etablissement_google(text, text, text, text, text, text, text, text) to authenticated;
 grant execute on function public.etab_courant(), public.est_admin(), public.peut_noter(uuid),
   public.creer_personnel(text, text, text, text, text), public.modifier_personnel(uuid, text, text, text, boolean, text, text),
   public.nouveau_code_personnel(uuid), public.nouveau_code_etablissement() to authenticated;

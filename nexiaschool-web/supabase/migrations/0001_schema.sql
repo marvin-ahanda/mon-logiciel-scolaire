@@ -27,10 +27,11 @@ create table public.personnels (
   etablissement_id uuid not null references public.etablissements (id) on delete cascade,
   nom text not null check (char_length(btrim(nom)) between 1 and 150),
   prenom text not null default '' check (char_length(prenom) <= 150),
-  role text not null check (role in ('admin', 'enseignant')),
+  role text not null check (role in ('admin', 'enseignant', 'surveillant')),
   matricule text not null default '' check (char_length(matricule) <= 30),
   telephone text not null default '' check (char_length(telephone) <= 30),
   actif boolean not null default true,
+  compte_google boolean not null default false,   -- fondateur connecté par Google (pas de code personnel)
   code_hash text not null,
   code_genere_le timestamptz not null default now(),
   echecs smallint not null default 0,

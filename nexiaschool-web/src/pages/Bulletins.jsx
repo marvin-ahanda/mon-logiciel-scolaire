@@ -2,11 +2,12 @@ import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import ChoixClassePeriode from "../composants/ChoixClassePeriode.jsx"
 import { appreciation } from "../lib/calculs.js"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
+import { bilansPeriode, chargerDiscipline } from "../lib/donneesDiscipline.js"
 import { date, nomComplet, note } from "../lib/format.js"
 import { adressesPhotos } from "../lib/photos.js"
 import { useSession } from "../Session.jsx"
 
-function Bulletin({ r, donnees, periode, stats, etablissement, exercice, photo }) {
+function Bulletin({ r, donnees, periode, stats, etablissement, exercice, photo, conduite }) {
   const e = r.eleve
   return (
     <section className="bulletin card mb-4">
@@ -38,6 +39,9 @@ function Bulletin({ r, donnees, periode, stats, etablissement, exercice, photo }
           ])}</tbody>
           <tfoot><tr className="fw-semibold"><td colSpan={3}>Total</td><td className="text-end">{r.totalCoef}</td><td className="text-end">{note(r.totalPoints)}</td><td colSpan={2} /></tr></tfoot>
         </table>
+        {conduite && <div className="small border rounded p-2 mb-2">Conduite : absences non justifiées <strong>{conduite.nj} h</strong>, justifiées {conduite.j} h ·
+          retards <strong>{conduite.retards}</strong>{conduite.incidents.length > 0 && <> · sanctions : {conduite.incidents.join(", ")}</>} ·
+          note de discipline <strong>{note(conduite.note)}</strong> ({conduite.appreciation})</div>}
         <div className="row g-2 small">
           <div className="col-sm-4 border rounded p-2"><div>Moyenne : <strong className="fs-6">{r.moyenne !== null ? note(r.moyenne) : r.moyenneNonClassee !== null ? `${note(r.moyenneNonClassee)} (NC)` : "NC"}</strong></div>
             <div>Rang : <strong>{r.rang ? `${r.rang}${r.exAequo ? " ex" : ""} / ${stats.classes}` : "non classé"}</strong></div>
@@ -56,10 +60,12 @@ function Bulletins({ classe, periode }) {
   const { exercice, etablissement } = useSession()
   const [donnees, erreur] = useDonnees(async () => {
     const d = await chargerClasse(classe, exercice)
-    return { ...d, photos: await adressesPhotos(d.eleves.map((x) => x.eleve.photo)) }
+    const [photos, discipline] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(d.eleves.map((x) => x.inscriptionId), exercice)])
+    return { ...d, photos, discipline }
   }, [classe.id])
   if (!donnees) return <><Alerte>{erreur}</Alerte><Chargement /></>
   const { resultats, stats } = resultatsPeriode(donnees, periode)
+  const conduite = bilansPeriode(donnees.discipline, donnees.eleves.map((x) => x.inscriptionId), periode, donnees.sequences)
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 no-print">
@@ -67,7 +73,8 @@ function Bulletins({ classe, periode }) {
         <button className="btn btn-primary btn-sm" onClick={() => window.print()}>Imprimer les bulletins</button>
       </div>
       {resultats.map((r) => <Bulletin key={r.inscriptionId} r={r} donnees={donnees} periode={periode} stats={stats}
-                                      etablissement={etablissement} exercice={exercice} photo={donnees.photos[r.eleve.photo]} />)}
+                                      etablissement={etablissement} exercice={exercice} photo={donnees.photos[r.eleve.photo]}
+                                      conduite={conduite.get(r.inscriptionId)} />)}
       {!resultats.length && <p className="text-muted">Aucun élève inscrit.</p>}
     </>
   )

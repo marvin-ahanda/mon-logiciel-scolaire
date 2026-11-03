@@ -8,7 +8,7 @@ if (!url || !cle) {
 }
 
 export const supabase = createClient(url, cle, {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: "nexiaschool.session" },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce", storageKey: "nexiaschool.session" },
 })
 
 /** Message d'erreur lisible à partir d'une erreur Supabase. */
@@ -41,4 +41,13 @@ export async function toutCharger(construire) {
 /** Appel d'une fonction sécurisée (RPC). */
 export async function rpc(nom, params) {
   return verifier(await supabase.rpc(nom, params))
+}
+
+/** Connexion avec Google (le retour se fait sur `chemin` du même site). */
+export async function connexionGoogle(chemin = "/") {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${window.location.origin}${chemin}`, queryParams: { prompt: "select_account" } },
+  })
+  if (error) throw new Error(messageErreur(error))
 }

@@ -16,6 +16,7 @@ export default function Parametres() {
         <li className="nav-item"><NavLink className={onglet} to="/parametres/classes">Classes</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/matieres">Matières</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">Matières par classe</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">Discipline</NavLink></li>
       </ul>
       <Routes>
         <Route index element={<Etablissement />} />
@@ -23,6 +24,7 @@ export default function Parametres() {
         <Route path="classes" element={<Classes />} />
         <Route path="matieres" element={<Matieres />} />
         <Route path="coefficients" element={<Coefficients />} />
+        <Route path="discipline" element={<ParametresDiscipline />} />
       </Routes>
     </>
   )
@@ -243,6 +245,74 @@ function Coefficients() {
           ) : <button className="btn btn-primary" onClick={() => setAjout({ matiere_id: "", enseignant_id: "", coefficient: 2, groupe: 1 })}>+ Ajouter une matière à la classe</button>}
         </>
       )}
+    </>
+  )
+}
+
+// --- Discipline : sanctions, infractions, barème -------------------------------------------------------------
+function ParametresDiscipline() {
+  const { exercice } = useSession()
+  const [erreur, setErreur] = useState(""), [ok, setOk] = useState("")
+  const [sanction, setSanction] = useState({ libelle: "", points_perdus: 1 }), [infraction, setInfraction] = useState({ libelle: "", sanction_id: "" })
+  const [d, erreurChargement, rafraichir] = useDonnees(async () => ({
+    sanctions: verifier(await supabase.from("sanctions").select("*").order("points_perdus").order("libelle")),
+    infractions: verifier(await supabase.from("infractions").select("*, sanctions(libelle)").order("libelle")),
+    bareme: exercice ? verifier(await supabase.from("parametres_discipline").select("*").eq("exercice_id", exercice.id).maybeSingle()) : null,
+  }), [exercice?.id])
+  const [bareme, setBareme] = useState(null)
+  const b = bareme || d?.bareme
+
+  async function action(f, message) {
+    setErreur(""); setOk("")
+    try { await f(); rafraichir(); if (message) setOk(message) } catch (err) { setErreur(err.message) }
+  }
+  const ajouterSanction = (e) => { e.preventDefault(); action(async () => { verifier(await supabase.from("sanctions").insert({ libelle: sanction.libelle.trim(), points_perdus: Number(sanction.points_perdus) })); setSanction({ libelle: "", points_perdus: 1 }) }) }
+  const ajouterInfraction = (e) => { e.preventDefault(); action(async () => { verifier(await supabase.from("infractions").insert({ libelle: infraction.libelle.trim(), sanction_id: infraction.sanction_id })); setInfraction({ libelle: "", sanction_id: "" }) }) }
+  const supprimer = (table, x) => confirm("Supprimer cet élément ?") && action(async () => verifier(await supabase.from(table).delete().eq("id", x.id)))
+  const enregistrerBareme = (e) => { e.preventDefault(); action(async () => {
+    verifier(await supabase.from("parametres_discipline").update({ note_max: Number(b.note_max), points_par_retard: Number(b.points_par_retard), points_par_heure: Number(b.points_par_heure) }).eq("exercice_id", exercice.id))
+    setBareme(null) }, "Barème enregistré.") }
+
+  if (!d) return <><Alerte>{erreurChargement}</Alerte><Chargement /></>
+  return (
+    <>
+      <Alerte>{erreur}</Alerte><Alerte type="success">{ok}</Alerte>
+      <div className="row g-3">
+        <div className="col-lg-6"><div className="card h-100"><div className="card-body">
+          <h2 className="h6">Sanctions (points perdus sur la note de discipline)</h2>
+          <table className="table table-sm align-middle"><tbody>{d.sanctions.map((x) => (
+            <tr key={x.id}><td>{x.libelle}</td><td className="text-end">−{Number(x.points_perdus).toLocaleString("fr-FR")} pt</td>
+              <td className="text-end"><button className="btn btn-sm btn-outline-danger" onClick={() => supprimer("sanctions", x)}>Supprimer</button></td></tr>))}
+            {!d.sanctions.length && <tr><td className="text-muted">Aucune sanction.</td></tr>}</tbody></table>
+          <form className="d-flex gap-2" onSubmit={ajouterSanction}>
+            <input className="form-control" required maxLength={150} placeholder="ex. Avertissement" value={sanction.libelle} onChange={(e) => setSanction({ ...sanction, libelle: e.target.value })} aria-label="Sanction" />
+            <input className="form-control" style={{ maxWidth: 100 }} type="number" min={0} max={20} step="0.25" required value={sanction.points_perdus} onChange={(e) => setSanction({ ...sanction, points_perdus: e.target.value })} aria-label="Points perdus" />
+            <button className="btn btn-primary">Ajouter</button></form>
+        </div></div></div>
+        <div className="col-lg-6"><div className="card h-100"><div className="card-body">
+          <h2 className="h6">Types d'infractions</h2>
+          <table className="table table-sm align-middle"><tbody>{d.infractions.map((x) => (
+            <tr key={x.id}><td>{x.libelle}</td><td className="small text-muted">→ {x.sanctions.libelle}</td>
+              <td className="text-end"><button className="btn btn-sm btn-outline-danger" onClick={() => supprimer("infractions", x)}>Supprimer</button></td></tr>))}
+            {!d.infractions.length && <tr><td className="text-muted">Aucune infraction.</td></tr>}</tbody></table>
+          <form className="d-flex flex-wrap gap-2" onSubmit={ajouterInfraction}>
+            <input className="form-control" style={{ minWidth: 180, flex: 1 }} required maxLength={200} placeholder="ex. Bavardage en classe" value={infraction.libelle} onChange={(e) => setInfraction({ ...infraction, libelle: e.target.value })} aria-label="Infraction" />
+            <select className="form-select" style={{ maxWidth: 220 }} required value={infraction.sanction_id} onChange={(e) => setInfraction({ ...infraction, sanction_id: e.target.value })} aria-label="Sanction associée">
+              <option value="">Sanction…</option>{d.sanctions.map((x) => <option key={x.id} value={x.id}>{x.libelle}</option>)}</select>
+            <button className="btn btn-primary">Ajouter</button></form>
+        </div></div></div>
+        <div className="col-12"><div className="card"><div className="card-body">
+          <h2 className="h6">Barème de la note de discipline {exercice ? `(${exercice.libelle})` : ""}</h2>
+          {!b ? <p className="text-muted mb-0">Activez d'abord un exercice.</p> : (
+            <form className="row g-2 align-items-end" onSubmit={enregistrerBareme} style={{ maxWidth: 820 }}>
+              {[["note_max", "Note maximale", 1, 20], ["points_par_retard", "Points perdus par retard", 0, 20], ["points_par_heure", "Points perdus par heure d'absence non justifiée", 0, 20]].map(([k, lib, min, max]) => (
+                <div className="col-md-3" key={k}><label className="form-label small" htmlFor={k}>{lib}</label>
+                  <input className="form-control" id={k} type="number" step="0.25" min={min} max={max} required value={b[k]} onChange={(e) => setBareme({ ...b, [k]: e.target.value })} /></div>))}
+              <div className="col-md-3"><button className="btn btn-primary w-100">Enregistrer</button></div>
+              <div className="form-text">Note = note maximale − (retards × points + heures non justifiées × points + points des sanctions), sans descendre sous 0.</div>
+            </form>)}
+        </div></div></div>
+      </div>
     </>
   )
 }

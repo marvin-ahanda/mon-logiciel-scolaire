@@ -119,7 +119,7 @@ grant select, insert, update, delete on public.exercices, public.sequences, publ
   public.attributions, public.eleves, public.inscriptions, public.notes to authenticated;
 grant select (id, nom, ville, adresse, telephone, devise, nom_chef, code_genere_le, cree_le) on public.etablissements to authenticated;
 grant update (ville, adresse, telephone, devise, nom_chef) on public.etablissements to authenticated;
-grant select (id, etablissement_id, nom, prenom, role, matricule, telephone, actif, code_genere_le, derniere_connexion, cree_le)
+grant select (id, etablissement_id, nom, prenom, role, matricule, telephone, actif, compte_google, code_genere_le, derniere_connexion, cree_le)
   on public.personnels to authenticated;
 
 revoke execute on all functions in schema public from public, anon, authenticated;

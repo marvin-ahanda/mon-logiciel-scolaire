@@ -5,7 +5,7 @@ import { useSession } from "../Session.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 
 const VIDE = { nom: "", prenom: "", role: "enseignant", matricule: "", telephone: "", actif: true }
-const ROLES = { admin: "Administration", enseignant: "Enseignant" }
+const ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général" }
 
 export default function Personnel() {
   const { profil, etablissement, recharger } = useSession()
@@ -54,7 +54,8 @@ export default function Personnel() {
             <div className="col-md-6"><label className="form-label" htmlFor="pn">Nom</label><input className="form-control" id="pn" required maxLength={150} {...champ("nom")} /></div>
             <div className="col-md-6"><label className="form-label" htmlFor="pp">Prénom</label><input className="form-control" id="pp" maxLength={150} {...champ("prenom")} /></div>
             <div className="col-md-4"><label className="form-label" htmlFor="pr">Rôle</label>
-              <select className="form-select" id="pr" {...champ("role")}><option value="enseignant">Enseignant</option><option value="admin">Administration (tous les droits)</option></select></div>
+              <select className="form-select" id="pr" {...champ("role")}><option value="enseignant">Enseignant (ses notes)</option><option value="surveillant">Surveillant général (discipline)</option>
+                <option value="admin">Administration (tous les droits)</option></select></div>
             <div className="col-md-4"><label className="form-label" htmlFor="pm">Matricule</label><input className="form-control" id="pm" maxLength={30} {...champ("matricule")} /></div>
             <div className="col-md-4"><label className="form-label" htmlFor="pt">Téléphone</label><input className="form-control" id="pt" maxLength={30} {...champ("telephone")} /></div>
             {edition.id && <div className="col-12 form-check ms-2"><input className="form-check-input" type="checkbox" id="pa" checked={edition.actif}
@@ -69,9 +70,10 @@ export default function Personnel() {
         <thead className="table-light"><tr><th>Nom</th><th>Rôle</th><th>État</th><th>Code généré le</th><th>Dernière connexion</th><th /></tr></thead>
         <tbody>{liste.map((p) => (
           <tr key={p.id} className={p.actif ? "" : "text-muted"}><td>{nomComplet(p)}{p.matricule && <div className="small text-muted">{p.matricule}</div>}</td>
-            <td><span className={`badge ${p.role === "admin" ? "text-bg-primary" : "text-bg-info"}`}>{ROLES[p.role]}</span></td>
-            <td>{p.actif ? "actif" : "désactivé"}</td><td>{dateHeure(p.code_genere_le)}</td><td>{dateHeure(p.derniere_connexion)}</td>
-            <td className="text-end text-nowrap">{p.actif && <button className="btn btn-sm btn-outline-warning me-1" onClick={() => nouveauCode(p)}>Nouveau code</button>}
+            <td><span className={`badge ${p.role === "admin" ? "text-bg-primary" : p.role === "surveillant" ? "text-bg-warning" : "text-bg-info"}`}>{ROLES[p.role]}</span>
+              {p.compte_google && <span className="badge text-bg-light border ms-1" title="Se connecte avec son compte Google, sans code">Google</span>}</td>
+            <td>{p.actif ? "actif" : "désactivé"}</td><td>{p.compte_google ? "—" : dateHeure(p.code_genere_le)}</td><td>{dateHeure(p.derniere_connexion)}</td>
+            <td className="text-end text-nowrap">{p.actif && !p.compte_google && <button className="btn btn-sm btn-outline-warning me-1" onClick={() => nouveauCode(p)}>Nouveau code</button>}
               <button className="btn btn-sm btn-outline-secondary" onClick={() => setEdition({ ...p })}>Modifier</button></td></tr>))}</tbody>
       </table></div></div>
     </>

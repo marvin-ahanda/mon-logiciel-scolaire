@@ -12,7 +12,7 @@ async function compter(table, filtre) {
 }
 
 export default function Accueil() {
-  const { etablissement, exercice, estAdmin, profil } = useSession()
+  const { etablissement, exercice, estAdmin, profil, peutNoter, peutDiscipline } = useSession()
   const [chiffres, erreur] = useDonnees(async () => ({
     eleves: exercice ? await compter("inscriptions", (q) => q.eq("exercice_id", exercice.id)) : 0,
     classes: await compter("classes"),
@@ -38,9 +38,13 @@ export default function Accueil() {
         </div>
       )}
       <div className="list-group" style={{ maxWidth: 640 }}>
-        <Link className="list-group-item list-group-item-action" to="/notes/saisie">Saisir des notes</Link>
-        <Link className="list-group-item list-group-item-action" to="/notes/resultats">Consulter les résultats et classements</Link>
-        <Link className="list-group-item list-group-item-action" to="/notes/bulletins">Imprimer les bulletins</Link>
+        {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/saisie">Saisir des notes</Link>}
+        {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/resultats">Consulter les résultats et classements</Link>}
+        {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/bulletins">Imprimer les bulletins</Link>}
+        {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/appel">Faire l'appel du jour (absences, retards)</Link>}
+        {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/suivi">Suivi disciplinaire</Link>}
+        {peutNoter && <Link className="list-group-item list-group-item-action" to="/excel">Import et export Excel</Link>}
+        {estAdmin && <Link className="list-group-item list-group-item-action" to="/statistiques">Statistiques avancées</Link>}
         {estAdmin && <Link className="list-group-item list-group-item-action" to="/eleves">Gérer les élèves</Link>}
         {estAdmin && <Link className="list-group-item list-group-item-action" to="/parametres">Paramètres : exercices, classes, matières, coefficients</Link>}
         {estAdmin && <Link className="list-group-item list-group-item-action" to="/personnel">Personnel et codes d'accès</Link>}
@@ -48,7 +52,8 @@ export default function Accueil() {
       {estAdmin && (
         <div className="card mt-4" style={{ maxWidth: 640 }}><div className="card-body small">
           <strong>Mise en route :</strong> 1. Paramètres → Exercice (créer et activer l'année scolaire) · 2. Classes · 3. Matières ·
-          4. Personnel (enseignants) · 5. Matières par classe (coefficients, enseignant) · 6. Élèves · 7. Saisie des notes.
+          4. Personnel (enseignants, surveillant général) · 5. Matières par classe (coefficients, enseignant) · 6. Élèves (ou import Excel) ·
+          7. Paramètres → Discipline (sanctions, infractions, barème) · 8. Saisie des notes et appel du jour.
         </div></div>
       )}
     </>

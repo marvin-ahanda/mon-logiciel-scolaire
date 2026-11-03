@@ -10,6 +10,11 @@ export function SessionProvider({ children }) {
     if (!session) return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
     try {
       const profil = verifier(await supabase.from("personnels").select("*").eq("id", session.user.id).maybeSingle())
+      const google = session.user.app_metadata?.provider === "google"
+      if (!profil && google) {
+        // connecté avec Google mais sans établissement : il peut créer l'espace de son établissement
+        return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, sansEtablissement: true })
+      }
       if (!profil || !profil.actif) {
         await supabase.auth.signOut()
         return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
@@ -35,7 +40,9 @@ export function SessionProvider({ children }) {
     await charger(data.session)
   }, [charger])
 
-  const valeur = { ...etat, estAdmin: etat.profil?.role === "admin", recharger }
+  const role = etat.profil?.role
+  const valeur = { ...etat, recharger, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
+                   peutDiscipline: role === "admin" || role === "surveillant", peutNoter: role === "admin" || role === "enseignant" }
   return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>
 }
 
