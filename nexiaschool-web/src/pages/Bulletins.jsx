@@ -1,18 +1,22 @@
+import { useEffect, useState } from "react"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import ChoixClassePeriode from "../composants/ChoixClassePeriode.jsx"
 import { appreciation } from "../lib/calculs.js"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
 import { bilansPeriode, chargerDiscipline } from "../lib/donneesDiscipline.js"
 import { date, nomComplet, note } from "../lib/format.js"
+import { nomDeFichier, telechargerBulletinsPdf } from "../lib/bulletinPdf.js"
 import { siteAffiche } from "../lib/logo.js"
 import { adressesPhotos } from "../lib/photos.js"
 import { useSession } from "../Session.jsx"
 
-function Bulletin({ r, donnees, periode, stats, etablissement, logo, exercice, photo, conduite }) {
+function Bulletin({ r, donnees, periode, stats, etablissement, logo, exercice, photo, conduite, onPdf, enCours }) {
   const e = r.eleve
   return (
     <section className="bulletin card mb-4">
-      <div className="card-body">
+      <div className="card-body position-relative">
+        <button type="button" className="btn btn-sm btn-outline-secondary bouton-pdf-eleve no-print" onClick={onPdf} disabled={!!enCours}
+                title={`Télécharger le bulletin de ${nomComplet(e)} en PDF`}>{enCours === r.inscriptionId ? "PDF…" : "PDF"}</button>
         <header className="entete-bulletin">
           <div><div className="fw-bold">{etablissement.nom}</div>
             <div className="small">{[etablissement.adresse, etablissement.ville, etablissement.telephone, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")}</div>
@@ -65,18 +69,46 @@ function Bulletins({ classe, periode }) {
     const [photos, discipline] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(d.eleves.map((x) => x.inscriptionId), exercice)])
     return { ...d, photos, discipline }
   }, [classe.id])
+  const [pdf, setPdf] = useState(null), [erreurPdf, setErreurPdf] = useState("")      // pdf : "classe" ou inscriptionId en cours
+  const titre = `Bulletins ${classe.libelle} ${periode.libelle} ${exercice.libelle}`
+
+  // Impression : marges de page nulles (le navigateur n'ajoute alors ni adresse, ni date, ni numéro de page) ;
+  // les marges sont reportées dans chaque bulletin. Le titre du document sert de nom au PDF « Enregistrer au format PDF ».
+  useEffect(() => {
+    const style = document.createElement("style")
+    style.textContent = "@media print { @page { size: A4; margin: 0; } }"
+    document.head.appendChild(style)
+    const avant = document.title
+    document.title = titre
+    return () => { style.remove(); document.title = avant }
+  }, [titre])
+
   if (!donnees) return <><Alerte>{erreur}</Alerte><Chargement /></>
   const { resultats, stats } = resultatsPeriode(donnees, periode)
   const conduite = bilansPeriode(donnees.discipline, donnees.eleves.map((x) => x.inscriptionId), periode, donnees.sequences)
+
+  async function exporter(liste, cle, nom) {
+    setErreurPdf(""); setPdf(cle)
+    try {
+      await telechargerBulletinsPdf({ etablissement, logoUrl, exercice, periode, classe: donnees.classe, stats,
+        eleves: liste.map((r) => ({ r, photoUrl: donnees.photos[r.eleve.photo], conduite: conduite.get(r.inscriptionId) })) }, nom)
+    } catch (e) { setErreurPdf(`Création du PDF impossible : ${e.message}`) } finally { setPdf(null) }
+  }
   return (
     <>
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 no-print">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
         <span>{resultats.length} bulletin(s) — {classe.libelle}, {periode.libelle}</span>
-        <button className="btn btn-primary btn-sm" onClick={() => window.print()}>Imprimer les bulletins</button>
+        {resultats.length > 0 && <div className="d-flex flex-wrap gap-2">
+          <button className="btn btn-primary btn-sm" disabled={!!pdf} onClick={() => exporter(resultats, "classe", nomDeFichier("bulletins", classe.libelle, periode.libelle, exercice.libelle))}>
+            {pdf === "classe" ? <><span className="spinner-border spinner-border-sm me-1" />Préparation du PDF…</> : "Télécharger en PDF"}</button>
+          <button className="btn btn-outline-primary btn-sm" onClick={() => window.print()}>Imprimer</button>
+        </div>}
       </div>
+      <Alerte onFermer={() => setErreurPdf("")}>{erreurPdf}</Alerte>
       {resultats.map((r) => <Bulletin key={r.inscriptionId} r={r} donnees={donnees} periode={periode} stats={stats}
                                       etablissement={etablissement} logo={logoUrl} exercice={exercice} photo={donnees.photos[r.eleve.photo]}
-                                      conduite={conduite.get(r.inscriptionId)} />)}
+                                      conduite={conduite.get(r.inscriptionId)} enCours={pdf}
+                                      onPdf={() => exporter([r], r.inscriptionId, nomDeFichier("bulletin", nomComplet(r.eleve), classe.libelle, periode.libelle, exercice.libelle))} />)}
       {!resultats.length && <p className="text-muted">Aucun élève inscrit.</p>}
     </>
   )
