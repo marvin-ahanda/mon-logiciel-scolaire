@@ -2,6 +2,8 @@ import { useState } from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
 import { exerciceParDefaut, nomComplet, comparerNoms } from "../lib/format.js"
+import { ChoixLogo } from "../composants/Logo.jsx"
+import { envoyerLogo, retirerLogo, siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
 
@@ -32,10 +34,10 @@ export default function Parametres() {
 
 // --- Établissement ------------------------------------------------------------------------------------------
 function Etablissement() {
-  const { etablissement, recharger } = useSession()
+  const { etablissement, logoUrl, recharger } = useSession()
   const [f, setF] = useState(() => ({ ville: etablissement.ville, adresse: etablissement.adresse, telephone: etablissement.telephone,
-                                      devise: etablissement.devise, nom_chef: etablissement.nom_chef }))
-  const [msg, setMsg] = useState({}), [code, setCode] = useState(null)
+                                      devise: etablissement.devise, nom_chef: etablissement.nom_chef, site_web: siteAffiche(etablissement.site_web) }))
+  const [msg, setMsg] = useState({}), [code, setCode] = useState(null), [envoiLogo, setEnvoiLogo] = useState(false), [cleLogo, setCleLogo] = useState(0)
   const champ = (k, lib, max) => (
     <div className="col-md-6 mb-3"><label className="form-label" htmlFor={k}>{lib}</label>
       <input className="form-control" id={k} maxLength={max} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>)
@@ -44,8 +46,18 @@ function Etablissement() {
     e.preventDefault()
     try {
       verifier(await supabase.from("etablissements").update(f).eq("id", etablissement.id))
+      const r = verifier(await supabase.from("etablissements").select("site_web").eq("id", etablissement.id).single())
+      setF((x) => ({ ...x, site_web: siteAffiche(r.site_web) }))
       await recharger(); setMsg({ ok: "Informations enregistrées." })
     } catch (err) { setMsg({ erreur: err.message }) }
+  }
+  async function changerLogo(blob) {
+    setMsg({}); setEnvoiLogo(true)
+    try {
+      if (blob) await envoyerLogo(etablissement.id, blob, etablissement.logo)
+      else await retirerLogo(etablissement.id, etablissement.logo)
+      await recharger(); setMsg({ ok: blob ? "Logo enregistré : il apparaît dans la barre de l'application et sur les bulletins." : "Logo retiré." })
+    } catch (err) { setMsg({ erreur: err.message }) } finally { setEnvoiLogo(false); setCleLogo((k) => k + 1) }
   }
   async function nouveauCode() {
     if (!confirm("Générer un nouveau code d'établissement ? L'ancien ne fonctionnera plus et tous les appareils devront saisir le nouveau.")) return
@@ -60,9 +72,19 @@ function Etablissement() {
       <form className="card card-body mb-3" onSubmit={enregistrer} style={{ maxWidth: 820 }}>
         <h2 className="h6">{etablissement.nom}</h2>
         <div className="row">{champ("ville", "Ville", 100)}{champ("telephone", "Téléphone", 50)}{champ("adresse", "Adresse", 200)}
-          {champ("nom_chef", "Chef d'établissement", 150)}{champ("devise", "Devise", 200)}</div>
+          {champ("nom_chef", "Chef d'établissement", 150)}{champ("devise", "Devise", 200)}
+          <div className="col-md-6 mb-3"><label className="form-label" htmlFor="site_web">Site web</label>
+            <input className="form-control" id="site_web" maxLength={200} inputMode="url" placeholder="ex. www.monecole.cm" value={f.site_web}
+                   onChange={(e) => setF({ ...f, site_web: e.target.value })} />
+            <div className="form-text">Affiché dans l'en-tête des bulletins.</div></div></div>
         <div><button className="btn btn-primary">Enregistrer</button></div>
       </form>
+      <div className="card card-body mb-3" style={{ maxWidth: 820 }}>
+        <h2 className="h6">Logo de l'établissement</h2>
+        <p className="small text-muted mb-3">Visible en couleur dans la barre de l'application par tout le personnel, et au centre de l'en-tête des bulletins.</p>
+        <ChoixLogo key={cleLogo} url={logoUrl} onChoix={changerLogo} desactive={envoiLogo} id="logo-parametres" />
+        {envoiLogo && <div className="small text-muted mt-2">Enregistrement du logo…</div>}
+      </div>
       <div className="card card-body" style={{ maxWidth: 820 }}>
         <h2 className="h6">Code de l'établissement</h2>
         <p className="small text-muted mb-2">Généré le {new Date(etablissement.code_genere_le).toLocaleString("fr-FR")}. Il est enregistré chiffré et ne peut pas être relu.
@@ -182,7 +204,7 @@ function Coefficients() {
   const [ref] = useDonnees(async () => ({
     classes: verifier(await supabase.from("classes").select("id, libelle").order("ordre").order("libelle")),
     matieres: verifier(await supabase.from("matieres").select("id, code, libelle").order("libelle")),
-    enseignants: verifier(await supabase.from("personnels").select("id, nom, prenom").eq("actif", true)).sort((a, b) => comparerNoms(nomComplet(a), nomComplet(b))),
+    personnels: verifier(await supabase.from("personnels").select("id, nom, prenom, role").eq("actif", true)).sort((a, b) => comparerNoms(nomComplet(a), nomComplet(b))),
   }), [])
   const [attributions, , rafraichir] = useDonnees(async () => !classeId || !exercice ? [] :
     await toutCharger(() => supabase.from("attributions").select("*, matieres(code, libelle)").eq("classe_id", classeId).eq("exercice_id", exercice.id)), [classeId, exercice?.id])
@@ -206,6 +228,10 @@ function Coefficients() {
 
   if (!exercice) return <div className="alert alert-warning">Activez d'abord un exercice.</div>
   if (!ref) return <Chargement />
+  // seuls les enseignants et l'administration peuvent recevoir une matière (le surveillant général ne saisit pas de notes)
+  const enseignants = ref.personnels.filter((p) => p.role === "enseignant" || p.role === "admin")
+  const libelleProf = (p) => `${nomComplet(p)}${p.role === "admin" ? " (administration)" : ""}`
+  const parId = new Map(ref.personnels.map((p) => [p.id, p]))
   const dejaPrises = new Set((attributions || []).map((a) => a.matiere_id))
   return (
     <>
@@ -219,8 +245,14 @@ function Coefficients() {
             <thead className="table-light"><tr><th>Matière</th><th>Enseignant</th><th>Coefficient</th><th>Groupe</th><th /></tr></thead>
             <tbody>{[...attributions].sort((a, b) => a.groupe - b.groupe || comparerNoms(a.matieres.libelle, b.matieres.libelle)).map((a) => (
               <tr key={a.id}><td>{a.matieres.libelle}</td>
-                <td><select className="form-select form-select-sm" value={a.enseignant_id || ""} onChange={(e) => maj(a, { enseignant_id: e.target.value || null })} aria-label="Enseignant">
-                  <option value="">—</option>{ref.enseignants.map((p) => <option key={p.id} value={p.id}>{nomComplet(p)}</option>)}</select></td>
+                <td><select className={`form-select form-select-sm ${a.enseignant_id && !enseignants.some((p) => p.id === a.enseignant_id) ? "is-invalid" : ""}`}
+                            value={a.enseignant_id || ""} onChange={(e) => maj(a, { enseignant_id: e.target.value || null })} aria-label="Enseignant">
+                  <option value="">— Aucun enseignant —</option>
+                  {a.enseignant_id && !enseignants.some((p) => p.id === a.enseignant_id) &&
+                    <option value={a.enseignant_id}>{parId.has(a.enseignant_id) ? `${nomComplet(parId.get(a.enseignant_id))} (pas enseignant)` : "Personnel désactivé"}</option>}
+                  {enseignants.map((p) => <option key={p.id} value={p.id}>{libelleProf(p)}</option>)}</select>
+                  {a.enseignant_id && !enseignants.some((p) => p.id === a.enseignant_id) &&
+                    <div className="invalid-feedback d-block">Cette personne ne peut pas saisir de notes : choisissez un enseignant.</div>}</td>
                 <td><input className="form-control form-control-sm" type="number" min={1} max={20} defaultValue={a.coefficient} style={{ width: 80 }}
                            onBlur={(e) => Number(e.target.value) !== a.coefficient && maj(a, { coefficient: Number(e.target.value) })} aria-label="Coefficient" /></td>
                 <td><select className="form-select form-select-sm" value={a.groupe} onChange={(e) => maj(a, { groupe: Number(e.target.value) })} aria-label="Groupe">
@@ -235,7 +267,8 @@ function Coefficients() {
                   <option value="">…</option>{ref.matieres.filter((m) => !dejaPrises.has(m.id)).map((m) => <option key={m.id} value={m.id}>{m.libelle}</option>)}</select></div>
               <div className="col-md-4"><label className="form-label" htmlFor="ae">Enseignant</label>
                 <select className="form-select" id="ae" value={ajout.enseignant_id} onChange={(e) => setAjout({ ...ajout, enseignant_id: e.target.value })}>
-                  <option value="">—</option>{ref.enseignants.map((p) => <option key={p.id} value={p.id}>{nomComplet(p)}</option>)}</select></div>
+                  <option value="">— Aucun enseignant —</option>{enseignants.map((p) => <option key={p.id} value={p.id}>{libelleProf(p)}</option>)}</select>
+                {!enseignants.some((p) => p.role === "enseignant") && <div className="form-text">Créez d'abord les enseignants dans Personnel.</div>}</div>
               <div className="col-md-2"><label className="form-label" htmlFor="ac">Coef.</label>
                 <input className="form-control" id="ac" type="number" min={1} max={20} required value={ajout.coefficient} onChange={(e) => setAjout({ ...ajout, coefficient: e.target.value })} /></div>
               <div className="col-md-2"><label className="form-label" htmlFor="ag">Groupe</label>

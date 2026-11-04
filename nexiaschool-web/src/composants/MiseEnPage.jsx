@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { useSession } from "../Session.jsx"
 import { supabase } from "../supabase.js"
 import { nomComplet } from "../lib/format.js"
+import { BulleLogo } from "./Logo.jsx"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général" }
 
@@ -29,7 +30,7 @@ function Menu({ titre, liens }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, estAdmin, peutNoter, peutDiscipline } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -61,7 +62,10 @@ export default function MiseEnPage() {
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/personnel">Personnel</NavLink></li>}
               {(estAdmin || etablissement?.api_active) && <li className="nav-item"><NavLink className={lien} to="/developpeur">IA et API</NavLink></li>}
             </ul>
-            <div className="navbar-text text-white small me-3">{etablissement?.nom} · Exercice {exercice?.libelle || "non défini"}</div>
+            <div className="navbar-text identite-etab text-white small me-3 py-2 py-xl-0">
+              <BulleLogo url={logoUrl} nom={etablissement?.nom} taille={34} />
+              <span className="texte"><span className="fw-semibold">{etablissement?.nom}</span> · Exercice {exercice?.libelle || "non défini"}</span>
+            </div>
             <div className="d-flex align-items-center gap-2">
               <span className="text-white small">{nomComplet(profil)}
                 <span className="badge text-bg-light text-primary ms-1">{LIBELLES_ROLES[profil?.role]}</span></span>

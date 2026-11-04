@@ -4,20 +4,22 @@ import { appreciation } from "../lib/calculs.js"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
 import { bilansPeriode, chargerDiscipline } from "../lib/donneesDiscipline.js"
 import { date, nomComplet, note } from "../lib/format.js"
+import { siteAffiche } from "../lib/logo.js"
 import { adressesPhotos } from "../lib/photos.js"
 import { useSession } from "../Session.jsx"
 
-function Bulletin({ r, donnees, periode, stats, etablissement, exercice, photo, conduite }) {
+function Bulletin({ r, donnees, periode, stats, etablissement, logo, exercice, photo, conduite }) {
   const e = r.eleve
   return (
     <section className="bulletin card mb-4">
       <div className="card-body">
-        <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
+        <header className="entete-bulletin">
           <div><div className="fw-bold">{etablissement.nom}</div>
-            <div className="small">{[etablissement.adresse, etablissement.ville, etablissement.telephone].filter(Boolean).join(" · ")}</div>
+            <div className="small">{[etablissement.adresse, etablissement.ville, etablissement.telephone, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")}</div>
             {etablissement.devise && <div className="small fst-italic">{etablissement.devise}</div>}</div>
+          <div className="text-center">{logo && <img src={logo} alt={`Logo ${etablissement.nom}`} className="logo-bulletin" />}</div>
           <div className="text-end small">Année scolaire {exercice.libelle}<br /><strong>Bulletin — {periode.libelle}</strong></div>
-        </div>
+        </header>
         <div className="d-flex gap-3 align-items-center border rounded p-2 mb-2">
           {photo ? <img src={photo} alt="" className="photo-bulletin" /> : <div className="photo-bulletin vide" />}
           <div className="small flex-grow-1 row g-1">
@@ -57,7 +59,7 @@ function Bulletin({ r, donnees, periode, stats, etablissement, exercice, photo, 
 }
 
 function Bulletins({ classe, periode }) {
-  const { exercice, etablissement } = useSession()
+  const { exercice, etablissement, logoUrl } = useSession()
   const [donnees, erreur] = useDonnees(async () => {
     const d = await chargerClasse(classe, exercice)
     const [photos, discipline] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(d.eleves.map((x) => x.inscriptionId), exercice)])
@@ -73,7 +75,7 @@ function Bulletins({ classe, periode }) {
         <button className="btn btn-primary btn-sm" onClick={() => window.print()}>Imprimer les bulletins</button>
       </div>
       {resultats.map((r) => <Bulletin key={r.inscriptionId} r={r} donnees={donnees} periode={periode} stats={stats}
-                                      etablissement={etablissement} exercice={exercice} photo={donnees.photos[r.eleve.photo]}
+                                      etablissement={etablissement} logo={logoUrl} exercice={exercice} photo={donnees.photos[r.eleve.photo]}
                                       conduite={conduite.get(r.inscriptionId)} />)}
       {!resultats.length && <p className="text-muted">Aucun élève inscrit.</p>}
     </>

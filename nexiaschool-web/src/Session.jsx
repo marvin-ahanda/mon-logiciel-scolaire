@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
+import { adresseLogo } from "./lib/logo.js"
 import { supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
@@ -21,8 +22,11 @@ export function SessionProvider({ children }) {
         return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
       }
       const etablissement = verifier(await supabase.from("etablissements").select(COLONNES_ETABLISSEMENT).eq("id", profil.etablissement_id).single())
-      const exercice = verifier(await supabase.from("exercices").select("*").eq("actif", true).maybeSingle())
-      setEtat({ pret: true, session, profil, etablissement, exercice })
+      const [exercice, logoUrl] = await Promise.all([
+        supabase.from("exercices").select("*").eq("actif", true).maybeSingle().then(verifier),
+        adresseLogo(etablissement.logo),
+      ])
+      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl })
     } catch (e) {
       console.error("NexIASchool : chargement du profil impossible", e)
       setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: e?.message || "erreur" })

@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom"
 import { Alerte, Chargement, FicheCode } from "../composants/Communs.jsx"
 import { enregistrerAppareil, lireAppareil, oublierAppareil } from "../lib/appareil.js"
 import { comparerNoms } from "../lib/format.js"
+import { envoyerLogo } from "../lib/logo.js"
+import { ChoixLogo } from "../composants/Logo.jsx"
 import { consommerRetour } from "../lib/retour.js"
 import { connexionGoogle, rpc, supabase } from "../supabase.js"
 import { useSession } from "../Session.jsx"
@@ -91,9 +93,10 @@ export function Inscription() {
   const naviguer = useNavigate()
   const { pret, session, profil, sansEtablissement, recharger, erreur: erreurSession } = useSession()
   const meta = session?.user?.user_metadata || {}
-  const [f, setF] = useState({ nom: "", ville: "", adresse: "", telephone: "", devise: "", nom_chef: "",
+  const [f, setF] = useState({ nom: "", ville: "", adresse: "", telephone: "", devise: "", nom_chef: "", site_web: "",
                                admin_nom: meta.family_name || "", admin_prenom: meta.given_name || "" })
   const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false), [resultat, setResultat] = useState(null)
+  const [logo, setLogo] = useState(null)
   const champ = (k) => ({ value: f[k], onChange: (e) => setF({ ...f, [k]: e.target.value }) })
 
   useEffect(() => {
@@ -105,8 +108,12 @@ export function Inscription() {
     e.preventDefault()
     setErreur(""); setEnvoi(true)
     try {
-      setResultat(await rpc("creer_etablissement_google", { p_nom: f.nom, p_ville: f.ville, p_adresse: f.adresse, p_telephone: f.telephone,
-        p_devise: f.devise, p_nom_chef: f.nom_chef, p_admin_nom: f.admin_nom, p_admin_prenom: f.admin_prenom }))
+      const r = await rpc("creer_etablissement_google", { p_nom: f.nom, p_ville: f.ville, p_adresse: f.adresse, p_telephone: f.telephone,
+        p_devise: f.devise, p_nom_chef: f.nom_chef, p_admin_nom: f.admin_nom, p_admin_prenom: f.admin_prenom, p_site_web: f.site_web })
+      if (logo) {
+        try { await envoyerLogo(r.id, logo) } catch (err) { r.avertissement = `${err.message} Vous pourrez l'ajouter plus tard dans Paramètres → Établissement.` }
+      }
+      setResultat(r)
     } catch (err) { setErreur(err.message) } finally { setEnvoi(false) }
   }
 
@@ -121,6 +128,7 @@ export function Inscription() {
   if (resultat) return (
     <div className="container py-4" style={{ maxWidth: 720 }}>
       <h1 className="h4 mb-3">Espace créé : {resultat.etablissement}</h1>
+      <Alerte type="warning">{resultat.avertissement}</Alerte>
       <FicheCode titre="Code de l'établissement" sousTitre="À communiquer à tout le personnel de l'établissement" code={resultat.code_etablissement}
                  consignes={["Le personnel saisit le nom de l'établissement et ce code sur NexIASchool,", "puis choisit son nom dans la liste et saisit son code personnel.",
                              "Vous, fondateur, vous connectez simplement avec Google."]} />
@@ -164,7 +172,13 @@ export function Inscription() {
           <div className="col-md-6"><label className="form-label" htmlFor="t">Téléphone</label><input className="form-control" id="t" maxLength={50} {...champ("telephone")} /></div>
           <div className="col-md-6"><label className="form-label" htmlFor="a">Adresse / boîte postale</label><input className="form-control" id="a" maxLength={200} {...champ("adresse")} /></div>
           <div className="col-md-6"><label className="form-label" htmlFor="c">Chef d'établissement</label><input className="form-control" id="c" maxLength={150} {...champ("nom_chef")} /></div>
-          <div className="col-12"><label className="form-label" htmlFor="d">Devise (bulletins)</label><input className="form-control" id="d" maxLength={200} {...champ("devise")} placeholder="ex. Travail – Discipline – Réussite" /></div>
+          <div className="col-md-6"><label className="form-label" htmlFor="w">Site web</label>
+            <input className="form-control" id="w" maxLength={200} inputMode="url" autoComplete="url" {...champ("site_web")} placeholder="ex. www.monecole.cm" />
+            <div className="form-text">Facultatif. Affiché sur les bulletins.</div></div>
+          <div className="col-md-6"><label className="form-label" htmlFor="d">Devise (bulletins)</label><input className="form-control" id="d" maxLength={200} {...champ("devise")} placeholder="ex. Travail – Discipline – Réussite" /></div>
+          <div className="col-12"><span className="form-label d-block">Logo de l'établissement</span>
+            <ChoixLogo onChoix={setLogo} desactive={envoi} id="logo-creation" />
+            <div className="form-text">Facultatif. Il apparaît en couleur dans l'application et au centre de l'en-tête des bulletins.</div></div>
         </div>
         <h2 className="h6 mt-3">Vous (administrateur fondateur)</h2>
         <div className="row g-2">

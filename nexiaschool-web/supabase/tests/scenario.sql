@@ -306,4 +306,29 @@ select set_config('app.acces2', :'jetons2'::json->>'access_token', false) \g /de
 do $$ begin perform public.api_contexte(current_setting('app.acces2')); raise exception 'jeton accepté après désactivation';
 exception when sqlstate '28000' then raise notice 'ok : désactiver l''API révoque clés et applications'; end $$;
 reset role;
+select set_config('app.surv', :'surv_a', false), set_config('app.attr', :'attr_a', false) \g /dev/null
+
+-- Identité de l'établissement : site web et logo ; matières confiées aux seuls enseignants
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+update public.etablissements set site_web = 'www.Saint-Joseph.CM/' where id = public.etab_courant();
+select pg_temp.verifier((select site_web from public.etablissements where id = public.etab_courant()) = 'https://www.saint-joseph.cm', 'site web normalisé (https, minuscules, sans / final)');
+do $$ begin update public.etablissements set site_web = 'pas un site' where id = public.etab_courant(); raise exception 'site invalide accepté';
+exception when sqlstate 'P0001' then raise notice 'ok : site web invalide refusé'; end $$;
+update public.etablissements set logo = public.etab_courant()::text || '/logo-1.png' where id = public.etab_courant();
+do $$ begin update public.etablissements set logo = 'autre/logo-1.png' where id = public.etab_courant(); raise exception 'logo hors dossier accepté';
+exception when check_violation then raise notice 'ok : le logo doit rester dans le dossier de l''établissement'; end $$;
+insert into storage.objects (bucket_id, name) values ('logos', public.etab_courant()::text || '/logo-1.png');
+do $$ begin insert into storage.objects (bucket_id, name) values ('logos', gen_random_uuid()::text || '/logo-1.png'); raise exception 'logo écrit chez un autre';
+exception when insufficient_privilege then raise notice 'ok : pas d''envoi de logo dans le dossier d''un autre établissement'; end $$;
+select set_config('request.jwt.claim.sub', :'surv_a', false) \g /dev/null
+select pg_temp.verifier((select count(*) from storage.objects where bucket_id = 'logos') = 1, 'le personnel lit le logo de son établissement');
+do $$ begin insert into storage.objects (bucket_id, name) values ('logos', public.etab_courant()::text || '/logo-2.png'); raise exception 'logo envoyé par le surveillant';
+exception when insufficient_privilege then raise notice 'ok : seul l''administrateur change le logo'; end $$;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+do $$ begin update public.attributions set enseignant_id = current_setting('app.surv')::uuid where id = current_setting('app.attr')::uuid; raise exception 'matière confiée au surveillant';
+exception when sqlstate 'P0001' then raise notice 'ok : une matière ne peut pas être confiée au surveillant général'; end $$;
+update public.attributions set coefficient = coefficient where id = :'attr_a';
+select pg_temp.verifier(true, 'les autres modifications d''une attribution restent possibles');
+reset role;
 \echo SCÉNARIO TERMINÉ
