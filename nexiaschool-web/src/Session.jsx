@@ -11,11 +11,20 @@ export function SessionProvider({ children }) {
   const charger = useCallback(async (session) => {
     if (!session) return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
     try {
-      const profil = verifier(await supabase.from("personnels").select(COLONNES_PERSONNEL).eq("id", session.user.id).maybeSingle())
+      const [profil, compte] = await Promise.all([
+        supabase.from("personnels").select(COLONNES_PERSONNEL).eq("id", session.user.id).maybeSingle().then(verifier),
+        supabase.rpc("mon_compte").then(({ data }) => data || {}),
+      ])
+      const proprietaire = !!compte.proprietaire
       const google = session.user.app_metadata?.provider === "google"
+      if (compte.suspendu) {
+        // établissement suspendu par la plateforme : plus aucun accès aux données, message explicite
+        return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, proprietaire,
+                         suspendu: { etablissement: compte.etablissement, motif: compte.motif } })
+      }
       if (!profil && google) {
         // connecté avec Google mais sans établissement : il peut créer l'espace de son établissement
-        return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, sansEtablissement: true })
+        return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, sansEtablissement: true, proprietaire })
       }
       if (!profil || !profil.actif) {
         await supabase.auth.signOut()
@@ -26,7 +35,7 @@ export function SessionProvider({ children }) {
         supabase.from("exercices").select("*").eq("actif", true).maybeSingle().then(verifier),
         adresseLogo(etablissement.logo),
       ])
-      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl })
+      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire })
     } catch (e) {
       console.error("NexIASchool : chargement du profil impossible", e)
       setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: e?.message || "erreur" })

@@ -30,7 +30,7 @@ function Menu({ titre, liens }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline, proprietaire } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -69,6 +69,7 @@ export default function MiseEnPage() {
             <div className="d-flex align-items-center gap-2">
               <span className="text-white small">{nomComplet(profil)}
                 <span className="badge text-bg-light text-primary ms-1">{LIBELLES_ROLES[profil?.role]}</span></span>
+              {proprietaire && <Link className="btn btn-sm btn-warning text-dark" to="/console" title="Console du propriétaire de la plateforme">Console</Link>}
               <button className="btn btn-sm btn-outline-light" onClick={deconnecter}>Se déconnecter</button>
             </div>
           </div>

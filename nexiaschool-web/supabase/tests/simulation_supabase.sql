@@ -10,6 +10,7 @@ create table if not exists auth.users (
   instance_id uuid, id uuid primary key, aud varchar, role varchar, email varchar unique, encrypted_password varchar,
   email_confirmed_at timestamptz, raw_app_meta_data jsonb, raw_user_meta_data jsonb, created_at timestamptz,
   updated_at timestamptz, confirmation_token varchar, recovery_token varchar, email_change_token_new varchar, email_change varchar);
+alter table auth.users add column if not exists last_sign_in_at timestamptz;
 create table if not exists auth.identities (
   id uuid primary key default gen_random_uuid(), provider_id text, user_id uuid references auth.users on delete cascade,
   identity_data jsonb, provider text, created_at timestamptz, updated_at timestamptz);

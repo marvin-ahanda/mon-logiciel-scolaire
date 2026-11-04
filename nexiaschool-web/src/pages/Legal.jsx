@@ -100,6 +100,12 @@ export function Confidentialite() {
         codes d'accès chiffrés et blocage temporaire après plusieurs essais erronés ; photos stockées dans un espace privé, accessibles seulement par
         des liens temporaires ; aucune clé secrète dans le code envoyé au navigateur.</p>
 
+      <h2>7 bis. Administration de la plateforme</h2>
+      <p>Pour assurer le support, la sécurité et le bon fonctionnement du service, {EDITEUR.nom} dispose d'une console d'administration réservée
+        à l'éditeur. Elle présente surtout des informations sur les comptes (établissements, membres du personnel, dates de création et de
+        dernière connexion) et des statistiques globales. La liste des élèves d'un établissement n'y est affichée qu'à la demande expresse de
+        l'éditeur, pour une raison de support ou de sécurité, et chaque consultation, suspension ou suppression est inscrite dans un journal.</p>
+
       <h2>8. Données des élèves mineurs</h2>
       <p>Les données des élèves sont saisies par l'établissement, sous sa responsabilité. Il lui appartient d'informer les élèves et leurs parents
         ou représentants légaux de l'utilisation de {EDITEUR.service} et de recueillir, lorsque la loi l'exige, leur accord (notamment pour les photos).
@@ -187,7 +193,8 @@ export function Conditions() {
 
       <h2>8. Suspension et fermeture</h2>
       <p>L'établissement peut cesser d'utiliser le service à tout moment et demander la suppression de son espace. {EDITEUR.nom} peut suspendre un espace
-        en cas de violation grave des présentes conditions ou de risque pour la sécurité, après avoir, sauf urgence, prévenu l'administration de l'établissement.
+        en cas de violation grave des présentes conditions, de risque pour la sécurité ou de défaut de paiement d'une offre payante, après avoir, sauf urgence,
+        prévenu l'administration de l'établissement. Pendant la suspension, plus personne ne peut se connecter à l'espace, mais ses données sont conservées.
         Avant toute fermeture à notre initiative, l'établissement disposera d'un délai raisonnable pour exporter ses données.</p>
 
       <h2>9. Modifications des conditions</h2>
