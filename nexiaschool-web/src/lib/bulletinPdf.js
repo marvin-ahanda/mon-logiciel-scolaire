@@ -12,7 +12,7 @@ const t = (v) => String(v ?? "").replace(/[  ]/g, " ").replace(/ /g, " ")
 const rang = (r, ex, sur) => (r ? `${r}${r === 1 ? "er" : "e"}${ex ? " ex" : ""}${sur ? ` / ${sur}` : ""}` : "")
 
 /** Image distante -> { donnees (data URL), format, largeur, hauteur } ; null si indisponible. */
-async function image(url) {
+export async function image(url) {
   if (!url) return null
   try {
     const blob = await (await fetch(url)).blob()

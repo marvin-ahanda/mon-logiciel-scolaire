@@ -14,6 +14,7 @@ import PageBulletins from "./pages/Bulletins.jsx"
 import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
 import Eleves from "./pages/Eleves.jsx"
 import Excel from "./pages/Excel.jsx"
+import Finance from "./pages/Finance.jsx"
 import Statistiques from "./pages/Statistiques.jsx"
 import Parametres from "./pages/Parametres.jsx"
 import Personnel from "./pages/Personnel.jsx"
@@ -93,6 +94,9 @@ export default function App() {
             <Route path="/discipline/appel" element={<Appel />} />
             <Route path="/discipline/infractions" element={<Infractions />} />
             <Route path="/discipline/suivi" element={<Suivi />} />
+          </Route>
+          <Route element={<Protege droit="peutFinance" />}>
+            <Route path="/finance/*" element={<Finance />} />
           </Route>
           <Route element={<Protege admin />}>
             <Route path="/eleves" element={<Eleves />} />

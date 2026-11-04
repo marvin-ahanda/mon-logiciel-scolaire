@@ -5,7 +5,7 @@ import { adressesPhotos, envoyerPhoto } from "../lib/photos.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 
-const VIDE = { matricule: "", nom: "", prenom: "", sexe: "F", date_naissance: "", lieu_naissance: "", telephone_parent: "", classe_id: "", redoublant: false }
+const VIDE = { matricule: "", nom: "", prenom: "", sexe: "F", date_naissance: "", lieu_naissance: "", telephone_parent: "", classe_id: "", redoublant: false, nouveau: true }
 
 export default function Eleves() {
   const { exercice, etablissement } = useSession()
@@ -33,7 +33,7 @@ export default function Eleves() {
 
   function ouvrir(e) {
     setErreur(""); setPhoto(null)
-    setEdition(e ? { ...VIDE, ...e, date_naissance: e.date_naissance || "", classe_id: e.inscription?.classe_id || "", redoublant: !!e.inscription?.redoublant }
+    setEdition(e ? { ...VIDE, ...e, date_naissance: e.date_naissance || "", classe_id: e.inscription?.classe_id || "", redoublant: !!e.inscription?.redoublant, nouveau: e.inscription ? e.inscription.nouveau !== false : true }
                  : { ...VIDE, classe_id: filtre && filtre !== "-" ? filtre : "" })
   }
   const champ = (k) => ({ value: edition[k] ?? "", onChange: (ev) => setEdition({ ...edition, [k]: ev.target.value }) })
@@ -49,9 +49,9 @@ export default function Eleves() {
       if (exercice) {
         const actuelle = edition.inscription
         if (edition.classe_id && actuelle) {
-          verifier(await supabase.from("inscriptions").update({ classe_id: edition.classe_id, redoublant: edition.redoublant }).eq("id", actuelle.id))
+          verifier(await supabase.from("inscriptions").update({ classe_id: edition.classe_id, redoublant: edition.redoublant, nouveau: edition.nouveau }).eq("id", actuelle.id))
         } else if (edition.classe_id) {
-          verifier(await supabase.from("inscriptions").insert({ exercice_id: exercice.id, eleve_id: eleve.id, classe_id: edition.classe_id, redoublant: edition.redoublant }))
+          verifier(await supabase.from("inscriptions").insert({ exercice_id: exercice.id, eleve_id: eleve.id, classe_id: edition.classe_id, redoublant: edition.redoublant, nouveau: edition.nouveau }))
         } else if (actuelle) {
           verifier(await supabase.from("inscriptions").delete().eq("id", actuelle.id))
         }
@@ -97,7 +97,10 @@ export default function Eleves() {
               <select className="form-select" id="ec" disabled={!exercice} {...champ("classe_id")}><option value="">Non inscrit</option>
                 {donnees.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
             <div className="col-md-3 d-flex align-items-end"><div className="form-check"><input className="form-check-input" type="checkbox" id="er"
-              checked={edition.redoublant} onChange={(e) => setEdition({ ...edition, redoublant: e.target.checked })} /><label className="form-check-label" htmlFor="er">Redoublant</label></div></div>
+              checked={edition.redoublant} onChange={(e) => setEdition({ ...edition, redoublant: e.target.checked })} /><label className="form-check-label" htmlFor="er">Redoublant</label></div>
+              <div className="form-check ms-3"><input className="form-check-input" type="checkbox" id="enouv" checked={edition.nouveau}
+                onChange={(e) => setEdition({ ...edition, nouveau: e.target.checked })} /><label className="form-check-label" htmlFor="enouv"
+                title="Détermine la pension applicable (nouveaux ou anciens élèves)">Nouvel élève</label></div></div>
             <div className="col-md-5"><label className="form-label" htmlFor="eph">Photo {edition.photo && "(remplace l'actuelle)"}</label>
               <input className="form-control" id="eph" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhoto(e.target.files[0] || null)} />
               <div className="form-text">Réduite automatiquement à 400 px. Données personnelles d'un mineur : accès réservé au personnel.</div></div>

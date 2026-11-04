@@ -57,7 +57,8 @@ export function SessionProvider({ children }) {
 
   const role = etat.profil?.role
   const valeur = { ...etat, recharger, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
-                   peutDiscipline: role === "admin" || role === "surveillant", peutNoter: role === "admin" || role === "enseignant" }
+                   peutDiscipline: role === "admin" || role === "surveillant", peutNoter: role === "admin" || role === "enseignant",
+                   estComptable: role === "comptable", peutFinance: role === "admin" || role === "comptable" }
   return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>
 }
 

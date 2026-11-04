@@ -331,5 +331,6 @@ exception when sqlstate 'P0001' then raise notice 'ok : une matière ne peut pas
 update public.attributions set coefficient = coefficient where id = :'attr_a';
 select pg_temp.verifier(true, 'les autres modifications d''une attribution restent possibles');
 reset role;
+\ir scenario_finance.sql
 \ir scenario_console.sql
 \echo SCÉNARIO TERMINÉ

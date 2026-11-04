@@ -58,3 +58,16 @@ body { background: #f4f6fa; }
 .barre-saisie { background: #f4f6fa; z-index: 2; }
 @media (min-width: 1200px) { .identite-etab { max-width: 340px; } }
 @media print { .histo-barre, .barre-h-trace { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* Finances : cartes de choix, bulle d'alerte des retards de paiement */
+.carte-choix { border: 1px solid #dee2e6; background: #fff; transition: border-color .15s, box-shadow .15s; }
+.carte-choix:hover, .carte-choix:focus-visible { border-color: #0d6efd; box-shadow: 0 .25rem .75rem rgba(13, 110, 253, .15) !important; }
+.tableau-finance tbody tr { cursor: pointer; }
+.bulle-alerte { position: fixed; right: 20px; bottom: 20px; z-index: 1040; width: 56px; height: 56px; border-radius: 50%; border: none;
+  background: #0d6efd; color: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); display: flex; align-items: center; justify-content: center; }
+.bulle-alerte:hover { background: #0b5ed7; }
+.bulle-alerte:focus-visible { outline: 3px solid #86b7fe; outline-offset: 2px; }
+.bulle-alerte-compte { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: #dc3545; color: #fff; font-size: .75rem; font-weight: 700; line-height: 22px; text-align: center; border: 2px solid #fff; }
+/* la bulle s'efface pendant qu'une fenêtre (fiche d'un élève) est ouverte */
+body:has(.modal.d-block) .bulle-alerte { display: none; }

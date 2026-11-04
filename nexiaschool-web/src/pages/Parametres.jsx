@@ -15,6 +15,7 @@ export default function Parametres() {
       <ul className="nav nav-tabs mb-3 flex-nowrap overflow-auto">
         <li className="nav-item"><NavLink className={onglet} to="/parametres" end>Établissement</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/exercices">Exercices et séquences</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/sections">Sections</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/classes">Classes</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/matieres">Matières</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">Matières par classe</NavLink></li>
@@ -23,6 +24,7 @@ export default function Parametres() {
       <Routes>
         <Route index element={<Etablissement />} />
         <Route path="exercices" element={<Exercices />} />
+        <Route path="sections" element={<Sections />} />
         <Route path="classes" element={<Classes />} />
         <Route path="matieres" element={<Matieres />} />
         <Route path="coefficients" element={<Coefficients />} />
@@ -149,7 +151,8 @@ function ListeEditable({ table, colonnes, vide, ordre }) {
 
   async function enregistrer(e) {
     e.preventDefault(); setErreur("")
-    const valeurs = Object.fromEntries(colonnes.map((c) => [c.cle, c.nombre ? Number(edition[c.cle] || 0) : String(edition[c.cle] ?? "").trim()]))
+    const valeurs = Object.fromEntries(colonnes.map((c) => [c.cle, c.options ? (edition[c.cle] === "" || edition[c.cle] == null ? null : c.nombre ? Number(edition[c.cle]) : edition[c.cle])
+      : c.nombre ? Number(edition[c.cle] || 0) : String(edition[c.cle] ?? "").trim()]))
     try {
       verifier(edition.id ? await supabase.from(table).update(valeurs).eq("id", edition.id) : await supabase.from(table).insert(valeurs))
       setEdition(null); rafraichir()
@@ -169,8 +172,12 @@ function ListeEditable({ table, colonnes, vide, ordre }) {
           <div className="row g-2">
             {colonnes.map((c) => (
               <div className="col-md" key={c.cle}><label className="form-label" htmlFor={c.cle}>{c.libelle}</label>
+                {c.options ? (
+                  <select className="form-select" id={c.cle} value={edition[c.cle] ?? ""} onChange={(e) => setEdition({ ...edition, [c.cle]: e.target.value })}>
+                    <option value="">{c.vide || "—"}</option>{c.options.map(([v, lib]) => <option key={v} value={v}>{lib}</option>)}</select>
+                ) : (
                 <input className="form-control" id={c.cle} type={c.nombre ? "number" : "text"} min={c.nombre ? 0 : undefined}
-                       required={c.requis} maxLength={c.max} value={edition[c.cle] ?? ""} onChange={(e) => setEdition({ ...edition, [c.cle]: e.target.value })} />
+                       required={c.requis} maxLength={c.max} value={edition[c.cle] ?? ""} onChange={(e) => setEdition({ ...edition, [c.cle]: e.target.value })} />)}
                 {c.aide && <div className="form-text">{c.aide}</div>}</div>))}
           </div>
           <div className="d-flex gap-2 mt-3"><button className="btn btn-primary">Enregistrer</button>
@@ -180,7 +187,7 @@ function ListeEditable({ table, colonnes, vide, ordre }) {
       <div className="card" style={{ maxWidth: 820 }}><div className="table-responsive"><table className="table table-hover align-middle mb-0">
         <thead className="table-light"><tr>{colonnes.map((c) => <th key={c.cle}>{c.libelle}</th>)}<th /></tr></thead>
         <tbody>{lignes.map((l) => (
-          <tr key={l.id}>{colonnes.map((c) => <td key={c.cle}>{l[c.cle]}</td>)}
+          <tr key={l.id}>{colonnes.map((c) => <td key={c.cle}>{c.options ? (c.options.find(([v]) => String(v) === String(l[c.cle]))?.[1] || "—") : l[c.cle]}</td>)}
             <td className="text-end text-nowrap"><button className="btn btn-sm btn-outline-secondary me-1" onClick={() => setEdition(l)}>Modifier</button>
               <button className="btn btn-sm btn-outline-danger" onClick={() => supprimer(l)}>Supprimer</button></td></tr>))}
           {!lignes.length && <tr><td colSpan={colonnes.length + 1} className="text-center text-muted py-3">Aucun élément.</td></tr>}</tbody>
@@ -189,10 +196,30 @@ function ListeEditable({ table, colonnes, vide, ordre }) {
   )
 }
 
-const Classes = () => <ListeEditable table="classes" ordre={["ordre", "libelle"]} vide={{ libelle: "", niveau: "", ordre: 0, coef_min: 0 }}
-  colonnes={[{ cle: "libelle", libelle: "Classe", requis: true, max: 50 }, { cle: "niveau", libelle: "Niveau", max: 50 },
-             { cle: "ordre", libelle: "Ordre d'affichage", nombre: true },
-             { cle: "coef_min", libelle: "Coef. minimum pour être classé", nombre: true, aide: "0 = toujours classé" }]} />
+export const CYCLES = [[1, "Premier cycle"], [2, "Second cycle"]]
+function Classes() {
+  const [sections, erreur] = useDonnees(async () => verifier(await supabase.from("sections").select("id, libelle").order("ordre").order("libelle")), [])
+  if (!sections) return <><Alerte>{erreur}</Alerte><Chargement /></>
+  return (
+    <>
+      {!sections.length && <p className="small text-muted">Astuce : créez d'abord les sections (anglophone, francophone, technique…) dans l'onglet « Sections », puis rattachez-y chaque classe.</p>}
+      <ListeEditable table="classes" ordre={["ordre", "libelle"]} vide={{ libelle: "", niveau: "", section_id: "", cycle: "", ordre: 0, coef_min: 0 }}
+        colonnes={[{ cle: "libelle", libelle: "Classe", requis: true, max: 50 }, { cle: "niveau", libelle: "Niveau", max: 50 },
+                   { cle: "section_id", libelle: "Section", options: sections.map((x) => [x.id, x.libelle]), vide: "Aucune" },
+                   { cle: "cycle", libelle: "Cycle", options: CYCLES, nombre: true, vide: "Non précisé" },
+                   { cle: "ordre", libelle: "Ordre d'affichage", nombre: true },
+                   { cle: "coef_min", libelle: "Coef. minimum pour être classé", nombre: true, aide: "0 = toujours classé" }]} />
+    </>
+  )
+}
+
+const Sections = () => (
+  <>
+    <p className="small text-muted">Les sections de l'établissement (par exemple : anglophone, francophone, technique). Chaque classe est rattachée à une section dans l'onglet « Classes ».</p>
+    <ListeEditable table="sections" ordre={["ordre", "libelle"]} vide={{ libelle: "", ordre: 0 }}
+      colonnes={[{ cle: "libelle", libelle: "Section", requis: true, max: 60 }, { cle: "ordre", libelle: "Ordre d'affichage", nombre: true }]} />
+  </>
+)
 
 const Matieres = () => <ListeEditable table="matieres" ordre={["libelle", "code"]} vide={{ code: "", libelle: "" }}
   colonnes={[{ cle: "code", libelle: "Code", requis: true, max: 15 }, { cle: "libelle", libelle: "Matière", requis: true, max: 100 }]} />

@@ -4,8 +4,9 @@ import { useSession } from "../Session.jsx"
 import { supabase } from "../supabase.js"
 import { nomComplet } from "../lib/format.js"
 import { BulleLogo } from "./Logo.jsx"
+import AlerteFinance from "./AlerteFinance.jsx"
 
-export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général" }
+export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
 
 function Menu({ titre, liens }) {
   const [ouvert, setOuvert] = useState(false)
@@ -30,7 +31,7 @@ function Menu({ titre, liens }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline, proprietaire } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline, peutFinance, proprietaire } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -56,6 +57,7 @@ export default function MiseEnPage() {
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/eleves">Élèves</NavLink></li>}
               {peutNoter && <Menu titre="Notes" liens={[["/notes/saisie", "Saisie des notes"], ["/notes/resultats", "Résultats et classements"], ["/notes/bulletins", "Bulletins"]]} />}
               {peutDiscipline && <Menu titre="Discipline" liens={[["/discipline/appel", "Appel du jour (absences, retards)"], ["/discipline/infractions", "Infractions"], ["/discipline/suivi", "Suivi disciplinaire"]]} />}
+              {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">Finances</NavLink></li>}
               {peutNoter && <li className="nav-item"><NavLink className={lien} to="/excel">Excel</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">Statistiques</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">Paramètres</NavLink></li>}
@@ -78,6 +80,7 @@ export default function MiseEnPage() {
       <main className="container-fluid py-3 px-3 px-lg-4">
         <Outlet />
       </main>
+      {peutFinance && exercice && <AlerteFinance />}
     </>
   )
 }

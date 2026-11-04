@@ -12,7 +12,7 @@ async function compter(table, filtre) {
 }
 
 export default function Accueil() {
-  const { etablissement, exercice, estAdmin, profil, peutNoter, peutDiscipline } = useSession()
+  const { etablissement, exercice, estAdmin, profil, peutNoter, peutDiscipline, peutFinance } = useSession()
   const [chiffres, erreur] = useDonnees(async () => ({
     eleves: exercice ? await compter("inscriptions", (q) => q.eq("exercice_id", exercice.id)) : 0,
     classes: await compter("classes"),
@@ -31,7 +31,7 @@ export default function Accueil() {
       {!chiffres ? <Chargement /> : (
         <div className="row g-3 mb-4">
           {[["Élèves inscrits", chiffres.eleves], ["Classes", chiffres.classes], ["Personnel actif", chiffres.personnel],
-            ["Mes matières", chiffres.mesMatieres]].map(([lib, v]) => (
+            ...(peutNoter ? [["Mes matières", chiffres.mesMatieres]] : [])].map(([lib, v]) => (
             <div className="col-6 col-md-3" key={lib}><div className="card"><div className="card-body">
               <div className="small text-muted">{lib}</div><div className="fs-4 fw-semibold">{v}</div></div></div></div>
           ))}
@@ -41,6 +41,9 @@ export default function Accueil() {
         {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/saisie">Saisir des notes</Link>}
         {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/resultats">Consulter les résultats et classements</Link>}
         {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/bulletins">Imprimer les bulletins</Link>}
+        {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance">Finances : encaissements et situation des élèves</Link>}
+        {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/insolvables">Élèves non en règle (frais de scolarité)</Link>}
+        {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/frais">Frais de scolarité et délais de paiement</Link>}
         {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/appel">Faire l'appel du jour (absences, retards)</Link>}
         {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/suivi">Suivi disciplinaire</Link>}
         {peutNoter && <Link className="list-group-item list-group-item-action" to="/excel">Import et export Excel</Link>}
@@ -52,7 +55,7 @@ export default function Accueil() {
       {estAdmin && (
         <div className="card mt-4" style={{ maxWidth: 640 }}><div className="card-body small">
           <strong>Mise en route :</strong> 1. Paramètres → Exercice (créer et activer l'année scolaire) · 2. Classes · 3. Matières ·
-          4. Personnel (enseignants, surveillant général) · 5. Matières par classe (coefficients, enseignant) · 6. Élèves (ou import Excel) ·
+          4. Personnel (enseignants, surveillant général, comptable) · 5. Matières par classe (coefficients, enseignant) · 6. Élèves (ou import Excel) ·
           7. Paramètres → Discipline (sanctions, infractions, barème) · 8. Saisie des notes et appel du jour.
         </div></div>
       )}
