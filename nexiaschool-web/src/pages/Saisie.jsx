@@ -4,12 +4,13 @@ import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { comparerNoms, lireNote, nomComplet, note } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
+import { t } from "../i18n.jsx"
 
 /** Message court (une ligne) pour une note invalide, ou "" si la valeur est correcte. */
 function erreurCourte(v) {
   try { lireNote(v); return "" } catch {
-    const t = String(v).trim().replace(",", ".")
-    return /^\d+(\.\d+)?$/.test(t) ? (Number(t) > 20 ? "Note entre 0 et 20" : "Deux décimales au plus") : "Note invalide (ex. 12,5)"
+    const x = String(v).trim().replace(",", ".")
+    return /^\d+(\.\d+)?$/.test(x) ? (Number(x) > 20 ? t("Note entre 0 et 20") : t("Deux décimales au plus")) : t("Note invalide (ex. 12,5)");
   }
 }
 
@@ -67,7 +68,12 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
     setErreurs(err)
     if (Object.keys(err).length) {
       champs.current[grille.eleves.findIndex((i) => err[i.id])]?.focus()
-      return setMessage({ erreur: `${Object.keys(err).length} note(s) invalide(s), signalée(s) en rouge : rien n'a été enregistré.` })
+      return setMessage({ erreur: t(
+        "{v0} note(s) invalide(s), signalée(s) en rouge : rien n'a été enregistré.",
+        {
+          v0: Object.keys(err).length
+        }
+      ) });
     }
     const aEcrire = [], aSupprimer = []
     for (const i of grille.eleves) {
@@ -76,48 +82,57 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
       else if (v !== null && (!avant || Number(avant.valeur) !== v))
         aEcrire.push({ inscription_id: i.id, attribution_id: attribution.id, sequence_id: sequence.id, valeur: v })
     }
-    if (!aEcrire.length && !aSupprimer.length) return setMessage({ info: "Aucune modification à enregistrer." })
+    if (!aEcrire.length && !aSupprimer.length) return setMessage({ info: t("Aucune modification à enregistrer.") });
     setEnvoi(true)
     try {
       if (aEcrire.length) verifier(await supabase.from("notes").upsert(aEcrire, { onConflict: "inscription_id,attribution_id,sequence_id" }))
       if (aSupprimer.length) verifier(await supabase.from("notes").delete().in("id", aSupprimer))
-      setMessage({ ok: `Notes enregistrées : ${aEcrire.length} ajoutée(s) ou modifiée(s)${aSupprimer.length ? `, ${aSupprimer.length} effacée(s)` : ""}.` })
+      setMessage({ ok: t("Notes enregistrées : {v0} ajoutée(s) ou modifiée(s){v1}.", {
+        v0: aEcrire.length,
+        v1: aSupprimer.length ? `, ${aSupprimer.length} effacée(s)` : ""
+      }) })
       rafraichir()
-    } catch (x) { setMessage({ erreur: `Enregistrement impossible : ${x.message}` }) } finally { setEnvoi(false) }
+    } catch (x) { setMessage({ erreur: t("Enregistrement impossible : {v0}", {
+      v0: x.message
+    }) }) } finally { setEnvoi(false) }
   }
 
-  if (!grille || !valeurs) return <><Alerte>{erreurGrille}</Alerte>{!erreurGrille && <Chargement texte="Chargement des élèves…" />}</>
-  if (!grille.eleves.length) return (
-    <div className="alert alert-light border">Aucun élève n'est inscrit en <strong>{attribution.classes.libelle}</strong> pour cet exercice.
-      {" "}Inscrivez les élèves dans <Link to="/eleves">Élèves</Link> ou importez-les depuis <Link to="/excel">Excel</Link>.</div>)
+  if (!grille || !valeurs) return <><Alerte>{erreurGrille}</Alerte>{!erreurGrille && <Chargement texte={t("Chargement des élèves…")} />}</>;
+  if (!grille.eleves.length) return (<div className="alert alert-light border">{t("Aucun élève n'est inscrit en ")}<strong>{attribution.classes.libelle}</strong>{t(" pour cet exercice.")}{" "}{t("Inscrivez les élèves dans ")}<Link to="/eleves">{t("Élèves")}</Link>{t(" ou importez-les depuis ")}<Link to="/excel">{t("Excel")}</Link>.</div>);
   const verrou = sequence.verrouillee
   return (
     <form onSubmit={enregistrer} style={{ maxWidth: 860 }} noValidate>
       <Alerte>{message.erreur}</Alerte><Alerte type="success">{message.ok}</Alerte><Alerte type="info">{message.info}</Alerte>
-      {verrou && <div className="alert alert-secondary">Séquence {sequence.numero} verrouillée : consultation seulement (déverrouillage dans Paramètres → Exercices).</div>}
+      {verrou && <div className="alert alert-secondary">{t("Séquence ")}{sequence.numero}{t(
+        " verrouillée : consultation seulement (déverrouillage dans Paramètres → Exercices)."
+      )}</div>}
       <div className="card mb-3"><div className="table-responsive"><table className="table table-sm align-middle mb-0">
-        <thead className="table-light"><tr><th style={{ width: 48 }}>#</th><th>Élève</th><th>Matricule</th><th style={{ width: 130 }}>Note /20</th><th style={{ width: 190 }} /></tr></thead>
+        <thead className="table-light"><tr><th style={{ width: 48 }}>#</th><th>{t("Élève")}</th><th>{t("Matricule")}</th><th style={{ width: 130 }}>{t("Note /20")}</th><th style={{ width: 190 }} /></tr></thead>
         <tbody>{grille.eleves.map((i, k) => (
           <tr key={i.id} className={modifiees.has(i.id) ? "table-warning" : undefined}>
             <td className="text-muted">{k + 1}</td><td>{nomComplet(i.eleves)}</td><td className="small text-muted">{i.eleves.matricule}</td>
             <td><input ref={(el) => (champs.current[k] = el)} className={`form-control form-control-sm text-end ${erreurs[i.id] ? "is-invalid" : ""}`}
                        inputMode="decimal" autoComplete="off" disabled={verrou} placeholder="—" value={valeurs[i.id] ?? ""}
                        onChange={(e) => saisir(i.id, e.target.value)} onKeyDown={(e) => suivant(e, k)} onFocus={(e) => e.target.select()}
-                       aria-label={`Note de ${nomComplet(i.eleves)}`} aria-invalid={!!erreurs[i.id]} aria-describedby={erreurs[i.id] ? `err-${i.id}` : undefined} /></td>
+                       aria-label={t("Note de {v0}", {
+                         v0: nomComplet(i.eleves)
+                       })} aria-invalid={!!erreurs[i.id]} aria-describedby={erreurs[i.id] ? `err-${i.id}` : undefined} /></td>
             <td className="small text-nowrap">{erreurs[i.id] ? <span id={`err-${i.id}`} className="text-danger" role="alert">{erreurs[i.id]}</span>
-              : modifiees.has(i.id) ? <span className="text-muted">non enregistrée</span> : null}</td></tr>))}</tbody>
+              : modifiees.has(i.id) ? <span className="text-muted">{t("non enregistrée")}</span> : null}</td></tr>))}</tbody>
       </table></div></div>
       <div className="d-flex flex-wrap align-items-center gap-3 position-sticky bottom-0 barre-saisie py-2">
         {!verrou && <button className="btn btn-primary" disabled={envoi || !modifiees.size}>
-          {envoi ? "Enregistrement…" : modifiees.size ? `Enregistrer ${modifiees.size} modification(s)` : "Notes à jour"}</button>}
+          {envoi ? t("Enregistrement…") : modifiees.size ? `Enregistrer ${modifiees.size} modification(s)` : t("Notes à jour")}</button>}
         {!verrou && modifiees.size > 0 && !envoi &&
-          <button type="button" className="btn btn-outline-secondary" onClick={() => { setValeurs(initiales); setErreurs({}); setMessage({}) }}>Annuler les modifications</button>}
-        <span className="small text-muted">{stats.n}/{grille.eleves.length} note(s) · moyenne {stats.moyenne === null ? "—" : note(stats.moyenne)}
+          <button type="button" className="btn btn-outline-secondary" onClick={() => { setValeurs(initiales); setErreurs({}); setMessage({}) }}>{t("Annuler les modifications")}</button>}
+        <span className="small text-muted">{stats.n}/{grille.eleves.length}{t(" note(s) · moyenne ")}{stats.moyenne === null ? "—" : note(stats.moyenne)}
           {stats.n > 0 && ` · min ${note(stats.min)} · max ${note(stats.max)}`}</span>
       </div>
-      {!verrou && <p className="small text-muted mt-1 mb-0">Virgule ou point acceptés (ex. 12,5). Case vide = pas de note. Touche Entrée : élève suivant.</p>}
+      {!verrou && <p className="small text-muted mt-1 mb-0">{t(
+        "Virgule ou point acceptés (ex. 12,5). Case vide = pas de note. Touche Entrée : élève suivant."
+      )}</p>}
     </form>
-  )
+  );
 }
 
 export default function Saisie() {
@@ -156,48 +171,49 @@ export default function Saisie() {
   useEffect(() => { if (matieres.length === 1 && !attributionId) setAttributionId(matieres[0].id) }, [matieres, attributionId])
 
   const changer = (f) => (e) => {
-    if (modifie && !confirm("Des notes saisies n'ont pas été enregistrées. Les abandonner ?")) return
+    if (modifie && !confirm(t("Des notes saisies n'ont pas été enregistrées. Les abandonner ?"))) return
     setModifie(false); f(e.target.value)
   }
 
-  if (!exercice) return <div className="alert alert-warning">Aucun exercice actif.{estAdmin && <> Créez-le dans <Link to="/parametres/exercices">Paramètres → Exercices</Link>.</>}</div>
+  if (!exercice) return <div className="alert alert-warning">{t("Aucun exercice actif.")}{estAdmin && <>{t(" Créez-le dans ")}<Link to="/parametres/exercices">{t("Paramètres → Exercices")}</Link>.</>}</div>;
   if (!ref) return <><Alerte>{erreurRef}</Alerte>{!erreurRef && <Chargement />}</>
   const prof = attribution?.enseignant_id && ref.personnels.get(attribution.enseignant_id)
   return (
     <>
-      <h1 className="h3 mb-3">Saisie des notes</h1>
+      <h1 className="h3 mb-3">{t("Saisie des notes")}</h1>
       {!ref.attributions.length ? (
         <div className="alert alert-light border" style={{ maxWidth: 860 }}>
-          {estAdmin ? <>Aucune matière n'est encore attribuée aux classes pour l'exercice {exercice.libelle}.
-            Ajoutez les matières de chaque classe dans <Link to="/parametres/coefficients">Paramètres → Matières par classe</Link>.</>
-            : <>Aucune matière ne vous est attribuée pour l'exercice {exercice.libelle}. Demandez à l'administration de vous confier vos matières
-              (Paramètres → Matières par classe).</>}
+          {estAdmin ? <>{t("Aucune matière n'est encore attribuée aux classes pour l'exercice ")}{exercice.libelle}{t(". Ajoutez les matières de chaque classe dans ")}<Link to="/parametres/coefficients">{t("Paramètres → Matières par classe")}</Link>.</>
+            : <>{t("Aucune matière ne vous est attribuée pour l'exercice ")}{exercice.libelle}{t(
+            ". Demandez à l'administration de vous confier vos matières (Paramètres → Matières par classe)."
+          )}</>}
         </div>
       ) : (
         <>
           <div className="row g-2 mb-3" style={{ maxWidth: 860 }}>
-            <div className="col-sm-4"><label className="form-label small mb-1" htmlFor="s-classe">Classe</label>
+            <div className="col-sm-4"><label className="form-label small mb-1" htmlFor="s-classe">{t("Classe")}</label>
               <select id="s-classe" className="form-select" value={classeId} onChange={changer((v) => { setClasseId(v); setAttributionId("") })}>
-                <option value="">Choisissez la classe…</option>{ref.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
-            <div className="col-sm-5"><label className="form-label small mb-1" htmlFor="s-matiere">Matière</label>
+                <option value="">{t("Choisissez la classe…")}</option>{ref.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
+            <div className="col-sm-5"><label className="form-label small mb-1" htmlFor="s-matiere">{t("Matière")}</label>
               <select id="s-matiere" className="form-select" value={attributionId} onChange={changer(setAttributionId)} disabled={!classeId || !matieres.length}>
-                <option value="">{classeId && !matieres.length ? "Aucune matière dans cette classe" : "Choisissez la matière…"}</option>
-                {matieres.map((a) => <option key={a.id} value={a.id}>{a.matieres.libelle} (coef. {a.coefficient})</option>)}</select></div>
-            <div className="col-sm-3"><label className="form-label small mb-1" htmlFor="s-sequence">Séquence</label>
+                <option value="">{classeId && !matieres.length ? t("Aucune matière dans cette classe") : t("Choisissez la matière…")}</option>
+                {matieres.map((a) => <option key={a.id} value={a.id}>{a.matieres.libelle}{t(" (coef. ")}{a.coefficient})</option>)}</select></div>
+            <div className="col-sm-3"><label className="form-label small mb-1" htmlFor="s-sequence">{t("Séquence")}</label>
               <select id="s-sequence" className="form-select" value={sequenceId} onChange={changer(setSequenceId)}>
-                {ref.sequences.map((s) => <option key={s.id} value={s.id}>Séquence {s.numero} (trim. {s.trimestre}){s.verrouillee ? " — verrouillée" : ""}</option>)}</select></div>
+                {ref.sequences.map((s) => <option key={s.id} value={s.id}>{t("Séquence ")}{s.numero}{t(" (trim. ")}{s.trimestre}){s.verrouillee ? t(" — verrouillée") : ""}</option>)}</select></div>
           </div>
           {classeId && !matieres.length && (
-            <div className="alert alert-light border" style={{ maxWidth: 860 }}>Aucune matière n'est attribuée à cette classe.
-              {estAdmin && <> Ajoutez-les dans <Link to="/parametres/coefficients">Paramètres → Matières par classe</Link>.</>}</div>)}
+            <div className="alert alert-light border" style={{ maxWidth: 860 }}>{t("Aucune matière n'est attribuée à cette classe.")}{estAdmin && <>{t(" Ajoutez-les dans ")}<Link to="/parametres/coefficients">{t("Paramètres → Matières par classe")}</Link>.</>}</div>)}
           {attribution && estAdmin && (
-            <p className="small text-muted mb-2">Enseignant : {prof ? nomComplet(prof) : "aucun (seule l'administration peut saisir)"}
-              {prof && prof.role === "surveillant" && <span className="text-danger"> — le surveillant général ne peut pas saisir de notes : confiez cette matière à un enseignant.</span>}</p>)}
+            <p className="small text-muted mb-2">{t("Enseignant : ")}{prof ? nomComplet(prof) : t("aucun (seule l'administration peut saisir)")}
+              {prof && prof.role === "surveillant" && <span className="text-danger">{t(
+                " — le surveillant général ne peut pas saisir de notes : confiez cette matière à un enseignant."
+              )}</span>}</p>)}
           {attribution && sequence
             ? <Grille key={`${attribution.id}|${sequence.id}`} attribution={attribution} sequence={sequence} exercice={exercice} onModifie={setModifie} />
-            : classeId && matieres.length > 0 && <p className="text-muted">Choisissez la matière pour afficher la liste des élèves.</p>}
+            : classeId && matieres.length > 0 && <p className="text-muted">{t("Choisissez la matière pour afficher la liste des élèves.")}</p>}
         </>
       )}
     </>
-  )
+  );
 }

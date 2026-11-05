@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { t, traduireErreur } from "./i18n.jsx"
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const cle = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -15,11 +16,11 @@ export const supabase = createClient(url, cle, {
 export function messageErreur(e) {
   if (!e) return ""
   const m = e.message || String(e)
-  if (/row-level security|permission denied|42501/i.test(m + (e.code || ""))) return "Action non autorisée pour votre rôle."
-  if (/duplicate key|23505/.test(m + (e.code || ""))) return "Cette valeur existe déjà."
-  if (/foreign key|23503/.test(m + (e.code || ""))) return "Élément encore utilisé ailleurs : suppression ou liaison impossible."
-  if (/Failed to fetch|NetworkError/i.test(m)) return "Connexion au serveur impossible. Vérifiez votre accès à Internet."
-  return m
+  if (/row-level security|permission denied|42501/i.test(m + (e.code || ""))) return t("Action non autorisée pour votre rôle.");
+  if (/duplicate key|23505/.test(m + (e.code || ""))) return t("Cette valeur existe déjà.");
+  if (/foreign key|23503/.test(m + (e.code || ""))) return t("Élément encore utilisé ailleurs : suppression ou liaison impossible.");
+  if (/Failed to fetch|NetworkError/i.test(m)) return t("Connexion au serveur impossible. Vérifiez votre accès à Internet.");
+  return traduireErreur(m)
 }
 
 /** Lève une erreur lisible si la réponse Supabase en contient une, sinon renvoie les données. */

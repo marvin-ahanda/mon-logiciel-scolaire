@@ -1,3 +1,4 @@
+import { t } from "../i18n.jsx"
 // Lecture et écriture de classeurs Excel (.xlsx) directement dans le navigateur (aucun serveur sollicité).
 // Les bibliothèques sont chargées à la demande pour ne pas alourdir le reste de l'application.
 
@@ -5,7 +6,7 @@ export const TAILLE_MAX = 2 * 1024 * 1024
 export const LIGNES_MAX = 3000
 
 /** « Date de naissance » -> « datedenaissance » (casse, accents, espaces et ponctuation ignorés). */
-export const normaliser = (t) => String(t ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
+export const normaliser = (s) => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
 
 /** Neutralise l'injection de formules (un texte commençant par = + - @ n'est jamais interprété par Excel). */
 const sur = (v) => (typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? "'" + v : v)
@@ -33,17 +34,21 @@ export async function telechargerClasseur(feuilles, nom) {
  * Renvoie { lignes: [{ numero, valeurs: { cle: valeur } }], presentes: Set(cles) }.
  */
 export async function lireClasseur(fichier, colonnes) {
-  if (fichier.size > TAILLE_MAX) throw new Error("Le fichier dépasse 2 Mo.")
+  if (fichier.size > TAILLE_MAX) throw new Error(t("Le fichier dépasse 2 Mo."))
   const debut = new Uint8Array(await fichier.slice(0, 4).arrayBuffer())
   if (!(debut[0] === 0x50 && debut[1] === 0x4b)) {
-    throw new Error("Ce n'est pas un classeur Excel .xlsx (les anciens fichiers .xls ou .csv ne sont pas acceptés : enregistrez-le au format « Classeur Excel (.xlsx) »).")
+    throw new Error(t(
+      "Ce n'est pas un classeur Excel .xlsx (les anciens fichiers .xls ou .csv ne sont pas acceptés : enregistrez-le au format « Classeur Excel (.xlsx) »)."
+    ))
   }
   const { default: lire } = await import("read-excel-file/browser")
   let feuilles
-  try { feuilles = await lire(fichier) } catch { throw new Error("Classeur Excel illisible ou endommagé.") }
+  try { feuilles = await lire(fichier) } catch { throw new Error(t("Classeur Excel illisible ou endommagé.")) }
   const donnees = feuilles[0]?.data || []
-  if (!donnees.length) throw new Error("La première feuille est vide.")
-  if (donnees.length - 1 > LIGNES_MAX) throw new Error(`Le fichier dépasse ${LIGNES_MAX} lignes.`)
+  if (!donnees.length) throw new Error(t("La première feuille est vide."))
+  if (donnees.length - 1 > LIGNES_MAX) throw new Error(t("Le fichier dépasse {v0} lignes.", {
+    v0: LIGNES_MAX
+  }))
   const index = new Map(donnees[0].map((e, k) => [normaliser(e), k]))
   const positions = {}
   for (const [cle, noms] of Object.entries(colonnes)) {
@@ -60,20 +65,22 @@ export async function lireClasseur(fichier, colonnes) {
 
 export function texte(v, longueur) {
   if (v === null || v === undefined) return ""
-  const t = (typeof v === "number" && Number.isInteger(v) ? String(v) : String(v)).trim()
-  return longueur ? t.slice(0, longueur) : t
+  const x = (typeof v === "number" && Number.isInteger(v) ? String(v) : String(v)).trim()
+  return longueur ? x.slice(0, longueur) : x
 }
 
 /** Date Excel ou texte jj/mm/aaaa, aaaa-mm-jj -> « aaaa-mm-jj » ; vide -> null. */
 export function enDate(v) {
   if (v === null || v === undefined || v === "") return null
   if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10)
-  const t = String(v).trim()
-  let m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
-  if (m) return valider(+m[3], +m[2], +m[1], t)
-  m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (m) return valider(+m[1], +m[2], +m[3], t)
-  throw new Error(`date « ${t} » non reconnue (format attendu : jj/mm/aaaa)`)
+  const x = String(v).trim()
+  let m = x.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
+  if (m) return valider(+m[3], +m[2], +m[1], x)
+  m = x.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (m) return valider(+m[1], +m[2], +m[3], x)
+  throw new Error(t("date « {v0} » non reconnue (format attendu : jj/mm/aaaa)", {
+    v0: x
+  }))
 }
 function valider(a, mo, j, brut) {
   const d = new Date(Date.UTC(a, mo - 1, j))
@@ -85,8 +92,12 @@ function valider(a, mo, j, brut) {
 export function enNote(v) {
   if (v === null || v === undefined || String(v).trim() === "") return null
   const n = typeof v === "number" ? v : Number(String(v).trim().replace(",", "."))
-  if (!Number.isFinite(n)) throw new Error(`« ${v} » n'est pas une note`)
-  if (n < 0 || n > 20) throw new Error(`${v} n'est pas compris entre 0 et 20`)
+  if (!Number.isFinite(n)) throw new Error(t("« {v0} » n'est pas une note", {
+    v0: v
+  }))
+  if (n < 0 || n > 20) throw new Error(t("{v0} n'est pas compris entre 0 et 20", {
+    v0: v
+  }))
   return Math.round(n * 100) / 100
 }
 

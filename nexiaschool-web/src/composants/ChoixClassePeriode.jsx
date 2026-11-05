@@ -3,6 +3,7 @@ import { Chargement, useDonnees } from "./Communs.jsx"
 import { periodes } from "../lib/periodes.js"
 import { useSession } from "../Session.jsx"
 import { supabase, verifier } from "../supabase.js"
+import { t } from "../i18n.jsx"
 
 /** Choix de la classe et de la période (gardés dans l'adresse) ; rend children(classe, periode). */
 export default function ChoixClassePeriode({ children }) {
@@ -19,7 +20,7 @@ export default function ChoixClassePeriode({ children }) {
     return { classes, periodes: periodes(sequences) }
   }, [exercice?.id])
 
-  if (!exercice) return <div className="alert alert-warning">Aucun exercice actif.</div>
+  if (!exercice) return <div className="alert alert-warning">{t("Aucun exercice actif.")}</div>;
   if (!ref) return <Chargement />
   const classe = ref.classes.find((c) => c.id === params.get("classe"))
   const periode = ref.periodes.find((p) => p.code === params.get("periode"))
@@ -27,13 +28,13 @@ export default function ChoixClassePeriode({ children }) {
   return (
     <>
       <div className="row g-2 mb-3 no-print" style={{ maxWidth: 700 }}>
-        <div className="col-sm-6"><select className="form-select" value={classe?.id || ""} onChange={(e) => choisir("classe", e.target.value)} aria-label="Classe">
-          <option value="">Classe…</option>{ref.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
-        <div className="col-sm-6"><select className="form-select" value={periode?.code || ""} onChange={(e) => choisir("periode", e.target.value)} aria-label="Période">
-          <option value="">Période…</option>{ref.periodes.map((p) => <option key={p.code} value={p.code}>{p.libelle}</option>)}</select></div>
+        <div className="col-sm-6"><select className="form-select" value={classe?.id || ""} onChange={(e) => choisir("classe", e.target.value)} aria-label={t("Classe")}>
+          <option value="">{t("Classe…")}</option>{ref.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
+        <div className="col-sm-6"><select className="form-select" value={periode?.code || ""} onChange={(e) => choisir("periode", e.target.value)} aria-label={t("Période")}>
+          <option value="">{t("Période…")}</option>{ref.periodes.map((p) => <option key={p.code} value={p.code}>{p.libelle}</option>)}</select></div>
       </div>
-      {!ref.classes.length && <p className="text-muted">Aucune classe disponible.</p>}
+      {!ref.classes.length && <p className="text-muted">{t("Aucune classe disponible.")}</p>}
       {classe && periode && children(classe, periode)}
     </>
-  )
+  );
 }

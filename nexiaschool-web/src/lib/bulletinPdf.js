@@ -3,13 +3,20 @@
 import { appreciation } from "./calculs.js"
 import { date, nomComplet, note } from "./format.js"
 import { siteAffiche } from "./logo.js"
+import { langueCourante, t } from "../i18n.jsx"
 
 const MARGE = 12, LARGEUR = 210, UTILE = LARGEUR - 2 * MARGE
 const GRIS = [108, 117, 125], NOIR = [33, 37, 41], BORDURE = [173, 181, 189], FOND = [241, 243, 245]
 
 // Les polices standard du PDF ne connaissent pas les espaces fines insécables produites par Intl (fr-FR)
-const t = (v) => String(v ?? "").replace(/[  ]/g, " ").replace(/ /g, " ")
-const rang = (r, ex, sur) => (r ? `${r}${r === 1 ? "er" : "e"}${ex ? " ex" : ""}${sur ? ` / ${sur}` : ""}` : "")
+const pdf = (v) => String(v ?? "").replace(/[  ]/g, " ").replace(/ /g, " ")
+// rang : « 1er », « 2e ex » en français ; « 1st », « 2nd (tie) » en anglais
+function ordinal(r) {
+  if (langueCourante() !== "en") return `${r}${r === 1 ? "er" : "e"}`
+  const d = r % 100 >= 11 && r % 100 <= 13 ? "th" : { 1: "st", 2: "nd", 3: "rd" }[r % 10] || "th"
+  return `${r}${d}`
+}
+const rang = (r, ex, sur) => (r ? `${ordinal(r)}${ex ? (langueCourante() === "en" ? " (tie)" : " ex") : ""}${sur ? ` / ${sur}` : ""}` : "")
 
 /** Image distante -> { donnees (data URL), format, largeur, hauteur } ; null si indisponible. */
 export async function image(url) {
@@ -31,13 +38,13 @@ function bulletin(doc, autoTable, { etablissement, logo, exercice, periode, clas
   // --- En-tête : coordonnées à gauche, logo au centre, période à droite
   const colonne = 74
   doc.setTextColor(...NOIR); doc.setFont("helvetica", "bold"); doc.setFontSize(11)
-  const nom = doc.splitTextToSize(t(etablissement.nom), colonne)
+  const nom = doc.splitTextToSize(pdf(etablissement.nom), colonne)
   doc.text(nom, MARGE, y + 4)
   let yg = y + 4 + nom.length * 4.6
   doc.setFont("helvetica", "normal"); doc.setFontSize(8)
-  const coord = doc.splitTextToSize(t([etablissement.adresse, etablissement.ville, etablissement.telephone, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")), colonne)
+  const coord = doc.splitTextToSize(pdf([etablissement.adresse, etablissement.ville, etablissement.telephone, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")), colonne)
   if (coord.length) { doc.text(coord, MARGE, yg); yg += coord.length * 3.6 }
-  if (etablissement.devise) { doc.setFont("helvetica", "italic"); doc.text(doc.splitTextToSize(t(etablissement.devise), colonne), MARGE, yg); yg += 3.6 }
+  if (etablissement.devise) { doc.setFont("helvetica", "italic"); doc.text(doc.splitTextToSize(pdf(etablissement.devise), colonne), MARGE, yg); yg += 3.6 }
   let hauteurLogo = 0
   if (logo) {
     const max = 24, k = Math.min(max / logo.largeur, max / logo.hauteur)
@@ -46,9 +53,9 @@ function bulletin(doc, autoTable, { etablissement, logo, exercice, periode, clas
     hauteurLogo = h
   }
   doc.setFont("helvetica", "normal"); doc.setFontSize(9)
-  doc.text(t(`Année scolaire ${exercice.libelle}`), LARGEUR - MARGE, y + 8, { align: "right" })
+  doc.text(pdf(t("Année scolaire {v0}", { v0: exercice.libelle })), LARGEUR - MARGE, y + 8, { align: "right" })
   doc.setFont("helvetica", "bold"); doc.setFontSize(10)
-  doc.text(t(`Bulletin — ${periode.libelle}`), LARGEUR - MARGE, y + 13, { align: "right" })
+  doc.text(pdf(t("Bulletin — {v0}", { v0: periode.libelle })), LARGEUR - MARGE, y + 13, { align: "right" })
   y = Math.max(yg, y + hauteurLogo, y + 16) + 2
   doc.setDrawColor(...NOIR); doc.setLineWidth(0.6); doc.line(MARGE, y, LARGEUR - MARGE, y)
   y += 4
@@ -69,25 +76,25 @@ function bulletin(doc, autoTable, { etablissement, logo, exercice, periode, clas
   }
   const xg = MARGE + 26, xd = MARGE + 26 + (UTILE - 26) / 2
   doc.setTextColor(...NOIR); doc.setFont("helvetica", "bold"); doc.setFontSize(10)
-  doc.text(t(nomComplet(e)), xg, y + 9)
+  doc.text(pdf(nomComplet(e)), xg, y + 9)
   doc.setFont("helvetica", "normal"); doc.setFontSize(9)
-  doc.text(t(`Né(e) le ${date(e.date_naissance)}${e.lieu_naissance ? ` à ${e.lieu_naissance}` : ""}`), xg, y + 15)
-  doc.text(t(`Matricule : ${e.matricule}`), xd, y + 9)
-  doc.text(t(`Classe : ${classe.libelle} · Effectif : ${stats.effectif}`), xd, y + 15)
+  doc.text(pdf(t("Né(e) le {v0}", { v0: date(e.date_naissance) }) + (e.lieu_naissance ? t(" à {v0}", { v0: e.lieu_naissance }) : "")), xg, y + 15)
+  doc.text(pdf(t("Matricule : {v0}", { v0: e.matricule })), xd, y + 9)
+  doc.text(pdf(t("Classe : {v0} · Effectif : {v1}", { v0: classe.libelle, v1: stats.effectif })), xd, y + 15)
   y += hId + 3
 
   // --- Tableau des matières (sous-totaux par groupe s'il y en a plusieurs)
   const corps = []
   for (const g of r.groupes) {
-    for (const l of g.lignes) corps.push([t(l.matiere), t(l.enseignant), t(note(l.note)), String(l.coefficient), t(note(l.points)), rang(l.rang, l.exAequo), t(appreciation(l.note))])
-    if (r.groupes.length > 1) corps.push([{ content: `Groupe ${g.groupe}`, colSpan: 3, styles: { fontStyle: "bold" } }, String(g.totalCoef), t(note(g.totalPoints)),
-      { content: t(`Moyenne : ${note(g.moyenne) || "—"}`), colSpan: 2 }].map((c) => (typeof c === "string" ? { content: c, styles: { fillColor: FOND } } : { ...c, styles: { ...c.styles, fillColor: FOND } })))
+    for (const l of g.lignes) corps.push([pdf(l.matiere), pdf(l.enseignant), pdf(note(l.note)), String(l.coefficient), pdf(note(l.points)), rang(l.rang, l.exAequo), pdf(t(appreciation(l.note)))])
+    if (r.groupes.length > 1) corps.push([{ content: t("Groupe {v0}", { v0: g.groupe }), colSpan: 3, styles: { fontStyle: "bold" } }, String(g.totalCoef), pdf(note(g.totalPoints)),
+      { content: pdf(t("Moyenne : {v0}", { v0: note(g.moyenne) || "—" })), colSpan: 2 }].map((c) => (typeof c === "string" ? { content: c, styles: { fillColor: FOND } } : { ...c, styles: { ...c.styles, fillColor: FOND } })))
   }
   autoTable(doc, {
     startY: y, margin: { left: MARGE, right: MARGE }, theme: "grid",
-    head: [["Matière", "Enseignant", "Note", "Coef.", "Points", "Rang", "Appréciation"]],
+    head: [["Matière", "Enseignant", "Note", "Coef.", "Points", "Rang", "Appréciation"].map((x) => t(x))],
     body: corps,
-    foot: [[{ content: "Total", colSpan: 3 }, String(r.totalCoef), t(note(r.totalPoints)), { content: "", colSpan: 2 }]],
+    foot: [[{ content: t("Total"), colSpan: 3 }, String(r.totalCoef), pdf(note(r.totalPoints)), { content: "", colSpan: 2 }]],
     styles: { font: "helvetica", fontSize: 8.5, cellPadding: { top: 1.3, bottom: 1.3, left: 1.8, right: 1.8 }, textColor: NOIR, lineColor: BORDURE, lineWidth: 0.2 },
     headStyles: { fillColor: [233, 236, 239], textColor: NOIR, fontStyle: "bold" },
     footStyles: { fillColor: [255, 255, 255], textColor: NOIR, fontStyle: "bold" },
@@ -100,8 +107,9 @@ function bulletin(doc, autoTable, { etablissement, logo, exercice, periode, clas
   // --- Conduite
   if (conduite) {
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5)
-    const texte = t(`Conduite : absences non justifiées ${conduite.nj} h, justifiées ${conduite.j} h · retards ${conduite.retards}` +
-      `${conduite.incidents.length ? ` · sanctions : ${conduite.incidents.join(", ")}` : ""} · note de discipline ${note(conduite.note)} (${conduite.appreciation})`)
+    const texte = pdf(t("Conduite : absences non justifiées {v0} h, justifiées {v1} h · retards {v2}", { v0: conduite.nj, v1: conduite.j, v2: conduite.retards }) +
+      (conduite.incidents.length ? t(" · sanctions : {v0}", { v0: conduite.incidents.join(", ") }) : "") +
+      t(" · note de discipline {v0} ({v1})", { v0: note(conduite.note), v1: t(conduite.appreciation) }))
     const lignes = doc.splitTextToSize(texte, UTILE - 5)
     const h = lignes.length * 3.8 + 3.5
     cadre(doc, MARGE, y, UTILE, h); doc.text(lignes, MARGE + 2.5, y + 4.6)
@@ -119,14 +127,14 @@ function bulletin(doc, autoTable, { etablissement, logo, exercice, periode, clas
     doc.setFont("helvetica", "bold"); doc.setFontSize(taille); doc.text(valeur, x, yy)
     doc.setFontSize(8.5); doc.setFont("helvetica", "normal")
   }
-  libelle("Moyenne :", t(moy), y + 5.5, 11)
-  libelle("Rang :", r.rang ? t(rang(r.rang, r.exAequo, stats.classes)) : "non classé", y + 11)
-  libelle("Appréciation :", t(r.appreciation || "—"), y + 16.5)
-  doc.text(t(`Moyenne de la classe : ${note(stats.moyenneClasse) || "—"}`), x2, y + 5.5)
-  doc.text(doc.splitTextToSize(t(`Plus forte : ${note(stats.max) || "—"} · Plus faible : ${note(stats.min) || "—"}`), l3 - 5), x2, y + 11)
-  doc.text(t(`Taux de réussite : ${stats.tauxReussite === null ? "—" : `${note(stats.tauxReussite)} %`}`), x2, y + 18.5)
-  doc.text("Le chef d'établissement", x3, y + 5.5)
-  doc.setTextColor(...GRIS); doc.text(t(etablissement.nom_chef || ""), x3, y + 10.5); doc.setTextColor(...NOIR)
+  libelle(t("Moyenne :"), pdf(moy), y + 5.5, 11)
+  libelle(t("Rang :"), r.rang ? pdf(rang(r.rang, r.exAequo, stats.classes)) : t("non classé"), y + 11)
+  libelle(t("Appréciation :"), pdf(t(r.appreciation || "—")), y + 16.5)
+  doc.text(pdf(t("Moyenne de la classe : {v0}", { v0: note(stats.moyenneClasse) || "—" })), x2, y + 5.5)
+  doc.text(doc.splitTextToSize(pdf(t("Plus forte : {v0} · Plus faible : {v1}", { v0: note(stats.max) || "—", v1: note(stats.min) || "—" })), l3 - 5), x2, y + 11)
+  doc.text(pdf(t("Taux de réussite : {v0}", { v0: stats.tauxReussite === null ? "—" : `${note(stats.tauxReussite)} %` })), x2, y + 18.5)
+  doc.text(t("Le chef d'établissement"), x3, y + 5.5)
+  doc.setTextColor(...GRIS); doc.text(pdf(etablissement.nom_chef || ""), x3, y + 10.5); doc.setTextColor(...NOIR)
 }
 
 /**
@@ -137,7 +145,7 @@ export async function telechargerBulletinsPdf(contexte, nomFichier) {
   const [{ jsPDF }, module] = await Promise.all([import("jspdf"), import("jspdf-autotable")])
   const autoTable = module.autoTable || module.default
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true })
-  doc.setProperties({ title: nomFichier, subject: `Bulletins ${contexte.classe.libelle} — ${contexte.periode.libelle}`, author: contexte.etablissement.nom, creator: "NexIA School" })
+  doc.setProperties({ title: nomFichier, subject: t("Bulletins {v0} — {v1}", { v0: contexte.classe.libelle, v1: contexte.periode.libelle }), author: contexte.etablissement.nom, creator: "NexIA School" })
   const [logo, ...photos] = await Promise.all([image(contexte.logoUrl), ...contexte.eleves.map((x) => image(x.photoUrl))])
   contexte.eleves.forEach((x, k) => {
     if (k) doc.addPage()

@@ -1,29 +1,27 @@
 import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { EDITEUR, contactTexte } from "../lib/editeur.js"
-import "../landing.css"
+import { EnteteSimple } from "../composants/Site.jsx"
+import { langueCourante, locale, t } from "../i18n.jsx"
+import { ConditionsEN, ConfidentialiteEN } from "./LegalEN.jsx"
 
 function PageLegale({ titre, children }) {
-  useEffect(() => { document.title = `${titre} — NexIASchool`; window.scrollTo(0, 0) }, [titre])
+  useEffect(() => { document.title = `${titre} — NexIA School`; window.scrollTo(0, 0) }, [titre])
+  const maj = new Date(`${EDITEUR.miseAJour}T12:00:00`).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })
   return (
     <div className="lp">
-      <header className="lp-entete lp-entete-ombre">
-        <div className="lp-conteneur lp-entete-interieur">
-          <Link to="/" className="lp-logo"><span className="lp-logo-mark" aria-hidden="true">N</span><span>NexIA <strong>School</strong></span></Link>
-          <Link className="lp-connexion" to="/" style={{ marginLeft: "auto" }}>Retour à l'accueil</Link>
-        </div>
-      </header>
+      <EnteteSimple />
       <main className="lp-conteneur lp-legal">
         <h1>{titre}</h1>
-        <p className="lp-legal-maj">Dernière mise à jour : {EDITEUR.miseAJour}</p>
+        <p className="lp-legal-maj">{t("Dernière mise à jour : {v0}", { v0: maj })}</p>
         {children}
       </main>
       <footer className="lp-pied">
         <div className="lp-conteneur lp-pied-interieur">
-          <nav aria-label="Liens légaux" style={{ marginLeft: 0 }}>
-            <Link to="/confidentialite">Politique de confidentialité</Link>
-            <Link to="/conditions">Conditions d'utilisation</Link>
-            <Link to="/">Accueil</Link>
+          <nav aria-label={t("Liens légaux")} style={{ marginLeft: 0 }}>
+            <Link to="/confidentialite">{t("Politique de confidentialité")}</Link>
+            <Link to="/conditions">{t("Conditions d'utilisation")}</Link>
+            <Link to="/">{t("Accueil")}</Link>
           </nav>
           <p>© {new Date().getFullYear()} {EDITEUR.nom} — {EDITEUR.service}</p>
         </div>
@@ -33,8 +31,16 @@ function PageLegale({ titre, children }) {
 }
 
 export function Confidentialite() {
+  return <PageLegale titre={t("Politique de confidentialité")}>{langueCourante() === "en" ? <ConfidentialiteEN /> : <ConfidentialiteFR />}</PageLegale>
+}
+
+export function Conditions() {
+  return <PageLegale titre={t("Conditions d'utilisation")}>{langueCourante() === "en" ? <ConditionsEN /> : <ConditionsFR />}</PageLegale>
+}
+
+function ConfidentialiteFR() {
   return (
-    <PageLegale titre="Politique de confidentialité">
+    <>
       <p>La présente politique explique quelles données personnelles sont traitées par {EDITEUR.service} ({EDITEUR.site}),
         logiciel en ligne de gestion des notes, bulletins et de la discipline scolaire édité par {EDITEUR.nom}, pourquoi elles le sont
         et quels sont vos droits.</p>
@@ -51,10 +57,13 @@ export function Confidentialite() {
       <ul>
         <li><strong>Établissement</strong> : nom, ville, adresse, téléphone, devise, nom du chef d'établissement.</li>
         <li><strong>Fondateur connecté avec Google</strong> : identifiant de compte Google, adresse e-mail, nom et prénom transmis par Google.</li>
-        <li><strong>Personnel</strong> : nom, prénom, rôle (administration, enseignant, surveillant général), matricule et téléphone facultatifs,
+        <li><strong>Personnel</strong> : nom, prénom, rôle (administration, enseignant, surveillant général, comptable), matricule et téléphone facultatifs,
           date de dernière connexion. Les codes d'accès ne sont <strong>jamais conservés en clair</strong> : seule une empreinte chiffrée est enregistrée.</li>
         <li><strong>Élèves</strong> (données de mineurs) : matricule, nom, prénom, sexe, date et lieu de naissance, téléphone d'un parent,
           photo facultative, classe, notes, absences, retards, infractions et sanctions.</li>
+        <li><strong>Frais de scolarité</strong> : montants dus selon la catégorie de l'élève (nouveau ou ancien), échéancier, paiements enregistrés
+          (date, montant, mode, référence) et reçus, consultables par l'administration et la comptabilité uniquement.</li>
+        <li><strong>Préférence de langue</strong> : français ou anglais, conservée sur l'appareil.</li>
         <li><strong>Données techniques</strong> : adresse IP (utilisée uniquement pour limiter les essais de codes erronés), journaux de sécurité
           de l'hébergeur, jeton de session.</li>
       </ul>
@@ -113,7 +122,7 @@ export function Confidentialite() {
 
       <h2>9. Cookies et stockage local</h2>
       <p>{EDITEUR.service} n'utilise <strong>aucun cookie publicitaire ni outil de mesure d'audience</strong>. Le navigateur conserve seulement
-        la session de connexion et l'établissement choisi sur l'appareil (stockage local), indispensables au fonctionnement du service.</p>
+        la session de connexion, l'établissement choisi et la langue sur l'appareil (stockage local), indispensables au fonctionnement du service.</p>
 
       <h2>10. Agents d'intelligence artificielle (API et MCP)</h2>
       <p>L'administration d'un établissement peut activer l'accès des agents IA (Claude ou autre) dans l'Espace développeur ; cet accès est
@@ -132,20 +141,20 @@ export function Confidentialite() {
       <h2>12. Modifications</h2>
       <p>Cette politique peut évoluer. La date de mise à jour figure en haut de la page ; en cas de changement important, les administrateurs
         des établissements en seront informés.</p>
-    </PageLegale>
+    </>
   )
 }
 
-export function Conditions() {
+function ConditionsFR() {
   return (
-    <PageLegale titre="Conditions d'utilisation">
+    <>
       <p>Les présentes conditions encadrent l'utilisation de {EDITEUR.service} ({EDITEUR.site}), service en ligne de gestion des notes, bulletins,
         de la discipline et des statistiques scolaires, édité par {EDITEUR.nom}. En créant l'espace d'un établissement ou en utilisant le service,
         vous acceptez ces conditions.</p>
 
       <h2>1. Le service</h2>
       <p>{EDITEUR.service} permet à un établissement scolaire de gérer ses exercices, classes, matières, élèves, notes, résultats, bulletins,
-        discipline et statistiques, et d'importer ou d'exporter ces données au format Excel. Le service est accessible depuis un navigateur ;
+        discipline, frais de scolarité et statistiques, en français ou en anglais, et d'importer ou d'exporter ces données au format Excel. Le service est accessible depuis un navigateur ;
         il est actuellement proposé <strong>gratuitement</strong>. Toute évolution tarifaire serait annoncée à l'avance et ne s'appliquerait
         qu'avec l'accord de l'établissement.</p>
 
@@ -204,6 +213,6 @@ export function Conditions() {
       <h2>10. Droit applicable et contact</h2>
       <p>Les présentes conditions sont régies par le droit applicable au {EDITEUR.pays}. En cas de difficulté, nous privilégions une solution amiable :
         contactez {EDITEUR.nom} à {contactTexte()}.</p>
-    </PageLegale>
+    </>
   )
 }

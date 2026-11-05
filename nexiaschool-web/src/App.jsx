@@ -22,6 +22,7 @@ import Resultats from "./pages/Resultats.jsx"
 import Saisie from "./pages/Saisie.jsx"
 import { SessionProvider, useSession } from "./Session.jsx"
 import { supabase } from "./supabase.js"
+import { ChoixLangue, t } from "./i18n.jsx"
 
 const Console = lazy(() => import("./pages/Console.jsx"))      // chargée seulement par le propriétaire
 
@@ -30,17 +31,19 @@ function Suspendu() {
   const { suspendu, proprietaire } = useSession()
   return (
     <div className="row justify-content-center mt-5 mx-0"><div className="col-md-8 col-lg-6"><div className="card shadow-sm border-danger"><div className="card-body p-4">
-      <h1 className="h4 text-danger mb-3">Espace suspendu</h1>
-      <p>L'accès à l'espace de <strong>{suspendu.etablissement}</strong> sur NexIA School est temporairement suspendu.</p>
-      {suspendu.motif && <p className="text-muted">Motif : {suspendu.motif}</p>}
-      <p>Vos données sont conservées. Pour toute question ou pour rétablir l'accès, écrivez à{" "}
-        <a href="mailto:contact@nexiaacademy.net">contact@nexiaacademy.net</a>.</p>
-      <div className="d-flex gap-2">
-        {proprietaire && <Link className="btn btn-dark" to="/console">Console de la plateforme</Link>}
-        <button className="btn btn-outline-secondary" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
-      </div>
-    </div></div></div></div>
-  )
+        <div className="d-flex justify-content-between align-items-start gap-2 mb-3"><h1 className="h4 text-danger mb-0">{t("Espace suspendu")}</h1><ChoixLangue /></div>
+        <p>{t("L'accès à l'espace de ")}<strong>{suspendu.etablissement}</strong>{t(" sur NexIA School est temporairement suspendu.")}</p>
+        {suspendu.motif && <p className="text-muted">{t("Motif : ")}{suspendu.motif}</p>}
+        <p>{t(
+          "Vos données sont conservées. Pour toute question ou pour rétablir l'accès, écrivez à"
+        )}{" "}
+          <a href="mailto:contact@nexiaacademy.net">{t("contact@nexiaacademy.net")}</a>.</p>
+        <div className="d-flex gap-2">
+          {proprietaire && <Link className="btn btn-dark" to="/console">{t("Console de la plateforme")}</Link>}
+          <button className="btn btn-outline-secondary" onClick={() => supabase.auth.signOut()}>{t("Se déconnecter")}</button>
+        </div>
+      </div></div></div></div>
+  );
 }
 
 function Protege({ admin = false, droit }) {
@@ -49,7 +52,11 @@ function Protege({ admin = false, droit }) {
   if (!pret) return <Chargement />
   if (suspendu) return <Suspendu />
   if (sansEtablissement) return <Navigate to="/inscription" replace />
-  if (erreur) return <div className="container py-5"><div className="alert alert-danger">Connexion au serveur impossible. Vérifiez votre accès à Internet puis rechargez la page.</div></div>
+  if (erreur) return (
+    <div className="container py-5"><div className="alert alert-danger">{t(
+      "Connexion au serveur impossible. Vérifiez votre accès à Internet puis rechargez la page."
+    )}</div></div>
+  );
   if (!session || !profil) return <Navigate to={lireAppareil() ? "/connexion" : "/etablissement"} replace />
   if ((admin && !estAdmin) || (droit && !session_[droit])) return <Navigate to="/" replace />
   return <MiseEnPage />

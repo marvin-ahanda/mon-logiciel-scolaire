@@ -4,6 +4,7 @@ import { comparerNoms, date, nomComplet } from "../lib/format.js"
 import { adressesPhotos, envoyerPhoto } from "../lib/photos.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
+import { t } from "../i18n.jsx"
 
 const VIDE = { matricule: "", nom: "", prenom: "", sexe: "F", date_naissance: "", lieu_naissance: "", telephone_parent: "", classe_id: "", redoublant: false, nouveau: true }
 
@@ -65,7 +66,9 @@ export default function Eleves() {
   }
 
   async function supprimer(e) {
-    if (!confirm(`Supprimer définitivement ${nomComplet(e)} et toutes ses notes ?`)) return
+    if (!confirm(t("Supprimer définitivement {v0} et toutes ses notes ?", {
+      v0: nomComplet(e)
+    }))) return
     try {
       if (e.photo) await supabase.storage.from("photos").remove([e.photo])
       verifier(await supabase.from("eleves").delete().eq("id", e.id)); rafraichir()
@@ -76,56 +79,60 @@ export default function Eleves() {
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 className="h3 m-0">Élèves</h1>
-        {!edition && <button className="btn btn-primary" onClick={() => ouvrir(null)}>+ Nouvel élève</button>}
+        <h1 className="h3 m-0">{t("Élèves")}</h1>
+        {!edition && <button className="btn btn-primary" onClick={() => ouvrir(null)}>{t("+ Nouvel élève")}</button>}
       </div>
       <Alerte>{erreur}</Alerte>
-      {!exercice && <div className="alert alert-warning">Aucun exercice actif : les élèves ne peuvent pas être inscrits dans une classe.</div>}
+      {!exercice && <div className="alert alert-warning">{t(
+        "Aucun exercice actif : les élèves ne peuvent pas être inscrits dans une classe."
+      )}</div>}
       {edition && (
         <form className="card card-body mb-3" onSubmit={enregistrer} style={{ maxWidth: 900 }}>
-          <h2 className="h6">{edition.id ? `Modifier ${nomComplet(edition)}` : "Nouvel élève"}</h2>
+          <h2 className="h6">{edition.id ? `Modifier ${nomComplet(edition)}` : t("Nouvel élève")}</h2>
           <div className="row g-2">
-            <div className="col-md-3"><label className="form-label" htmlFor="em">Matricule</label><input className="form-control" id="em" required maxLength={30} {...champ("matricule")} /></div>
-            <div className="col-md-5"><label className="form-label" htmlFor="en">Nom</label><input className="form-control" id="en" required maxLength={100} {...champ("nom")} /></div>
-            <div className="col-md-4"><label className="form-label" htmlFor="ep">Prénom</label><input className="form-control" id="ep" maxLength={100} {...champ("prenom")} /></div>
-            <div className="col-md-2"><label className="form-label" htmlFor="es">Sexe</label>
-              <select className="form-select" id="es" {...champ("sexe")}><option value="F">Fille</option><option value="M">Garçon</option></select></div>
-            <div className="col-md-3"><label className="form-label" htmlFor="ed">Date de naissance</label><input className="form-control" id="ed" type="date" {...champ("date_naissance")} /></div>
-            <div className="col-md-3"><label className="form-label" htmlFor="el">Lieu de naissance</label><input className="form-control" id="el" maxLength={100} {...champ("lieu_naissance")} /></div>
-            <div className="col-md-4"><label className="form-label" htmlFor="et">Téléphone du parent</label><input className="form-control" id="et" maxLength={30} {...champ("telephone_parent")} /></div>
-            <div className="col-md-4"><label className="form-label" htmlFor="ec">Classe ({exercice?.libelle || "aucun exercice"})</label>
-              <select className="form-select" id="ec" disabled={!exercice} {...champ("classe_id")}><option value="">Non inscrit</option>
+            <div className="col-md-3"><label className="form-label" htmlFor="em">{t("Matricule")}</label><input className="form-control" id="em" required maxLength={30} {...champ("matricule")} /></div>
+            <div className="col-md-5"><label className="form-label" htmlFor="en">{t("Nom")}</label><input className="form-control" id="en" required maxLength={100} {...champ("nom")} /></div>
+            <div className="col-md-4"><label className="form-label" htmlFor="ep">{t("Prénom")}</label><input className="form-control" id="ep" maxLength={100} {...champ("prenom")} /></div>
+            <div className="col-md-2"><label className="form-label" htmlFor="es">{t("Sexe")}</label>
+              <select className="form-select" id="es" {...champ("sexe")}><option value="F">{t("Fille")}</option><option value="M">{t("Garçon")}</option></select></div>
+            <div className="col-md-3"><label className="form-label" htmlFor="ed">{t("Date de naissance")}</label><input className="form-control" id="ed" type="date" {...champ("date_naissance")} /></div>
+            <div className="col-md-3"><label className="form-label" htmlFor="el">{t("Lieu de naissance")}</label><input className="form-control" id="el" maxLength={100} {...champ("lieu_naissance")} /></div>
+            <div className="col-md-4"><label className="form-label" htmlFor="et">{t("Téléphone du parent")}</label><input className="form-control" id="et" maxLength={30} {...champ("telephone_parent")} /></div>
+            <div className="col-md-4"><label className="form-label" htmlFor="ec">{t("Classe (")}{exercice?.libelle || t("aucun exercice")})</label>
+              <select className="form-select" id="ec" disabled={!exercice} {...champ("classe_id")}><option value="">{t("Non inscrit")}</option>
                 {donnees.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
             <div className="col-md-3 d-flex align-items-end"><div className="form-check"><input className="form-check-input" type="checkbox" id="er"
-              checked={edition.redoublant} onChange={(e) => setEdition({ ...edition, redoublant: e.target.checked })} /><label className="form-check-label" htmlFor="er">Redoublant</label></div>
+              checked={edition.redoublant} onChange={(e) => setEdition({ ...edition, redoublant: e.target.checked })} /><label className="form-check-label" htmlFor="er">{t("Redoublant")}</label></div>
               <div className="form-check ms-3"><input className="form-check-input" type="checkbox" id="enouv" checked={edition.nouveau}
                 onChange={(e) => setEdition({ ...edition, nouveau: e.target.checked })} /><label className="form-check-label" htmlFor="enouv"
-                title="Détermine la pension applicable (nouveaux ou anciens élèves)">Nouvel élève</label></div></div>
-            <div className="col-md-5"><label className="form-label" htmlFor="eph">Photo {edition.photo && "(remplace l'actuelle)"}</label>
+                title={t("Détermine la pension applicable (nouveaux ou anciens élèves)")}>{t("Nouvel élève")}</label></div></div>
+            <div className="col-md-5"><label className="form-label" htmlFor="eph">{t("Photo ")}{edition.photo && "(remplace l'actuelle)"}</label>
               <input className="form-control" id="eph" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhoto(e.target.files[0] || null)} />
-              <div className="form-text">Réduite automatiquement à 400 px. Données personnelles d'un mineur : accès réservé au personnel.</div></div>
+              <div className="form-text">{t(
+                "Réduite automatiquement à 400 px. Données personnelles d'un mineur : accès réservé au personnel."
+              )}</div></div>
           </div>
-          <div className="d-flex gap-2 mt-3"><button className="btn btn-primary" disabled={envoi}>{envoi ? "Enregistrement…" : "Enregistrer"}</button>
-            <button type="button" className="btn btn-outline-secondary" onClick={() => setEdition(null)}>Annuler</button></div>
+          <div className="d-flex gap-2 mt-3"><button className="btn btn-primary" disabled={envoi}>{envoi ? t("Enregistrement…") : t("Enregistrer")}</button>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => setEdition(null)}>{t("Annuler")}</button></div>
         </form>
       )}
       <div className="d-flex flex-wrap gap-2 mb-2">
-        <select className="form-select" style={{ maxWidth: 260 }} value={filtre} onChange={(e) => setFiltre(e.target.value)} aria-label="Filtrer par classe">
-          <option value="">Toutes les classes</option>{donnees.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
-          <option value="-">Non inscrits</option></select>
-        <input className="form-control" style={{ maxWidth: 260 }} placeholder="Rechercher (nom, matricule)" value={recherche} onChange={(e) => setRecherche(e.target.value)} aria-label="Rechercher" />
-        <span className="align-self-center small text-muted">{lignes.length} élève(s)</span>
+        <select className="form-select" style={{ maxWidth: 260 }} value={filtre} onChange={(e) => setFiltre(e.target.value)} aria-label={t("Filtrer par classe")}>
+          <option value="">{t("Toutes les classes")}</option>{donnees.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
+          <option value="-">{t("Non inscrits")}</option></select>
+        <input className="form-control" style={{ maxWidth: 260 }} placeholder={t("Rechercher (nom, matricule)")} value={recherche} onChange={(e) => setRecherche(e.target.value)} aria-label={t("Rechercher")} />
+        <span className="align-self-center small text-muted">{lignes.length}{t(" élève(s)")}</span>
       </div>
       <div className="card"><div className="table-responsive"><table className="table table-hover align-middle mb-0">
-        <thead className="table-light"><tr><th /><th>Matricule</th><th>Nom</th><th>Sexe</th><th>Naissance</th><th>Classe</th><th /></tr></thead>
+        <thead className="table-light"><tr><th /><th>{t("Matricule")}</th><th>{t("Nom")}</th><th>{t("Sexe")}</th><th>{t("Naissance")}</th><th>{t("Classe")}</th><th /></tr></thead>
         <tbody>{lignes.map((e) => (
           <tr key={e.id}><td style={{ width: 48 }}>{donnees.photos[e.photo] ? <img src={donnees.photos[e.photo]} alt="" className="vignette" /> : <span className="vignette vide" />}</td>
             <td>{e.matricule}</td><td>{nomComplet(e)}</td><td>{e.sexe}</td><td>{date(e.date_naissance)}</td>
-            <td>{e.classe || <span className="text-muted">—</span>}{e.inscription?.redoublant && <span className="badge text-bg-light ms-1">R</span>}</td>
-            <td className="text-end text-nowrap"><button className="btn btn-sm btn-outline-secondary me-1" onClick={() => ouvrir(e)}>Modifier</button>
-              <button className="btn btn-sm btn-outline-danger" onClick={() => supprimer(e)}>Supprimer</button></td></tr>))}
-          {!lignes.length && <tr><td colSpan={7} className="text-center text-muted py-4">Aucun élève.</td></tr>}</tbody>
+            <td>{e.classe || <span className="text-muted">—</span>}{e.inscription?.redoublant && <span className="badge text-bg-light ms-1">{t("R")}</span>}</td>
+            <td className="text-end text-nowrap"><button className="btn btn-sm btn-outline-secondary me-1" onClick={() => ouvrir(e)}>{t("Modifier")}</button>
+              <button className="btn btn-sm btn-outline-danger" onClick={() => supprimer(e)}>{t("Supprimer")}</button></td></tr>))}
+          {!lignes.length && <tr><td colSpan={7} className="text-center text-muted py-4">{t("Aucun élève.")}</td></tr>}</tbody>
       </table></div></div>
     </>
-  )
+  );
 }

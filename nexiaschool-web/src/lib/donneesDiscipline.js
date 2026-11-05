@@ -1,3 +1,4 @@
+import { locale } from "../i18n.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 import { calculerBilans, sequencesDePeriode } from "./discipline.js"
 
@@ -21,7 +22,7 @@ export function bilansPeriode(discipline, inscriptionIds, periode, sequences) {
   const seqs = new Set(sequencesDePeriode(periode, sequences).map((s) => s.id))
   const dans = (x) => seqs.has(x.sequence_id)
   return calculerBilans(inscriptionIds, discipline.absences.filter(dans), discipline.retards.filter(dans),
-    discipline.incidents.filter(dans).map((x) => ({ inscription_id: x.inscription_id, libelle: `${x.infractions.libelle} (${new Date(x.date).toLocaleDateString("fr-FR")})`,
+    discipline.incidents.filter(dans).map((x) => ({ inscription_id: x.inscription_id, libelle: `${x.infractions.libelle} (${new Date(x.date).toLocaleDateString(locale())})`,
                                                     points: x.infractions.sanctions.points_perdus })),
     discipline.bareme)
 }

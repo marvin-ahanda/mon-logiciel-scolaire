@@ -1,22 +1,23 @@
 import { supabase } from "../supabase.js"
+import { t } from "../i18n.jsx"
 
 const COTE_MAX = 512                  // pixels : net à l'impression, léger à charger
 const POIDS_MAX = 500 * 1024          // limite du compartiment « logos »
 
 /** Vérifie et réduit le logo (512 px au plus) : PNG pour garder la transparence, JPEG si le PNG est trop lourd. */
 export async function preparerLogo(fichier) {
-  if (!/^image\/(png|jpeg|webp)$/.test(fichier.type)) throw new Error("Format accepté pour le logo : PNG, JPEG ou WEBP.")
-  if (fichier.size > 10 * 1024 * 1024) throw new Error("Logo trop lourd (10 Mo au plus).")
+  if (!/^image\/(png|jpeg|webp)$/.test(fichier.type)) throw new Error(t("Format accepté pour le logo : PNG, JPEG ou WEBP."))
+  if (fichier.size > 10 * 1024 * 1024) throw new Error(t("Logo trop lourd (10 Mo au plus)."))
   let image
-  try { image = await createImageBitmap(fichier) } catch { throw new Error("Image illisible : choisissez un autre fichier.") }
-  if (image.width < 32 || image.height < 32) throw new Error("Logo trop petit (32 × 32 pixels au minimum).")
+  try { image = await createImageBitmap(fichier) } catch { throw new Error(t("Image illisible : choisissez un autre fichier.")) }
+  if (image.width < 32 || image.height < 32) throw new Error(t("Logo trop petit (32 × 32 pixels au minimum)."))
   const echelle = Math.min(1, COTE_MAX / Math.max(image.width, image.height))
   const toile = document.createElement("canvas")
   toile.width = Math.round(image.width * echelle); toile.height = Math.round(image.height * echelle)
   const ctx = toile.getContext("2d")
   ctx.imageSmoothingQuality = "high"
   ctx.drawImage(image, 0, 0, toile.width, toile.height)
-  const blob = (type, qualite) => new Promise((ok, ko) => toile.toBlob((b) => (b ? ok(b) : ko(new Error("Conversion du logo impossible."))), type, qualite))
+  const blob = (type, qualite) => new Promise((ok, ko) => toile.toBlob((b) => (b ? ok(b) : ko(new Error(t("Conversion du logo impossible.")))), type, qualite))
   let resultat = await blob("image/png")
   if (resultat.size > POIDS_MAX) {                       // logo photographique : JPEG sur fond blanc
     ctx.globalCompositeOperation = "destination-over"; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, toile.width, toile.height)
@@ -31,11 +32,15 @@ export async function envoyerLogo(etablissementId, blob, ancien) {
   const extension = blob.type === "image/jpeg" ? "jpg" : "png"
   const chemin = `${etablissementId}/logo-${Date.now()}.${extension}`
   const envoi = await supabase.storage.from("logos").upload(chemin, blob, { contentType: blob.type, cacheControl: "3600" })
-  if (envoi.error) throw new Error(`Envoi du logo impossible : ${envoi.error.message}`)
+  if (envoi.error) throw new Error(t("Envoi du logo impossible : {v0}", {
+    v0: envoi.error.message
+  }))
   const maj = await supabase.from("etablissements").update({ logo: chemin }).eq("id", etablissementId)
   if (maj.error) {
     await supabase.storage.from("logos").remove([chemin])
-    throw new Error(`Enregistrement du logo impossible : ${maj.error.message}`)
+    throw new Error(t("Enregistrement du logo impossible : {v0}", {
+      v0: maj.error.message
+    }))
   }
   if (ancien && ancien !== chemin) await supabase.storage.from("logos").remove([ancien])
   return chemin
