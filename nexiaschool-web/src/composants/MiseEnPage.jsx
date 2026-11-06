@@ -5,6 +5,7 @@ import { supabase } from "../supabase.js"
 import { nomComplet } from "../lib/format.js"
 import { BulleLogo } from "./Logo.jsx"
 import AlerteFinance from "./AlerteFinance.jsx"
+import AlerteDiscipline from "./AlerteDiscipline.jsx"
 import { ChoixLangue, t } from "../i18n.jsx"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
@@ -83,7 +84,7 @@ export default function MiseEnPage() {
               <li className="nav-item"><NavLink className={lien} to="/" end>{t("Accueil")}</NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/eleves">{t("Élèves")}</NavLink></li>}
               {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ["/notes/bulletins", t("Bulletins")]]} />}
-              {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")]]} />}
+              {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
               {peutNoter && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
@@ -106,7 +107,11 @@ export default function MiseEnPage() {
       <main className="container-fluid py-3 px-3 px-lg-4">
         <Outlet />
       </main>
-      {peutFinance && exercice && <AlerteFinance />}
+      {exercice && (peutFinance || peutDiscipline) && (
+        <div className="bulles-alertes no-print">
+          {peutDiscipline && <AlerteDiscipline />}
+          {peutFinance && <AlerteFinance />}
+        </div>)}
     </>
   );
 }

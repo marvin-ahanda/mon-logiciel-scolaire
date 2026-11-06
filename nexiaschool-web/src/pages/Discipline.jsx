@@ -8,6 +8,8 @@ import { supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10)
+/** Prévient la bulle d'alerte de discipline qu'il faut recalculer les alertes. */
+export const signalerMajDiscipline = () => window.dispatchEvent(new Event("discipline:maj"))
 
 /** Classes et séquences de l'exercice actif. */
 function useReference() {
@@ -102,7 +104,7 @@ export function Appel() {
       if (supprRet.length) verifier(await supabase.from("retards").delete().in("id", supprRet))
       setMessage({ ok: t("Appel du {v0} enregistré.", {
         v0: date(jour)
-      }) }); rafraichir()
+      }) }); rafraichir(); signalerMajDiscipline()
     } catch (x) { setMessage({ erreur: x.message }) } finally { setEnvoi(false) }
   }
 
@@ -173,12 +175,12 @@ export function Infractions() {
       setMessage({ ok: t("Infraction enregistrée pour {v0}.", {
         v0: donnees.noms.get(f.inscription_id)
       }) })
-      setF({ ...f, inscription_id: "", observation: "" }); rafraichir()
+      setF({ ...f, inscription_id: "", observation: "" }); rafraichir(); signalerMajDiscipline()
     } catch (x) { setMessage({ erreur: x.message }) }
   }
   async function supprimer(x) {
     if (!confirm(t("Supprimer cette infraction ?"))) return
-    try { verifier(await supabase.from("incidents").delete().eq("id", x.id)); rafraichir() } catch (err) { setMessage({ erreur: err.message }) }
+    try { verifier(await supabase.from("incidents").delete().eq("id", x.id)); rafraichir(); signalerMajDiscipline() } catch (err) { setMessage({ erreur: err.message }) }
   }
 
   if (!exercice) return <div className="alert alert-warning">{t("Aucun exercice actif.")}</div>;

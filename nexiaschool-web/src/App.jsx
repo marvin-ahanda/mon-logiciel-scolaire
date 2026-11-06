@@ -23,6 +23,7 @@ import Saisie from "./pages/Saisie.jsx"
 import { SessionProvider, useSession } from "./Session.jsx"
 import { supabase } from "./supabase.js"
 import { ChoixLangue, t } from "./i18n.jsx"
+import AlertesDiscipline from "./pages/AlertesDiscipline.jsx"
 
 const Console = lazy(() => import("./pages/Console.jsx"))      // chargée seulement par le propriétaire
 
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="/discipline/appel" element={<Appel />} />
             <Route path="/discipline/infractions" element={<Infractions />} />
             <Route path="/discipline/suivi" element={<Suivi />} />
+            <Route path="/discipline/alertes" element={<AlertesDiscipline />} />
           </Route>
           <Route element={<Protege droit="peutFinance" />}>
             <Route path="/finance/*" element={<Finance />} />

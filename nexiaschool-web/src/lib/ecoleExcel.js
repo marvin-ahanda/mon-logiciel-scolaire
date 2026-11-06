@@ -293,7 +293,7 @@ const dateHeureTexte = (d) => (d ? new Date(d).toLocaleString(locale(), { dateSt
 export async function exporterEcole(etablissement) {
   const tout = (table, colonnes, ordre = "id") => toutCharger(() => supabase.from(table).select(colonnes).order(ordre))
   const [exercices, sequences, sections, classes, matieres, attributions, personnels, eleves, inscriptions, notes, baremes, sanctions, infractions,
-         absences, retards, incidents, frais, echeances, paiements] = await Promise.all([
+         absences, retards, incidents, frais, echeances, paiements, seuilsDiscipline, seuilsSanctions] = await Promise.all([
     tout("exercices", "id, libelle, actif, cree_le"), tout("sequences", "id, exercice_id, numero, trimestre, verrouillee"),
     tout("sections", "id, libelle, ordre"), tout("classes", "id, libelle, niveau, ordre, coef_min, section_id, cycle"), tout("matieres", "id, code, libelle"),
     tout("attributions", "id, exercice_id, classe_id, matiere_id, enseignant_id, coefficient, groupe"), tout("personnels", COLONNES_PERSONNEL),
@@ -306,6 +306,7 @@ export async function exporterEcole(etablissement) {
     tout("retards", "id, inscription_id, sequence_id, date"), tout("incidents", "id, inscription_id, sequence_id, date, infraction_id, observation"),
     tout("frais_scolarite", "exercice_id, pension_nouveaux, pension_anciens", "exercice_id"), tout("echeances", "id, exercice_id, rang, libelle, montant, date_limite"),
     tout("paiements", "id, inscription_id, numero, montant, date_paiement, mode, reference, observation, saisi_par, cree_le"),
+    tout("seuils_discipline", "etablissement_id, heures_non_justifiees", "etablissement_id"), tout("seuils_sanctions", "sanction_id, seuil", "sanction_id"),
   ])
   const par = (liste, cle = "id") => new Map(liste.map((x) => [x[cle], x]))
   const ex = par(exercices), seq = par(sequences), sec = par(sections), cla = par(classes), mat = par(matieres), att = par(attributions)
@@ -383,6 +384,9 @@ export async function exporterEcole(etablissement) {
       lignes: [...infractions.map((i) => [i.libelle, sanc.get(i.sanction_id)?.libelle, Number(sanc.get(i.sanction_id)?.points_perdus ?? 0)]),
                ...sanctions.filter((s) => !infractions.some((i) => i.sanction_id === s.id)).map((s) => ["", s.libelle, Number(s.points_perdus)])]
         .sort((a, b) => comparerNoms(a[0], b[0]) || comparerNoms(a[1], b[1])) },
+    { titre: t("Seuils d'alerte"), intitule: t("Seuils d'alerte de discipline (année en cours)"), entetes: [t("Critère"), t("Seuil")],
+      lignes: [...(seuilsDiscipline[0]?.heures_non_justifiees ? [[t("Heures d'absence non justifiées (cumul)"), seuilsDiscipline[0].heures_non_justifiees]] : []),
+               ...seuilsSanctions.map((x) => [t("Nombre de sanctions : {v0}", { v0: sanc.get(x.sanction_id)?.libelle || "" }), x.seuil])] },
     { titre: t("Absences"), intitule: t("Absences des élèves"),
       entetes: [t("Année scolaire"), t("Séquence"), t("Date"), t("Classe"), t("Matricule"), t("Élève"), t("Heures non justifiées"), t("Heures justifiées"), t("Motif")],
       lignes: evenementsEleve(absences).map(({ x, e }) => [annee(seq.get(x.sequence_id)?.exercice_id), seq.get(x.sequence_id)?.numero, jourExcel(x.date),
