@@ -333,4 +333,5 @@ select pg_temp.verifier(true, 'les autres modifications d''une attribution reste
 reset role;
 \ir scenario_finance.sql
 \ir scenario_console.sql
+\ir scenario_import.sql
 \echo SCÉNARIO TERMINÉ

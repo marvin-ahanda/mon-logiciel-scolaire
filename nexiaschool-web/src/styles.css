@@ -96,3 +96,12 @@ body:has(.modal.d-block) .bulle-alerte { display: none; }
 @media (min-width: 1200px) and (max-width: 1599.98px) { .compte .compte-nom { display: none; } }
 @media (max-width: 1199.98px) { .navbar-collapse .d-flex.align-items-center.gap-2 { flex-wrap: wrap; padding-bottom: .5rem; } }
 @media (min-width: 1200px) and (max-width: 1299.98px) { .navbar .marque-texte { display: none; } }
+
+/* Import complet de l'école : impression des seuls codes du personnel */
+@media print {
+  body.impression-ciblee * { visibility: hidden; }
+  body.impression-ciblee .zone-impression, body.impression-ciblee .zone-impression * { visibility: visible; }
+  body.impression-ciblee .zone-impression { position: absolute; left: 0; top: 0; width: 100%; border: none !important; }
+}
+@media (min-width: 992px) { .border-start-lg { border-left: 1px solid #dee2e6; } }
+.liste-erreurs { max-height: 220px; overflow: auto; }

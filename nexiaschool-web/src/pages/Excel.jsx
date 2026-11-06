@@ -7,6 +7,7 @@ import { periodes } from "../lib/periodes.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
+import ExcelEcole from "./ExcelEcole.jsx"
 
 const ENTETES_ELEVES = ["Matricule", "Nom", "Prénom", "Sexe", "Date de naissance", "Lieu de naissance", "Téléphone du parent", "Classe"]
 // en-têtes reconnus à l'import (français et anglais)
@@ -299,10 +300,12 @@ export default function Excel() {
     const siennes = new Set(attributions.map((a) => a.classe_id))
     return { classes, attributions, sequences, periodes: periodes(sequences), classesResultats: estAdmin ? classes : classes.filter((c) => siennes.has(c.id)) }
   }, [exercice?.id])
-  if (!ref_) return <><Alerte>{erreur}</Alerte><Chargement /></>
   return (
     <>
       <h1 className="h3 mb-3">{t("Import et export Excel")}</h1>
+      {/* hors du chargement : le bilan de l'import (codes du personnel) reste affiché quand l'année scolaire change */}
+      {estAdmin && <div className="row g-3 mb-3"><ExcelEcole /></div>}
+      {!ref_ ? <><Alerte>{erreur}</Alerte><Chargement /></> : <>
       {!exercice && <div className="alert alert-warning">{t(
         "Aucun exercice actif : seuls l'import et l'export des élèves sont possibles."
       )}</div>}
@@ -310,7 +313,7 @@ export default function Excel() {
         {estAdmin && <Eleves ref_={ref_} />}
         {exercice && <Notes ref_={ref_} />}
         {exercice && <ExportResultats ref_={ref_} />}
-      </div>
+      </div></>}
     </>
   );
 }

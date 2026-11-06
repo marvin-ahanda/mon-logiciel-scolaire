@@ -8,8 +8,9 @@ export const LIGNES_MAX = 3000
 /** « Date de naissance » -> « datedenaissance » (casse, accents, espaces et ponctuation ignorés). */
 export const normaliser = (s) => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
 
-/** Neutralise l'injection de formules (un texte commençant par = + - @ n'est jamais interprété par Excel). */
-const sur = (v) => (typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? "'" + v : v)
+/** Neutralise l'injection de formules : les cellules sont écrites comme texte, et un texte commençant par = ou @ reçoit
+ *  une apostrophe. Les numéros de téléphone (« +237 … ») restent intacts. */
+const sur = (v) => (typeof v === "string" && /^[=@\t\r]/.test(v) ? "'" + v : v)
 
 function cellule(v, gras) {
   if (v === null || v === undefined || v === "") return null
@@ -18,15 +19,55 @@ function cellule(v, gras) {
            format: valeur instanceof Date ? "dd/mm/yyyy" : undefined, fontWeight: gras ? "bold" : undefined }
 }
 
-/** feuilles : [{ titre, entetes, lignes, largeurs? }] -> téléchargement de « nom-AAAAMMJJ.xlsx » */
+/** feuilles : [{ titre, entetes, lignes, largeurs?, intitule? }] -> téléchargement de « nom-AAAAMMJJ.xlsx ».
+ *  intitule : ligne de titre en gras au-dessus des en-têtes (ex. « Liste des élèves »). */
 export async function telechargerClasseur(feuilles, nom) {
   const { default: ecrire } = await import("write-excel-file/browser")
-  const donnees = feuilles.map((f) => [f.entetes.map((e) => cellule(e, true)), ...f.lignes.map((l) => l.map((v) => cellule(v)))])
+  const donnees = feuilles.map((f) => [
+    ...(f.intitule ? [[{ value: sur(f.intitule), type: String, fontWeight: "bold", fontSize: 13 }], []] : []),
+    f.entetes.map((e) => cellule(e, true)), ...f.lignes.map((l) => l.map((v) => cellule(v)))])
   const colonnes = feuilles.map((f) => f.entetes.map((e, k) => ({
     width: f.largeurs?.[k] ?? Math.min(45, Math.max(10, String(e).length + 2, ...f.lignes.slice(0, 300).map((l) => String(l[k] ?? "").length + 2))) })))
   const jour = new Date().toISOString().slice(0, 10).replaceAll("-", "")
-  await ecrire(feuilles.map((f, k) => ({ data: donnees[k], sheet: f.titre.replace(/[\\/?*[\]:]/g, " ").slice(0, 31), columns: colonnes[k], stickyRowsCount: 1 })))
+  await ecrire(feuilles.map((f, k) => ({ data: donnees[k], sheet: f.titre.replace(/[\\/?*[\]:]/g, " ").slice(0, 31), columns: colonnes[k],
+                                         stickyRowsCount: f.intitule ? 3 : 1 })))
     .toFile(`${nom}-${jour}.xlsx`)
+}
+
+/** Lit toutes les feuilles d'un classeur .xlsx : [{ nom, data }] (contrôles de format et de taille). */
+export async function lireFeuilles(fichier, tailleMax = TAILLE_MAX) {
+  if (fichier.size > tailleMax) throw new Error(t("Le fichier dépasse {v0} Mo.", { v0: Math.round(tailleMax / 1048576) }))
+  const debut = new Uint8Array(await fichier.slice(0, 4).arrayBuffer())
+  if (!(debut[0] === 0x50 && debut[1] === 0x4b)) {
+    throw new Error(t(
+      "Ce n'est pas un classeur Excel .xlsx (les anciens fichiers .xls ou .csv ne sont pas acceptés : enregistrez-le au format « Classeur Excel (.xlsx) »)."
+    ))
+  }
+  const { default: lire } = await import("read-excel-file/browser")
+  try { return (await lire(fichier)).map((f) => ({ nom: f.sheet, data: f.data || [] })) } catch { throw new Error(t("Classeur Excel illisible ou endommagé.")) }
+}
+
+/**
+ * Repère la ligne d'en-têtes parmi les 6 premières (une ligne de titre peut la précéder) et renvoie les lignes de données.
+ * colonnes : { cle: [en-têtes acceptés] } ; obligatoires : clés qui doivent être présentes pour reconnaître l'en-tête.
+ */
+export function extraireLignes(data, colonnes, obligatoires) {
+  for (let h = 0; h < Math.min(6, data.length); h++) {
+    const index = new Map((data[h] || []).map((e, k) => [normaliser(e), k]))
+    const positions = {}
+    for (const [cle, noms] of Object.entries(colonnes)) {
+      const trouve = noms.map(normaliser).find((n) => index.has(n))
+      if (trouve !== undefined) positions[cle] = index.get(trouve)
+    }
+    if (!obligatoires.every((c) => c in positions)) continue
+    const lignes = []
+    data.slice(h + 1).forEach((ligne, k) => {
+      if (!ligne || ligne.every((v) => v === null || String(v).trim() === "")) return
+      lignes.push({ numero: h + k + 2, valeurs: Object.fromEntries(Object.entries(positions).map(([cle, i]) => [cle, ligne[i] ?? null])) })
+    })
+    return { lignes, presentes: new Set(Object.keys(positions)) }
+  }
+  return null
 }
 
 /**
@@ -65,7 +106,8 @@ export async function lireClasseur(fichier, colonnes) {
 
 export function texte(v, longueur) {
   if (v === null || v === undefined) return ""
-  const x = (typeof v === "number" && Number.isInteger(v) ? String(v) : String(v)).trim()
+  // apostrophe ajoutée par un ancien export devant « +237 … » : retirée
+  const x = (typeof v === "number" && Number.isInteger(v) ? String(v) : String(v)).trim().replace(/^'(?=[=+\-@])/, "")
   return longueur ? x.slice(0, longueur) : x
 }
 
@@ -84,7 +126,7 @@ export function enDate(v) {
 }
 function valider(a, mo, j, brut) {
   const d = new Date(Date.UTC(a, mo - 1, j))
-  if (d.getUTCFullYear() !== a || d.getUTCMonth() !== mo - 1 || d.getUTCDate() !== j) throw new Error(`date « ${brut} » invalide`)
+  if (d.getUTCFullYear() !== a || d.getUTCMonth() !== mo - 1 || d.getUTCDate() !== j) throw new Error(t("date « {v0} » invalide", { v0: brut }))
   return d.toISOString().slice(0, 10)
 }
 
@@ -106,5 +148,15 @@ export function enSexe(v) {
   const n = normaliser(v)
   if (["m", "g", "garcon", "masculin", "homme"].includes(n)) return "M"
   if (["f", "fille", "feminin", "femme"].includes(n)) return "F"
+  return null
+}
+
+/** Oui / non : oui, o, x, 1, vrai, yes, y, true -> true ; non, n, 0, faux, no, false -> false ; vide -> undefined ; autre -> null. */
+export function enOuiNon(v) {
+  if (v === null || v === undefined || String(v).trim() === "") return undefined
+  if (typeof v === "boolean") return v
+  const n = normaliser(v)
+  if (["oui", "o", "x", "1", "vrai", "yes", "y", "true"].includes(n)) return true
+  if (["non", "n", "0", "faux", "no", "false"].includes(n)) return false
   return null
 }
