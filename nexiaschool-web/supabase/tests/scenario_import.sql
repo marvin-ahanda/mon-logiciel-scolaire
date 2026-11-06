@@ -78,6 +78,35 @@ do $$ begin perform public.importer_ecole(jsonb_build_object('programme', '[{"cl
   raise exception 'enseignant inconnu accepté';
 exception when sqlstate 'P0001' then raise notice 'ok : enseignant introuvable refusé'; end $$;
 
+-- Notes : [matricule, code matière, séquence, note] pour l'année active, contrôlées avant toute écriture
+do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 1, 12.5], ["C001", "ENG", 1, 10]]'::jsonb));
+  raise exception 'matière hors classe acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : note dans une matière que la classe n''a pas refusée'; end $$;
+do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 1, 21]]'::jsonb)); raise exception 'note > 20 acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : note supérieure à 20 refusée'; end $$;
+do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 7, 12]]'::jsonb)); raise exception 'séquence 7 acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : séquence hors 1 à 6 refusée'; end $$;
+do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 1, 12], ["C001", "math", 1, 13]]'::jsonb)); raise exception 'doublon accepté';
+exception when sqlstate 'P0001' then raise notice 'ok : note en double refusée'; end $$;
+do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["X999", "MATH", 1, 12]]'::jsonb)); raise exception 'élève inconnu accepté';
+exception when sqlstate 'P0001' then raise notice 'ok : élève inconnu refusé'; end $$;
+select pg_temp.verifier((select count(*) from public.notes) = 0, 'notes refusées : rien n''est enregistré');
+
+select public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 1, 12.5], ["C001", "FR", 1, "9.75"], ["C001", "MATH", 2, 14], ["C002", "ENG", 1, 16]]'::jsonb)) as r3 \gset
+select set_config('app.r3', :'r3', false) \g /dev/null
+select pg_temp.verifier((current_setting('app.r3')::json->'notes'->>'crees')::int = 4
+  and (select n.valeur from public.notes n join public.sequences s on s.id = n.sequence_id join public.attributions a on a.id = n.attribution_id
+         join public.matieres m on m.id = a.matiere_id where m.code = 'FR' and s.numero = 1) = 9.75,
+  'notes importées dans la bonne matière, la bonne séquence et la classe de l''élève');
+select public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 1, 13], ["C001", "MATH", 2, 14]]'::jsonb)) as r4 \gset
+select set_config('app.r4', :'r4', false) \g /dev/null
+select pg_temp.verifier((current_setting('app.r4')::json->'notes'->>'crees')::int = 0 and (current_setting('app.r4')::json->'notes'->>'modifies')::int = 1
+  and (select count(*) from public.notes) = 4, 'réimport des notes : seule la note changée est mise à jour, sans doublon');
+update public.sequences set verrouillee = true where numero = 2 and exercice_id = (select id from public.exercices where actif);
+do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 2, 15]]'::jsonb)); raise exception 'séquence verrouillée modifiée';
+exception when sqlstate 'P0001' then raise notice 'ok : séquence verrouillée protégée'; end $$;
+update public.sequences set verrouillee = false where numero = 2 and exercice_id = (select id from public.exercices where actif);
+
 -- Isolation : un autre établissement ne voit rien de cet import
 select set_config('request.jwt.claim.sub', :'admin_b', false) \g /dev/null
 select pg_temp.verifier((select count(*) from public.classes where libelle = 'Form 1') = 0, 'les données importées restent dans leur établissement');

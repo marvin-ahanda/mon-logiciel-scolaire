@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Alerte } from "../composants/Communs.jsx"
-import { analyserEcole, chargerExistant, exporterEcole, lireEcole, modeleEcole, ROLES_IMPORT } from "../lib/ecoleExcel.js"
+import { analyserEcole, chargerExistant, cumulerBilan, decouperImport, exporterEcole, lireEcole, modeleEcole, ROLES_IMPORT } from "../lib/ecoleExcel.js"
 import { useSession } from "../Session.jsx"
 import { rpc } from "../supabase.js"
 import { t } from "../i18n.jsx"
@@ -11,7 +11,7 @@ function anneeParDefaut() {
   return `${a}-${a + 1}`
 }
 
-function Validation({ analyse, envoi, onValider, onFermer }) {
+function Validation({ analyse, envoi, progression, onValider, onFermer }) {
   const { resume: r, erreurs } = analyse
   useEffect(() => {
     const echap = (x) => x.key === "Escape" && !envoi && onFermer()
@@ -49,22 +49,27 @@ function Validation({ analyse, envoi, onValider, onFermer }) {
               {ligne(t("Classes"), r.classes.total, t("{v0} nouvelle(s)", { v0: r.classes.nouvelles }))}
               {ligne(t("Matières"), r.matieres.total, t("{v0} nouvelle(s)", { v0: r.matieres.nouvelles }))}
               {ligne(t("Matières par classe"), r.programme, t("coefficient, groupe et enseignant"))}
+              {(r.notes.total > 0 || r.notes.autresAnnees > 0) && ligne(t("Notes"), r.notes.total, [
+                r.notes.total ? t("{v0} élève(s) · séquence(s) {v1}", { v0: r.notes.eleves, v1: r.notes.sequences.join(", ") }) : "",
+                r.notes.autresAnnees ? t("{v0} note(s) d'une autre année ignorée(s)", { v0: r.notes.autresAnnees }) : "",
+                r.notes.vides ? t("{v0} case(s) vide(s) ignorée(s)", { v0: r.notes.vides }) : ""].filter(Boolean).join(" · "))}
             </tbody></table>
             {r.parClasse.length > 0 && (<>
               <h3 className="h6">{t("Par classe")}</h3>
               <div className="table-responsive border rounded" style={{ maxHeight: 300 }}><table className="table table-sm mb-0 small">
                 <thead className="table-light"><tr><th>{t("Classe")}</th><th className="text-end">{t("Élèves du fichier")}</th><th className="text-end">{t("Garçons")}</th>
-                  <th className="text-end">{t("Filles")}</th><th className="text-end">{t("Matières")}</th><th className="text-end">{t("Total des coefficients")}</th></tr></thead>
+                  <th className="text-end">{t("Filles")}</th><th className="text-end">{t("Matières")}</th><th className="text-end">{t("Total des coefficients")}</th>{r.notes.total > 0 && <th className="text-end">{t("Notes")}</th>}</tr></thead>
                 <tbody>{r.parClasse.map((c) => (
                   <tr key={c.classe}><td>{c.classe}</td><td className="text-end">{c.eleves}</td><td className="text-end">{c.garcons}</td><td className="text-end">{c.filles}</td>
-                    <td className="text-end">{c.matieres}</td><td className="text-end">{c.coefficients}</td></tr>))}</tbody>
+                    <td className="text-end">{c.matieres}</td><td className="text-end">{c.coefficients}</td>
+                    {r.notes.total > 0 && <td className="text-end">{c.notes}</td>}</tr>))}</tbody>
               </table></div></>)}
             {r.ignorees.length > 0 && <p className="small text-muted mt-2 mb-0">{t("Feuilles ignorées (non reconnues) : {v0}", { v0: r.ignorees.join(", ") })}</p>}
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline-secondary" disabled={envoi} onClick={onFermer}>{t("Annuler")}</button>
             <button type="button" className="btn btn-success" disabled={erreurs.length > 0 || envoi} onClick={onValider}>
-              {envoi ? t("Enregistrement…") : t("Valider l'import")}</button>
+              {envoi ? t("Enregistrement… {v0} %", { v0: progression }) : t("Valider l'import")}</button>
           </div>
         </div></div>
       </div>
@@ -83,13 +88,14 @@ function Bilan({ r, onFermer }) {
   return (
     <div className="mt-3">
       <div className="alert alert-success">
-        <p className="fw-semibold mb-1">{t("Import terminé : les données sont rangées dans leurs rubriques.")}</p>
+        <p className="fw-semibold mb-1">{r.interruption ? t("Import interrompu : voici ce qui a déjà été enregistré.") : t("Import terminé : les données sont rangées dans leurs rubriques.")}</p>
         <ul className="small mb-0">
           {r.annee_creee && <li>{t("Année scolaire {v0} créée et activée.", { v0: r.annee })}</li>}
-          <li>{t("Élèves : {v0}", { v0: n(r.eleves, "crees", "modifies") })}</li>
-          <li>{t("Personnel : {v0} créé(s), {v1} déjà présent(s)", { v0: r.personnels.crees, v1: r.personnels.existants })}</li>
+          {r.eleves && <li>{t("Élèves : {v0}", { v0: n(r.eleves, "crees", "modifies") })}</li>}
+          {r.personnels && <li>{t("Personnel : {v0} créé(s), {v1} déjà présent(s)", { v0: r.personnels.crees, v1: r.personnels.existants })}</li>}
           <li>{t("Classes : {v0}", { v0: n(r.classes, "crees", "modifies") })} · {t("Sections : {v0}", { v0: n(r.sections, "crees", "modifies") })}</li>
-          <li>{t("Matières : {v0}", { v0: n(r.matieres, "crees", "modifies") })} · {t("Matières par classe : {v0}", { v0: n(r.programme, "crees", "modifies") })}</li>
+          <li>{t("Matières : {v0}", { v0: n(r.matieres, "crees", "modifies") })}{r.programme && <> · {t("Matières par classe : {v0}", { v0: n(r.programme, "crees", "modifies") })}</>}</li>
+          {r.notes && (r.notes.crees > 0 || r.notes.modifies > 0) && <li>{t("Notes : {v0}", { v0: n(r.notes, "crees", "modifies") })}</li>}
         </ul>
       </div>
       {r.codes.length > 0 && (
@@ -115,7 +121,7 @@ export default function ExcelEcole() {
   const { exercice, etablissement, recharger } = useSession()
   const [annee, setAnnee] = useState(anneeParDefaut())
   const [analyse, setAnalyse] = useState(null), [bilan, setBilan] = useState(null)
-  const [msg, setMsg] = useState({}), [occupe, setOccupe] = useState(""), [envoi, setEnvoi] = useState(false)
+  const [msg, setMsg] = useState({}), [occupe, setOccupe] = useState(""), [envoi, setEnvoi] = useState(false), [progression, setProgression] = useState(0)
 
   async function analyser(fichier) {
     setMsg({}); setBilan(null); setOccupe("lecture")
@@ -126,12 +132,23 @@ export default function ExcelEcole() {
   }
 
   async function valider() {
-    setEnvoi(true)
+    setEnvoi(true); setProgression(0)
+    const etapes = decouperImport(analyse.donnees)
+    let total = null
     try {
-      const r = await rpc("importer_ecole", { p: analyse.donnees })
-      setAnalyse(null); setBilan(r)
-      await recharger()        // année scolaire éventuellement créée
-    } catch (x) { setAnalyse(null); setMsg({ erreur: t("Rien n'a été enregistré : {v0}", { v0: x.message }) }) } finally { setEnvoi(false) }
+      for (let k = 0; k < etapes.length; k++) {
+        total = cumulerBilan(total, await rpc("importer_ecole", { p: etapes[k] }))
+        setProgression(Math.round(((k + 1) / etapes.length) * 100))
+      }
+      setAnalyse(null); setBilan(total)
+    } catch (x) {
+      setAnalyse(null)
+      if (!total) setMsg({ erreur: t("Rien n'a été enregistré : {v0}", { v0: x.message }) })
+      else {
+        setBilan({ ...total, interruption: true })    // les codes déjà créés restent affichés
+        setMsg({ erreur: t("L'enregistrement s'est interrompu ({v0}). Ce qui précède est enregistré : réimportez le même fichier pour terminer, rien ne sera dupliqué.", { v0: x.message }) })
+      }
+    } finally { setEnvoi(false); recharger().catch(() => {}) }     // année scolaire éventuellement créée
   }
 
   async function exporter() {
@@ -151,7 +168,7 @@ export default function ExcelEcole() {
           <div className="row g-4">
             <div className="col-lg-7">
               <h2 className="h6">{t("Importer le fichier complet de l'école")}</h2>
-              <p className="small text-muted">{t("Un seul fichier Excel pour tout installer : sections, classes, matières avec leurs coefficients et groupes, personnel et rôles, élèves avec leur classe, leur sexe, leur date de naissance et le contact du parent. Un résumé vous est présenté avant tout enregistrement.")}</p>
+              <p className="small text-muted">{t("Un seul fichier Excel pour tout installer : sections, classes, matières avec leurs coefficients et groupes, personnel et rôles, élèves avec leur classe, leur sexe, leur date de naissance et le contact du parent, et leurs notes par séquence. Un résumé vous est présenté avant tout enregistrement.")}</p>
               {!exercice && (
                 <div className="mb-2" style={{ maxWidth: 260 }}>
                   <label className="form-label small mb-1" htmlFor="annee-import">{t("Année scolaire à créer")}</label>
@@ -176,7 +193,7 @@ export default function ExcelEcole() {
           {bilan && <Bilan r={bilan} onFermer={() => setBilan(null)} />}
         </div>
       </div>
-      {analyse && <Validation analyse={analyse} envoi={envoi} onValider={valider} onFermer={() => setAnalyse(null)} />}
+      {analyse && <Validation analyse={analyse} envoi={envoi} progression={progression} onValider={valider} onFermer={() => setAnalyse(null)} />}
     </div>
   )
 }

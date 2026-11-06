@@ -1,7 +1,7 @@
 // Fichier Excel complet de l'établissement : modèle à remplir, lecture et contrôle avant import, export de toutes les données.
 import { locale, t } from "../i18n.jsx"
 import { COLONNES_PERSONNEL } from "./colonnes.js"
-import { enDate, enOuiNon, enSexe, extraireLignes, lireFeuilles, normaliser, telechargerClasseur, texte } from "./excel.js"
+import { enDate, enNote, enOuiNon, enSexe, extraireLignes, lireFeuilles, normaliser, telechargerClasseur, texte } from "./excel.js"
 import { comparerNoms, nomComplet } from "./format.js"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 
@@ -30,6 +30,11 @@ const FEUILLES = {
                 lieu_naissance: ["Lieu de naissance", "Place of birth"],
                 telephone_parent: ["Contact du parent", "Parent's contact", "Parent contact", "Téléphone du parent", "Téléphone", "Telephone", "Parent's phone", "Phone"],
                 classe: ["Classe", "Class"], redoublant: ["Redoublant", "Repeater", "Repeating"], nouveau: ["Nouvel élève", "Nouveau", "New student", "New"] } },
+  // même présentation que la feuille « Notes » de l'export : un fichier exporté se réimporte tel quel
+  notes: { noms: ["Notes", "Grades", "Marks", "Notes des élèves"], obligatoires: ["matricule", "matiere", "sequence", "note"],
+    colonnes: { matricule: ["Matricule", "Student ID"], matiere: ["Code matière", "Matière", "Subject code", "Subject"],
+                sequence: ["Séquence", "Sequence", "Séq.", "Seq"], note: ["Note", "Note /20", "Note sur 20", "Grade", "Grade /20", "Mark"],
+                annee: ["Année scolaire", "School year"], classe: ["Classe", "Class"] } },
 }
 
 export const ROLES_IMPORT = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
@@ -74,12 +79,15 @@ export function modeleEcole() {
                                      t("Contact du parent"), t("Classe"), t("Redoublant"), t("Nouvel élève")],
       lignes: [["2026-0001", "NGONO", "Marie", "F", new Date(Date.UTC(2014, 1, 14)), t("Yaoundé"), "+237 677 000 000", "6e A", t("Non"), t("Oui")],
                ["2026-0002", "SMITH", "John", "M", new Date(Date.UTC(2014, 5, 3)), "Bamenda", "+237 655 000 000", "Form 1", t("Non"), t("Non")]] },
+    { titre: t("Notes"), entetes: [t("Matricule"), t("Code matière"), t("Séquence"), t("Note")],
+      lignes: [["2026-0001", "MATH", 1, 14.5], ["2026-0001", "FR", 1, 12], ["2026-0002", "MATH", 1, 9.75]] },
     { titre: t("Mode d'emploi"), entetes: [t("Consignes")], largeurs: [120], lignes: [
       [t("Remplissez les feuilles utiles (vous pouvez en laisser vides) sans changer les titres des colonnes, puis importez le fichier.")],
       [t("Sections et Classes : le nom de la section d'une classe doit figurer dans la feuille Sections (ou exister déjà). Cycle : 1 (premier) ou 2 (second).")],
       [t("Personnel : Fonction = Administration, Enseignant, Surveillant général ou Comptable / caissier. Chaque nouveau membre reçoit un code personnel affiché à la fin de l'import.")],
       [t("Matières par classe : une ligne par matière enseignée dans une classe, avec son coefficient (1 à 20), son groupe (1 à 3) et, si vous le souhaitez, l'enseignant (matricule ou NOM Prénom).")],
       [t("Élèves : Matricule, Nom et Sexe (M ou F) obligatoires ; date de naissance au format jj/mm/aaaa ; Redoublant et Nouvel élève : Oui ou Non.")],
+      [t("Notes : une ligne par note, avec le matricule de l'élève, le code de la matière (enseignée dans sa classe), la séquence (1 à 6) et la note sur 20. Une note vide est ignorée ; une note déjà enregistrée est remplacée.")],
       [t("Ce qui existe déjà est reconnu et mis à jour (même classe, même code de matière, même matricule) ; le personnel déjà présent n'est jamais modifié.")],
       [t("L'import est tout ou rien : s'il reste une erreur, rien n'est enregistré et les lignes à corriger sont indiquées.")],
     ] }], "modele-ecole-complete")
@@ -112,7 +120,7 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     if (f.introuvable) err(cle, null, t("en-têtes non reconnus : utilisez le modèle ({v0})", { v0: FEUILLES[cle].obligatoires.join(", ") }))
   }
   if (!Object.values(lu).some((f) => f.lignes.length)) {
-    erreurs.push({ feuille: "", ligne: null, message: t("Aucune feuille reconnue (Sections, Classes, Matières, Personnel, Matières par classe, Élèves) : utilisez le modèle.") })
+    erreurs.push({ feuille: "", ligne: null, message: t("Aucune feuille reconnue (Sections, Classes, Matières, Personnel, Matières par classe, Élèves, Notes) : utilisez le modèle.") })
   }
   const lignes = (cle) => lu[cle]?.lignes || []
 
@@ -231,7 +239,38 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     eleves.push(e)
   }
 
-  const besoinAnnee = !existant.exercice && (eleves.some((e) => e.classe) || programme.length > 0)
+  // Notes (sur 20) de l'année active, ou de celle que l'import va créer
+  const anneeCible = existant.exercice?.libelle || annee || ""
+  const classeDe = new Map(Object.entries(existant.classesEleves || {}))
+  for (const e of eleves) if (e.classe) classeDe.set(e.matricule, e.classe)
+  const matriculesConnus = new Set([...existant.eleves, ...eleves.map((e) => e.matricule)])
+  const offertes = new Set([...existant.attributions.map((a) => `${normaliser(a.classe)}|${a.code}`), ...programme.map((x) => `${normaliser(x.classe)}|${x.matiere}`)])
+  const verrouillees = new Set(existant.sequencesVerrouillees || [])
+  const notes = [], triplets = new Set()
+  let autresAnnees = 0, vides = 0
+  for (const { numero, valeurs: v } of lignes("notes")) {
+    const an = texte(v.annee)
+    if (an && anneeCible && normaliser(an) !== normaliser(anneeCible)) { autresAnnees++; continue }
+    let valeur
+    try { valeur = enNote(v.note) } catch (x) { err("notes", numero, x.message); continue }
+    if (valeur === null) { vides++; continue }
+    const matricule = texte(v.matricule, 31), code = codeDeMatiere(v.matiere), sequence = entier(v.sequence)
+    if (!matricule) err("notes", numero, t("matricule manquant"))
+    else if (!matriculesConnus.has(matricule)) err("notes", numero, t("élève « {v0} » inconnu : absent de la feuille Élèves et de l'établissement", { v0: matricule }))
+    else if (!classeDe.get(matricule)) err("notes", numero, t("élève « {v0} » sans classe pour l'année {v1}", { v0: matricule, v1: anneeCible }))
+    if (!code) err("notes", numero, t("matière « {v0} » inconnue (indiquez son code)", { v0: texte(v.matiere) }))
+    else if (classeDe.get(matricule) && !offertes.has(`${normaliser(classeDe.get(matricule))}|${code}`)) {
+      err("notes", numero, t("la matière {v0} n'est pas enseignée en {v1} (feuille Matières par classe)", { v0: code, v1: classeDe.get(matricule) }))
+    }
+    if (!sequence || sequence < 1 || sequence > 6) err("notes", numero, t("séquence de 1 à 6 attendue"))
+    else if (verrouillees.has(sequence)) err("notes", numero, t("la séquence {v0} est verrouillée : ses notes ne peuvent plus être modifiées", { v0: sequence }))
+    const triplet = `${matricule}|${code}|${sequence}`
+    if (triplets.has(triplet)) err("notes", numero, t("note en double (même élève, même matière, même séquence)"))
+    triplets.add(triplet)
+    notes.push([matricule, code, sequence, valeur])
+  }
+
+  const besoinAnnee = !existant.exercice && (eleves.some((e) => e.classe) || programme.length > 0 || notes.length > 0)
   if (besoinAnnee && !/^\d{4}-\d{4}$/.test(annee || "")) {
     erreurs.push({ feuille: "", ligne: null, message: t("Indiquez l'année scolaire à créer (par exemple 2026-2027) : aucune année n'est encore active.") })
   }
@@ -248,6 +287,8 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
   for (const p of programme) if (p.matiere && classesConnues.has(normaliser(p.classe))) ligneClasse(p.classe).matieres.set(p.matiere, p.coefficient || 0)
   for (const e of eleves) if (e.classe) { const l = ligneClasse(e.classe); l.eleves++; if (e.sexe === "M") l.garcons++; if (e.sexe === "F") l.filles++ }
   const ordre = new Map([...existant.classes, ...classes].map((c, k) => [normaliser(c.libelle), c.ordre ?? k]))
+  const notesParClasse = new Map()
+  for (const [matricule] of notes) { const c = normaliser(classeDe.get(matricule) || ""); if (c) notesParClasse.set(c, (notesParClasse.get(c) || 0) + 1) }
   const resume = {
     annee: existant.exercice?.libelle || (besoinAnnee ? annee : ""), anneeACreer: besoinAnnee,
     sections: { total: sections.length, nouvelles: sections.filter((s) => !existant.sections.some((x) => normaliser(x.libelle) === normaliser(s.libelle))).length },
@@ -262,28 +303,62 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     parClasse: [...parClasse.values()].filter((l) => l.eleves || l.matieres.size)
       .sort((a, b) => (ordre.get(normaliser(a.classe)) ?? 0) - (ordre.get(normaliser(b.classe)) ?? 0) || comparerNoms(a.classe, b.classe))
       .map((l) => ({ classe: l.classe, eleves: l.eleves, garcons: l.garcons, filles: l.filles, matieres: l.matieres.size,
-                     coefficients: [...l.matieres.values()].reduce((s, c) => s + c, 0) })),
+                     coefficients: [...l.matieres.values()].reduce((s, c) => s + c, 0), notes: notesParClasse.get(normaliser(l.classe)) || 0 })),
+    notes: { total: notes.length, eleves: new Set(notes.map((n) => n[0])).size, sequences: [...new Set(notes.map((n) => n[2]))].sort((a, b) => a - b),
+             autresAnnees, vides },
     ignorees,
   }
   const sansMarque = ({ existe, ...x }) => x
   return {
     erreurs, resume,
-    donnees: { annee: besoinAnnee ? annee : undefined, sections, classes, matieres, personnels: personnels.map(sansMarque), programme, eleves: eleves.map(sansMarque) },
+    donnees: { annee: besoinAnnee ? annee : undefined, sections, classes, matieres, personnels: personnels.map(sansMarque), programme, eleves: eleves.map(sansMarque), notes },
   }
+}
+
+// --- Enregistrement par étapes ----------------------------------------------------------------------------------------
+// Chaque appel reste court (limite de durée des requêtes du serveur) : structure, puis personnel, programme, élèves et notes par lots.
+// Le fichier a déjà été entièrement contrôlé ; chaque lot est lui-même tout ou rien, et un réimport ne crée aucun doublon.
+export const LOTS = { personnels: 25, programme: 250, eleves: 500, notes: 10000 }
+
+/** Découpe les données contrôlées en appels successifs à importer_ecole, dans l'ordre des dépendances. */
+export function decouperImport(d) {
+  const annee = d.annee ? { annee: d.annee } : {}
+  const etapes = [{ ...annee, sections: d.sections || [], classes: d.classes || [], matieres: d.matieres || [] }]
+  for (const cle of ["personnels", "programme", "eleves", "notes"]) {
+    const liste = d[cle] || []
+    for (let i = 0; i < liste.length; i += LOTS[cle]) etapes.push({ ...annee, [cle]: liste.slice(i, i + LOTS[cle]) })
+  }
+  return etapes
+}
+
+/** Additionne les bilans renvoyés par chaque étape. */
+export function cumulerBilan(total, r) {
+  const b = total || { annee: null, annee_creee: false, codes: [] }
+  for (const [cle, v] of Object.entries(r || {})) {
+    if (cle === "codes") b.codes = [...b.codes, ...(v || [])]
+    else if (cle === "annee_creee") b.annee_creee = b.annee_creee || !!v
+    else if (cle === "annee") b.annee = v || b.annee
+    else if (v && typeof v === "object") { b[cle] = b[cle] || {}; for (const [k, n] of Object.entries(v)) b[cle][k] = (b[cle][k] || 0) + (Number(n) || 0) }
+  }
+  return b
 }
 
 /** Données déjà enregistrées, utiles au contrôle du fichier. */
 export async function chargerExistant(exercice, etablissement = {}) {
-  const [sections, classes, matieres, personnels, eleves, attributions] = await Promise.all([
+  const [sections, classes, matieres, personnels, eleves, attributions, inscrits, sequences] = await Promise.all([
     supabase.from("sections").select("libelle, ordre").then(verifier),
     supabase.from("classes").select("libelle, ordre").then(verifier),
     supabase.from("matieres").select("code, libelle").then(verifier),
     supabase.from("personnels").select("nom, prenom, role, matricule, actif").then(verifier),
     toutCharger(() => supabase.from("eleves").select("matricule")),
     exercice ? toutCharger(() => supabase.from("attributions").select("coefficient, classes(libelle), matieres(code)").eq("exercice_id", exercice.id)) : [],
+    exercice ? toutCharger(() => supabase.from("inscriptions").select("eleves(matricule), classes(libelle)").eq("exercice_id", exercice.id)) : [],
+    exercice ? supabase.from("sequences").select("numero, verrouillee").eq("exercice_id", exercice.id).then(verifier) : [],
   ])
   return { exercice, sections, classes, matieres, personnels, eleves: eleves.map((e) => e.matricule),
            notesSurveillants: !!etablissement.notes_surveillants, notesComptables: !!etablissement.notes_comptables,
+           classesEleves: Object.fromEntries(inscrits.filter((i) => i.eleves && i.classes).map((i) => [i.eleves.matricule, i.classes.libelle])),
+           sequencesVerrouillees: sequences.filter((x) => x.verrouillee).map((x) => x.numero),
            attributions: attributions.map((a) => ({ classe: a.classes.libelle, code: a.matieres.code, coefficient: a.coefficient })) }
 }
 

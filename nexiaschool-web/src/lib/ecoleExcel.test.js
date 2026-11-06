@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 vi.stubGlobal("navigator", { languages: ["fr-FR"] })        // messages vérifiés en français
 vi.mock("../supabase.js", () => ({ supabase: {}, toutCharger: vi.fn(), verifier: (x) => x }))
-const { analyserEcole, enCycle, enRole } = await import("./ecoleExcel.js")
+const { analyserEcole, cumulerBilan, decouperImport, enCycle, enRole, LOTS } = await import("./ecoleExcel.js")
 
 const L = (lignes) => ({ lignes: lignes.map((valeurs, k) => ({ numero: k + 2, valeurs })) })
 const vide = { exercice: null, sections: [], classes: [], matieres: [], personnels: [{ nom: "AHANDA", prenom: "Marvin", role: "admin", matricule: "", actif: true }],
@@ -69,5 +69,49 @@ describe("import du fichier complet", () => {
     const { erreurs, donnees } = analyserEcole({ lu, ignorees: [] }, { ...vide, exercice: { id: "x", libelle: "2026-2027" } }, "")
     expect(erreurs).toEqual([])
     expect(donnees.programme).toEqual([expect.objectContaining({ coefficient: 5 })])
+  })
+  it("importe les notes de l'année et contrôle élève, matière de la classe, séquence et note", () => {
+    const base = {
+      classes: L([{ libelle: "6e A" }, { libelle: "Form 1" }]),
+      matieres: L([{ code: "MATH", libelle: "Mathématiques" }, { code: "ENG", libelle: "English" }]),
+      programme: L([{ classe: "6e A", matiere: "MATH", coefficient: 4 }, { classe: "Form 1", matiere: "ENG", coefficient: 5 }]),
+      eleves: L([{ matricule: "E1", nom: "Ngono", sexe: "F", classe: "6e A" }, { matricule: "E2", nom: "Smith", sexe: "M", classe: "Form 1" }]),
+    }
+    const bon = analyserEcole({ lu: { ...base, notes: L([
+      { matricule: "E1", matiere: "Mathématiques", sequence: 1, note: "12,5" }, { matricule: "E2", matiere: "eng", sequence: "2", note: 16 },
+      { matricule: "E1", matiere: "MATH", sequence: 2, note: "" }, { annee: "2025-2026", matricule: "E1", matiere: "MATH", sequence: 1, note: 8 },
+      { annee: "2026-2027", matricule: "E1", matiere: "MATH", sequence: 3, note: 0 }]) }, ignorees: [] }, vide, "2026-2027")
+    expect(bon.erreurs).toEqual([])
+    expect(bon.donnees.notes).toEqual([["E1", "MATH", 1, 12.5], ["E2", "ENG", 2, 16], ["E1", "MATH", 3, 0]])
+    expect(bon.resume.notes).toMatchObject({ total: 3, eleves: 2, sequences: [1, 2, 3], autresAnnees: 1, vides: 1 })
+    expect(bon.resume.parClasse.find((c) => c.classe === "6e A")).toMatchObject({ notes: 2 })
+
+    const mauvais = analyserEcole({ lu: { ...base, notes: L([
+      { matricule: "E9", matiere: "MATH", sequence: 1, note: 10 }, { matricule: "E1", matiere: "ENG", sequence: 1, note: 10 },
+      { matricule: "E1", matiere: "MATH", sequence: 7, note: 10 }, { matricule: "E1", matiere: "MATH", sequence: 1, note: 25 },
+      { matricule: "E2", matiere: "ENG", sequence: 4, note: 10 }, { matricule: "E2", matiere: "ENG", sequence: 4, note: 11 },
+      { matricule: "E2", matiere: "ENG", sequence: 5, note: 9 }]) }, ignorees: [] },
+      { ...vide, exercice: { libelle: "2026-2027" }, sequencesVerrouillees: [5] }, "")
+    expect(mauvais.erreurs.map((e) => `${e.feuille}:${e.ligne}:${e.message}`)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^notes:2:élève « E9 » inconnu/),
+      expect.stringMatching(/^notes:3:la matière ENG n'est pas enseignée en 6e A/),
+      expect.stringMatching(/^notes:4:séquence de 1 à 6 attendue/),
+      expect.stringMatching(/^notes:5:25 n'est pas compris entre 0 et 20/),
+      expect.stringMatching(/^notes:7:note en double/),
+      expect.stringMatching(/^notes:8:la séquence 5 est verrouillée/),
+    ]))
+  })
+  it("découpe l'enregistrement en appels courts, dans l'ordre, et additionne les bilans", () => {
+    const n = (k) => Array.from({ length: k }, (_, i) => i)
+    const etapes = decouperImport({ annee: "2026-2027", sections: [1], classes: [2], matieres: [3], personnels: n(60), programme: n(260), eleves: n(1001), notes: n(25000) })
+    expect(etapes.map((e) => Object.keys(e).filter((k) => k !== "annee").join("+"))).toEqual(
+      ["sections+classes+matieres", "personnels", "personnels", "personnels", "programme", "programme", "eleves", "eleves", "eleves", "notes", "notes", "notes"])
+    expect(etapes.every((e) => e.annee === "2026-2027")).toBe(true)
+    expect(etapes[3].personnels).toHaveLength(60 - 2 * LOTS.personnels)
+    expect(etapes.filter((e) => e.notes).flatMap((e) => e.notes)).toEqual(n(25000))
+    const b = cumulerBilan(cumulerBilan(null, { annee: "2026-2027", annee_creee: true, eleves: { crees: 2, modifies: 1 }, codes: [{ nom: "A" }] }),
+                           { annee: "2026-2027", annee_creee: false, eleves: { crees: 3, modifies: 0 }, notes: { crees: 7, modifies: 1 }, codes: [{ nom: "B" }] })
+    expect(b).toMatchObject({ annee: "2026-2027", annee_creee: true, eleves: { crees: 5, modifies: 1 }, notes: { crees: 7, modifies: 1 } })
+    expect(b.codes.map((c) => c.nom)).toEqual(["A", "B"])
   })
 })
