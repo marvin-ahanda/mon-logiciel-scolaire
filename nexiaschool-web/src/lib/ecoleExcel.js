@@ -184,6 +184,8 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
 
   // Matières par classe
   const programme = [], couples = new Set()
+  // rôles qui peuvent recevoir une matière (paramètre de l'établissement)
+  const rolesNotes = ["enseignant", "admin", ...(existant.notesSurveillants ? ["surveillant"] : []), ...(existant.notesComptables ? ["comptable"] : [])]
   // fichier exporté : plusieurs années possibles, seule la plus récente est reprise
   const anneesProgramme = [...new Set(lignes("programme").map((l) => texte(l.valeurs.annee)).filter(Boolean))].sort()
   const anneeRetenue = anneesProgramme.at(-1)
@@ -197,7 +199,7 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     if (enseignant) {
       const role = designations.get(normaliser(enseignant))
       if (!role) err("programme", numero, t("enseignant « {v0} » absent du personnel", { v0: enseignant }))
-      else if (!["enseignant", "admin"].includes(role)) err("programme", numero, t("« {v0} » n'est ni enseignant ni administration", { v0: enseignant }))
+      else if (!rolesNotes.includes(role)) err("programme", numero, t("« {v0} » n'est ni enseignant ni administration", { v0: enseignant }))
     }
     const couple = `${normaliser(classe)}|${code}`
     if (code && couples.has(couple)) err("programme", numero, t("matière « {v0} » en double pour la classe {v1}", { v0: code, v1: classe }))
@@ -271,7 +273,7 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
 }
 
 /** Données déjà enregistrées, utiles au contrôle du fichier. */
-export async function chargerExistant(exercice) {
+export async function chargerExistant(exercice, etablissement = {}) {
   const [sections, classes, matieres, personnels, eleves, attributions] = await Promise.all([
     supabase.from("sections").select("libelle, ordre").then(verifier),
     supabase.from("classes").select("libelle, ordre").then(verifier),
@@ -281,6 +283,7 @@ export async function chargerExistant(exercice) {
     exercice ? toutCharger(() => supabase.from("attributions").select("coefficient, classes(libelle), matieres(code)").eq("exercice_id", exercice.id)) : [],
   ])
   return { exercice, sections, classes, matieres, personnels, eleves: eleves.map((e) => e.matricule),
+           notesSurveillants: !!etablissement.notes_surveillants, notesComptables: !!etablissement.notes_comptables,
            attributions: attributions.map((a) => ({ classe: a.classes.libelle, code: a.matieres.code, coefficient: a.coefficient })) }
 }
 

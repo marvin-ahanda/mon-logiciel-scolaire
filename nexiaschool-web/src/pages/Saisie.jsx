@@ -122,7 +122,7 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
       </table></div></div>
       <div className="d-flex flex-wrap align-items-center gap-3 position-sticky bottom-0 barre-saisie py-2">
         {!verrou && <button className="btn btn-primary" disabled={envoi || !modifiees.size}>
-          {envoi ? t("Enregistrement…") : modifiees.size ? `Enregistrer ${modifiees.size} modification(s)` : t("Notes à jour")}</button>}
+          {envoi ? t("Enregistrement…") : modifiees.size ? t("Enregistrer {v0} modification(s)", { v0: modifiees.size }) : t("Notes à jour")}</button>}
         {!verrou && modifiees.size > 0 && !envoi &&
           <button type="button" className="btn btn-outline-secondary" onClick={() => { setValeurs(initiales); setErreurs({}); setMessage({}) }}>{t("Annuler les modifications")}</button>}
         <span className="small text-muted">{stats.n}/{grille.eleves.length}{t(" note(s) · moyenne ")}{stats.moyenne === null ? "—" : note(stats.moyenne)}
@@ -136,7 +136,7 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
 }
 
 export default function Saisie() {
-  const { exercice, estAdmin, profil } = useSession()
+  const { exercice, estAdmin, profil, etablissement } = useSession()
   const [classeId, setClasseId] = useState(""), [attributionId, setAttributionId] = useState(""), [sequenceId, setSequenceId] = useState("")
   const [modifie, setModifie] = useState(false)
 
@@ -212,8 +212,9 @@ export default function Saisie() {
             <div className="alert alert-light border" style={{ maxWidth: 860 }}>{t("Aucune matière n'est attribuée à cette classe.")}{estAdmin && <>{t(" Ajoutez-les dans ")}<Link to="/parametres/coefficients">{t("Paramètres → Matières par classe")}</Link>.</>}</div>)}
           {attribution && estAdmin && (
             <p className="small text-muted mb-2">{t("Enseignant : ")}{prof ? nomComplet(prof) : t("aucun (seule l'administration peut saisir)")}
-              {prof && prof.role === "surveillant" && <span className="text-danger">{t(
-                " — le surveillant général ne peut pas saisir de notes : confiez cette matière à un enseignant."
+              {prof && ((prof.role === "surveillant" && !etablissement?.notes_surveillants) || (prof.role === "comptable" && !etablissement?.notes_comptables))
+                && <span className="text-danger">{t(
+                " — cette personne n'est pas autorisée à saisir des notes : confiez la matière à un enseignant, ou autorisez son rôle dans Paramètres → Établissement."
               )}</span>}</p>)}
           {attribution && sequence
             ? <Grille key={`${attribution.id}|${sequence.id}`} attribution={attribution} sequence={sequence} exercice={exercice} onModifie={setModifie} />

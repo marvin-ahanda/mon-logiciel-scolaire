@@ -64,6 +64,14 @@ function Etablissement() {
     ) : t("Logo retiré.") })
     } catch (err) { setMsg({ erreur: err.message }) } finally { setEnvoiLogo(false); setCleLogo((k) => k + 1) }
   }
+  const [autorises, setAutorises] = useState(() => ({ notes_surveillants: !!etablissement.notes_surveillants, notes_comptables: !!etablissement.notes_comptables }))
+  async function autoriser(cle, valeur) {
+    setMsg({}); setAutorises((x) => ({ ...x, [cle]: valeur }))
+    try {
+      verifier(await supabase.from("etablissements").update({ [cle]: valeur }).eq("id", etablissement.id))
+      await recharger(); setMsg({ ok: t("Paramètre de saisie des notes enregistré.") })
+    } catch (err) { setAutorises((x) => ({ ...x, [cle]: !valeur })); setMsg({ erreur: err.message }) }
+  }
   async function nouveauCode() {
     if (!confirm(t(
       "Générer un nouveau code d'établissement ? L'ancien ne fonctionnera plus et tous les appareils devront saisir le nouveau."
@@ -88,6 +96,16 @@ function Etablissement() {
             <div className="form-text">{t("Affiché dans l'en-tête des bulletins.")}</div></div></div>
         <div><button className="btn btn-primary">{t("Enregistrer")}</button></div>
       </form>
+      <div className="card card-body mb-3" style={{ maxWidth: 820 }}>
+        <h2 className="h6">{t("Saisie des notes")}</h2>
+        <p className="small text-muted mb-2">{t("Par défaut, seuls les enseignants et l'administration reçoivent des matières et saisissent des notes. Cochez pour permettre aussi :")}</p>
+        {[["notes_surveillants", t("aux surveillants généraux")], ["notes_comptables", t("aux comptables / caissiers")]].map(([cle, libelle]) => (
+          <div className="form-check" key={cle}>
+            <input className="form-check-input" type="checkbox" id={cle} checked={autorises[cle]} onChange={(e) => autoriser(cle, e.target.checked)} />
+            <label className="form-check-label" htmlFor={cle}>{t("de recevoir des matières et saisir leurs notes, comme les enseignants, ")}{libelle}</label>
+          </div>))}
+        <div className="form-text">{t("Les matières se confient ensuite dans Matières par classe. Si vous décochez, ces personnes ne peuvent plus modifier les notes ; les notes déjà saisies sont conservées.")}</div>
+      </div>
       <div className="card card-body mb-3" style={{ maxWidth: 820 }}>
         <h2 className="h6">{t("Logo de l'établissement")}</h2>
         <p className="small text-muted mb-3">{t(
@@ -248,7 +266,7 @@ const Matieres = () => <ListeEditable table="matieres" ordre={["libelle", "code"
 
 // --- Matières par classe (attributions) ---------------------------------------------------------------------
 function Coefficients() {
-  const { exercice } = useSession()
+  const { exercice, etablissement } = useSession()
   const [classeId, setClasseId] = useState(""), [erreur, setErreur] = useState(""), [ajout, setAjout] = useState(null)
   const [ref] = useDonnees(async () => ({
     classes: verifier(await supabase.from("classes").select("id, libelle").order("ordre").order("libelle")),
@@ -282,9 +300,10 @@ function Coefficients() {
 
   if (!exercice) return <div className="alert alert-warning">{t("Activez d'abord un exercice.")}</div>;
   if (!ref) return <Chargement />
-  // seuls les enseignants et l'administration peuvent recevoir une matière (le surveillant général ne saisit pas de notes)
-  const enseignants = ref.personnels.filter((p) => p.role === "enseignant" || p.role === "admin")
-  const libelleProf = (p) => `${nomComplet(p)}${p.role === "admin" ? " (administration)" : ""}`
+  // peuvent recevoir une matière : enseignants, administration, et surveillants / comptables si le paramètre l'autorise
+  const enseignants = ref.personnels.filter((p) => p.role === "enseignant" || p.role === "admin"
+    || (p.role === "surveillant" && etablissement?.notes_surveillants) || (p.role === "comptable" && etablissement?.notes_comptables))
+  const libelleProf = (p) => `${nomComplet(p)}${{ admin: t(" (administration)"), surveillant: t(" (surveillant général)"), comptable: t(" (comptable / caissier)") }[p.role] || ""}`
   const parId = new Map(ref.personnels.map((p) => [p.id, p]))
   const dejaPrises = new Set((attributions || []).map((a) => a.matiere_id))
   return (

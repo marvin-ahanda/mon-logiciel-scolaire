@@ -120,7 +120,7 @@ export default function ExcelEcole() {
   async function analyser(fichier) {
     setMsg({}); setBilan(null); setOccupe("lecture")
     try {
-      const [lu, existant] = await Promise.all([lireEcole(fichier), chargerExistant(exercice)])
+      const [lu, existant] = await Promise.all([lireEcole(fichier), chargerExistant(exercice, etablissement)])
       setAnalyse({ fichier: fichier.name, ...analyserEcole(lu, existant, annee.trim()) })
     } catch (x) { setMsg({ erreur: x.message }) } finally { setOccupe("") }
   }

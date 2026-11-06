@@ -75,11 +75,11 @@ function Eleves({ ref_ }) {
         else if (vus.has(d.matricule)) erreurs.push(t("matricule en double dans le fichier"))
         vus.add(d.matricule)
         if (!d.nom) erreurs.push(t("nom manquant"))
-        d.sexe = enSexe(v.sexe); if (!d.sexe) erreurs.push(`sexe « ${texte(v.sexe)} » : M ou F attendu`)
+        d.sexe = enSexe(v.sexe); if (!d.sexe) erreurs.push(t("sexe « {v0} » : M ou F attendu", { v0: texte(v.sexe) }))
         try { d.date_naissance = enDate(v.date_naissance) } catch (x) { erreurs.push(x.message) }
         const libelleClasse = texte(v.classe)
         const c = libelleClasse ? classes.get(normaliser(libelleClasse)) : null
-        if (libelleClasse && !c) erreurs.push(`classe « ${libelleClasse} » inconnue`)
+        if (libelleClasse && !c) erreurs.push(t("classe « {v0} » inconnue", { v0: libelleClasse }))
         if (c && !exercice) erreurs.push(t("aucun exercice actif pour inscrire l'élève"))
         d.classe_id = c?.id || null
         return { numero, donnees: d, classe: c?.libelle || "", action: existants.has(d.matricule) ? t("mise à jour") : t("création"), erreurs };

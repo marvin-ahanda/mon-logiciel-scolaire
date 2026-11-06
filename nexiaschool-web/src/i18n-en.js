@@ -1176,6 +1176,22 @@ export const EN = {
   "{v0} — {v1} ({v2}/{v3})": "{v0} — {v1} ({v2}/{v3})",
   "Délai de saisie dépassé (le {v0}) : terminez la saisie au plus vite.": "Entry deadline passed ({v0}): please finish entering grades as soon as possible.",
   "Délai de saisie des notes : {v0}.": "Grade entry deadline: {v0}.",
+  "Par défaut, seuls les enseignants et l'administration reçoivent des matières et saisissent des notes. Cochez pour permettre aussi :": "By default, only teachers and the administration are given subjects and enter grades. Tick to also allow:",
+  "aux surveillants généraux": "discipline masters",
+  "aux comptables / caissiers": "bursars / cashiers",
+  "de recevoir des matières et saisir leurs notes, comme les enseignants,": "to be given subjects and enter their grades, like teachers —",
+  "Les matières se confient ensuite dans Matières par classe. Si vous décochez, ces personnes ne peuvent plus modifier les notes ; les notes déjà saisies sont conservées.": "Subjects are then assigned in Subjects per class. If you untick, these people can no longer change grades; grades already entered are kept.",
+  "Paramètre de saisie des notes enregistré.": "Grade entry setting saved.",
+  " (administration)": " (administration)",
+  " (surveillant général)": " (discipline master)",
+  " (comptable / caissier)": " (bursar / cashier)",
+  " — cette personne n'est pas autorisée à saisir des notes : confiez la matière à un enseignant, ou autorisez son rôle dans Paramètres → Établissement.": " — this person is not allowed to enter grades: assign the subject to a teacher, or allow their role in Settings → School.",
+  "Une matière ne peut être confiée qu'à un enseignant, à l'administration, ou à un surveillant ou un comptable si les paramètres de l'établissement le permettent.": "A subject can only be assigned to a teacher, the administration, or a discipline master or bursar if the school's settings allow it.",
+  "(administration)": "(administration)",
+  "(surveillant général)": "(discipline master)",
+  "(comptable / caissier)": "(bursar / cashier)",
+  "— cette personne n'est pas autorisée à saisir des notes : confiez la matière à un enseignant, ou autorisez son rôle dans Paramètres → Établissement.": "— this person is not allowed to enter grades: assign the subject to a teacher, or allow their role in Settings → School.",
+  "Enregistrer {v0} modification(s)": "Save {v0} change(s)",
 }
 
 // Messages d'erreur de la base comportant une partie variable : [motif, remplacement]
