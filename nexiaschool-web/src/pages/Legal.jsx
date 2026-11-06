@@ -122,7 +122,9 @@ function ConfidentialiteFR() {
 
       <h2>9. Cookies et stockage local</h2>
       <p>{EDITEUR.service} n'utilise <strong>aucun cookie publicitaire ni outil de mesure d'audience</strong>. Le navigateur conserve seulement
-        la session de connexion, l'établissement choisi et la langue sur l'appareil (stockage local), indispensables au fonctionnement du service.</p>
+        la session de connexion, l'établissement choisi et la langue sur l'appareil (stockage local), indispensables au fonctionnement du service.
+        Pour permettre le travail sans connexion, l'application garde aussi sur l'appareil ses propres fichiers, une copie des dernières données
+        consultées et les notes ou appels saisis hors ligne jusqu'à leur envoi ; la copie des données est effacée à la déconnexion.</p>
 
       <h2>10. Agents d'intelligence artificielle (API et MCP)</h2>
       <p>L'administration d'un établissement peut activer l'accès des agents IA (Claude ou autre) dans l'Espace développeur ; cet accès est

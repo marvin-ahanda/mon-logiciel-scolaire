@@ -5,6 +5,7 @@ import { comparerNoms, date, lireNote, nomComplet, note } from "../lib/format.js
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
+import { enAttente, envoyer } from "../lib/horsLigne.js"
 
 /** Message court (une ligne) pour une note invalide, ou "" si la valeur est correcte. */
 function erreurCourte(v) {
@@ -16,13 +17,26 @@ function erreurCourte(v) {
 
 // --- Grille d'une matière pour une séquence (remontée à chaque changement de choix : jamais de grille périmée) ---
 function Grille({ attribution, sequence, exercice, onModifie }) {
+  const { profil } = useSession()
   const [grille, erreurGrille, rafraichir] = useDonnees(async () => {
     const [inscriptions, notes] = await Promise.all([
       toutCharger(() => supabase.from("inscriptions").select("id, eleves(nom, prenom, matricule)").eq("classe_id", attribution.classe_id).eq("exercice_id", exercice.id)),
       toutCharger(() => supabase.from("notes").select("id, inscription_id, valeur").eq("attribution_id", attribution.id).eq("sequence_id", sequence.id)),
     ])
-    return { eleves: inscriptions.sort((a, b) => comparerNoms(nomComplet(a.eleves), nomComplet(b.eleves))), notes: new Map(notes.map((n) => [n.inscription_id, n])) }
+    // notes saisies hors ligne, pas encore envoyées : elles priment sur la dernière copie du serveur
+    const parEleve = new Map(notes.map((n) => [n.inscription_id, n])), attente = new Set()
+    for (const op of enAttente(profil.id, (x) => x.type === "notes" && !x.erreur && x.donnees.attribution_id === attribution.id && x.donnees.sequence_id === sequence.id)) {
+      for (const l of op.donnees.ecrire) { parEleve.set(l.inscription_id, { inscription_id: l.inscription_id, valeur: l.valeur }); attente.add(l.inscription_id) }
+      for (const id of op.donnees.effacer) { parEleve.delete(id); attente.add(id) }
+    }
+    return { eleves: inscriptions.sort((a, b) => comparerNoms(nomComplet(a.eleves), nomComplet(b.eleves))), notes: parEleve, attente }
   }, [])
+  // une fois les saisies hors ligne envoyées, la grille est relue (si rien n'est en cours de modification)
+  const modifRef = useRef(0)
+  useEffect(() => {
+    const relire = () => { if (!modifRef.current) rafraichir() }
+    window.addEventListener("horsligne:synchro", relire); return () => window.removeEventListener("horsligne:synchro", relire)
+  }, [rafraichir])
   const [valeurs, setValeurs] = useState(null), [erreurs, setErreurs] = useState({})
   const [message, setMessage] = useState({}), [envoi, setEnvoi] = useState(false)
   const champs = useRef([])
@@ -34,7 +48,7 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
     if (!valeurs || !initiales) return new Set()
     return new Set(Object.keys(valeurs).filter((k) => String(valeurs[k]).trim() !== String(initiales[k]).trim()))
   }, [valeurs, initiales])
-  useEffect(() => { onModifie(modifiees.size > 0) }, [modifiees.size, onModifie])
+  useEffect(() => { onModifie(modifiees.size > 0); modifRef.current = modifiees.size }, [modifiees.size, onModifie])
   useEffect(() => {
     if (!modifiees.size) return
     const avertir = (e) => { e.preventDefault(); e.returnValue = "" }
@@ -78,18 +92,19 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
     const aEcrire = [], aSupprimer = []
     for (const i of grille.eleves) {
       const avant = grille.notes.get(i.id), v = lus[i.id]
-      if (v === null && avant) aSupprimer.push(avant.id)
-      else if (v !== null && (!avant || Number(avant.valeur) !== v))
-        aEcrire.push({ inscription_id: i.id, attribution_id: attribution.id, sequence_id: sequence.id, valeur: v })
+      if (v === null && avant) aSupprimer.push(i.id)
+      else if (v !== null && (!avant || Number(avant.valeur) !== v)) aEcrire.push({ inscription_id: i.id, valeur: v })
     }
     if (!aEcrire.length && !aSupprimer.length) return setMessage({ info: t("Aucune modification à enregistrer.") });
     setEnvoi(true)
     try {
-      if (aEcrire.length) verifier(await supabase.from("notes").upsert(aEcrire, { onConflict: "inscription_id,attribution_id,sequence_id" }))
-      if (aSupprimer.length) verifier(await supabase.from("notes").delete().in("id", aSupprimer))
-      setMessage({ ok: t("Notes enregistrées : {v0} ajoutée(s) ou modifiée(s){v1}.", {
+      const r = await envoyer("notes", { attribution_id: attribution.id, sequence_id: sequence.id, ecrire: aEcrire, effacer: aSupprimer },
+        t("Notes de {v0} — {v1}, séquence {v2}", { v0: attribution.classes.libelle, v1: attribution.matieres.libelle, v2: sequence.numero }))
+      if (r.enAttente) setMessage({ info: t("Pas de connexion : {v0} note(s) gardée(s) sur cet appareil. Elles seront envoyées automatiquement dès le retour de la connexion.",
+        { v0: aEcrire.length + aSupprimer.length }) })
+      else setMessage({ ok: t("Notes enregistrées : {v0} ajoutée(s) ou modifiée(s){v1}.", {
         v0: aEcrire.length,
-        v1: aSupprimer.length ? `, ${aSupprimer.length} effacée(s)` : ""
+        v1: aSupprimer.length ? t(", {v0} effacée(s)", { v0: aSupprimer.length }) : ""
       }) })
       rafraichir()
     } catch (x) { setMessage({ erreur: t("Enregistrement impossible : {v0}", {
@@ -118,7 +133,8 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
                          v0: nomComplet(i.eleves)
                        })} aria-invalid={!!erreurs[i.id]} aria-describedby={erreurs[i.id] ? `err-${i.id}` : undefined} /></td>
             <td className="small text-nowrap">{erreurs[i.id] ? <span id={`err-${i.id}`} className="text-danger" role="alert">{erreurs[i.id]}</span>
-              : modifiees.has(i.id) ? <span className="text-muted">{t("non enregistrée")}</span> : null}</td></tr>))}</tbody>
+              : modifiees.has(i.id) ? <span className="text-muted">{t("non enregistrée")}</span>
+              : grille.attente.has(i.id) ? <span className="text-warning-emphasis" title={t("Saisie gardée sur cet appareil, envoyée au retour de la connexion")}>{t("⏳ en attente d'envoi")}</span> : null}</td></tr>))}</tbody>
       </table></div></div>
       <div className="d-flex flex-wrap align-items-center gap-3 position-sticky bottom-0 barre-saisie py-2">
         {!verrou && <button className="btn btn-primary" disabled={envoi || !modifiees.size}>

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
 import { adresseLogo } from "./lib/logo.js"
-import { supabase, verifier } from "./supabase.js"
+import { sessionLocale, supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
 
@@ -43,8 +43,10 @@ export function SessionProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => charger(data.session))
+    // hors ligne, une session expirée ne peut pas être renouvelée : on garde celle de l'appareil jusqu'au retour du réseau
+    supabase.auth.getSession().then(({ data }) => charger(data.session || (navigator.onLine === false ? sessionLocale() : null)))
     const { data } = supabase.auth.onAuthStateChange((evenement, session) => {
+      if (evenement === "SIGNED_OUT" && navigator.onLine === false && sessionLocale()) return
       if (evenement === "SIGNED_IN" || evenement === "SIGNED_OUT") setTimeout(() => charger(session), 0)
     })
     return () => data.subscription.unsubscribe()

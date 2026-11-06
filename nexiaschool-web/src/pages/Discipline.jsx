@@ -6,6 +6,7 @@ import { comparerNoms, date, nomComplet, note } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
+import { enAttente, envoyer } from "../lib/horsLigne.js"
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10)
 /** Prévient la bulle d'alerte de discipline qu'il faut recalculer les alertes. */
@@ -48,7 +49,7 @@ const heures = (brut) => {
 
 // --- Appel du jour ------------------------------------------------------------------------------------------
 export function Appel() {
-  const { exercice } = useSession()
+  const { exercice, profil } = useSession()
   const [ref_, erreurRef] = useReference()
   const [classeId, setClasseId] = useState(""), [sequenceId, setSequenceId] = useState(""), [jour, setJour] = useState(aujourdhui())
   const [lignes, setLignes] = useState({}), [erreurs, setErreurs] = useState({}), [message, setMessage] = useState({}), [envoi, setEnvoi] = useState(false)
@@ -61,9 +62,21 @@ export function Appel() {
     const [absences, retards] = ids.length ? await Promise.all([
       toutCharger(() => supabase.from("absences").select("*").eq("date", jour).in("inscription_id", ids)),
       toutCharger(() => supabase.from("retards").select("*").eq("date", jour).in("inscription_id", ids))]) : [[], []]
-    return { eleves, absences: new Map(absences.map((a) => [a.inscription_id, a])), retards: new Map(retards.map((r) => [r.inscription_id, r])),
-             autreSequence: [...absences, ...retards].some((x) => x.sequence_id !== sequenceId) }
+    const abs = new Map(absences.map((a) => [a.inscription_id, a])), ret = new Map(retards.map((r) => [r.inscription_id, r])), attente = new Set()
+    // appel saisi hors ligne, pas encore envoyé : il prime sur la dernière copie du serveur
+    for (const op of enAttente(profil.id, (x) => x.type === "appel" && !x.erreur && x.donnees.date === jour)) {
+      const d = op.donnees
+      for (const a of d.absences) if (ids.includes(a.inscription_id)) { abs.set(a.inscription_id, { ...a, sequence_id: d.sequence_id }); attente.add(a.inscription_id) }
+      for (const id of d.effacerAbsences) if (ids.includes(id)) { abs.delete(id); attente.add(id) }
+      for (const id of d.retards) if (ids.includes(id)) { ret.set(id, { inscription_id: id, sequence_id: d.sequence_id }); attente.add(id) }
+      for (const id of d.effacerRetards) if (ids.includes(id)) { ret.delete(id); attente.add(id) }
+    }
+    return { eleves, absences: abs, retards: ret, attente,
+             autreSequence: [...abs.values(), ...ret.values()].some((x) => x.sequence_id !== sequenceId) }
   }, [classeId, sequenceId, jour])
+  useEffect(() => {
+    window.addEventListener("horsligne:synchro", rafraichir); return () => window.removeEventListener("horsligne:synchro", rafraichir)
+  }, [rafraichir])
 
   useEffect(() => {
     if (!grille) return
@@ -90,21 +103,23 @@ export function Appel() {
     const ecrireAbs = [], supprAbs = [], ajoutRet = [], supprRet = []
     for (const i of grille.eleves) {
       const l = lus[i.id], a = grille.absences.get(i.id), r = grille.retards.get(i.id)
-      if (l.nj === 0 && l.j === 0) { if (a) supprAbs.push(a.id) }
+      if (l.nj === 0 && l.j === 0) { if (a) supprAbs.push(i.id) }
       else if (!a || a.heures_non_justifiees !== l.nj || a.heures_justifiees !== l.j || a.motif !== l.motif.trim())
-        ecrireAbs.push({ inscription_id: i.id, sequence_id: sequenceId, date: jour, heures_non_justifiees: l.nj, heures_justifiees: l.j, motif: l.motif.trim().slice(0, 200) })
-      if (l.retard && !r) ajoutRet.push({ inscription_id: i.id, sequence_id: sequenceId, date: jour })
-      if (!l.retard && r) supprRet.push(r.id)
+        ecrireAbs.push({ inscription_id: i.id, heures_non_justifiees: l.nj, heures_justifiees: l.j, motif: l.motif.trim().slice(0, 200) })
+      if (l.retard && !r) ajoutRet.push(i.id)
+      if (!l.retard && r) supprRet.push(i.id)
     }
+    if (!ecrireAbs.length && !supprAbs.length && !ajoutRet.length && !supprRet.length) return setMessage({ info: t("Aucune modification à enregistrer.") })
     setEnvoi(true)
     try {
-      if (ecrireAbs.length) verifier(await supabase.from("absences").upsert(ecrireAbs, { onConflict: "inscription_id,date" }))
-      if (supprAbs.length) verifier(await supabase.from("absences").delete().in("id", supprAbs))
-      if (ajoutRet.length) verifier(await supabase.from("retards").insert(ajoutRet))
-      if (supprRet.length) verifier(await supabase.from("retards").delete().in("id", supprRet))
-      setMessage({ ok: t("Appel du {v0} enregistré.", {
+      const classe = ref_.classes.find((c) => c.id === classeId)?.libelle || ""
+      const r = await envoyer("appel", { sequence_id: sequenceId, date: jour, absences: ecrireAbs, effacerAbsences: supprAbs, retards: ajoutRet, effacerRetards: supprRet },
+        t("Appel du {v0} — {v1}", { v0: date(jour), v1: classe }))
+      if (r.enAttente) setMessage({ info: t("Pas de connexion : l'appel du {v0} est gardé sur cet appareil. Il sera envoyé automatiquement dès le retour de la connexion.", { v0: date(jour) }) })
+      else setMessage({ ok: t("Appel du {v0} enregistré.", {
         v0: date(jour)
-      }) }); rafraichir(); signalerMajDiscipline()
+      }) })
+      rafraichir(); signalerMajDiscipline()
     } catch (x) { setMessage({ erreur: x.message }) } finally { setEnvoi(false) }
   }
 
@@ -114,7 +129,7 @@ export function Appel() {
     <>
       <h1 className="h3 mb-3">{t("Appel du jour : absences et retards")}</h1>
       <Selecteurs ref_={ref_} {...{ classeId, setClasseId, sequenceId, setSequenceId, jour, setJour }} />
-      <Alerte>{message.erreur || erreurGrille}</Alerte><Alerte type="success">{message.ok}</Alerte>
+      <Alerte>{message.erreur || erreurGrille}</Alerte><Alerte type="success">{message.ok}</Alerte><Alerte type="info">{message.info}</Alerte>
       {classeId && sequenceId && !grille && <Chargement />}
       {grille && (
         <form onSubmit={enregistrer} className="card">
@@ -124,7 +139,8 @@ export function Appel() {
             <thead className="table-light"><tr><th>{t("Élève")}</th><th>{t("Abs. non justifiées (h)")}</th><th>{t("Abs. justifiées (h)")}</th><th>{t("Motif")}</th><th className="text-center">{t("Retard")}</th></tr></thead>
             <tbody>{grille.eleves.map((i) => { const l = lignes[i.id] || {}; return (
               <tr key={i.id} className={erreurs[i.id] ? "table-danger" : ""}>
-                <td>{nomComplet(i.eleves)}{erreurs[i.id] && <div className="small text-danger">{erreurs[i.id]}</div>}</td>
+                <td>{nomComplet(i.eleves)}{erreurs[i.id] && <div className="small text-danger">{erreurs[i.id]}</div>}
+                  {grille.attente.has(i.id) && <div className="small text-warning-emphasis">{t("⏳ en attente d'envoi")}</div>}</td>
                 <td><input className="form-control form-control-sm" style={{ maxWidth: 90 }} inputMode="numeric" disabled={sequence?.verrouillee} value={l.nj ?? ""} onChange={(e) => maj(i.id, "nj", e.target.value)} aria-label={t("Heures non justifiées de {v0}", {
                   v0: nomComplet(i.eleves)
                 })} /></td>
@@ -142,7 +158,7 @@ export function Appel() {
               {!grille.eleves.length && <tr><td colSpan={5} className="text-center text-muted py-4">{t("Aucun élève inscrit.")}</td></tr>}</tbody>
           </table></div>
           {!sequence?.verrouillee && grille.eleves.length > 0 && <div className="card-footer d-flex flex-wrap gap-2 align-items-center">
-            <button className="btn btn-primary" disabled={envoi}>{envoi ? t("Enregistrement…") : "Enregistrer l'appel"}</button>
+            <button className="btn btn-primary" disabled={envoi}>{envoi ? t("Enregistrement…") : t("Enregistrer l'appel")}</button>
             <span className="small text-muted">{t("Laissez vide pour un élève présent et à l'heure.")}</span></div>}
         </form>
       )}

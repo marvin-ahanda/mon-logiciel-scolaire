@@ -81,7 +81,9 @@ export function ConfidentialiteEN() {
 
       <h2>9. Cookies and local storage</h2>
       <p>{EDITEUR.service} uses <strong>no advertising cookies and no audience measurement tools</strong>. The browser only keeps the sign-in session,
-        the selected school and the language on the device (local storage), which are essential for the service to work.</p>
+        the selected school and the language on the device (local storage), which are essential for the service to work.
+        To allow work without a connection, the application also keeps its own files on the device, a copy of the most recently viewed data
+        and any grades or roll calls entered offline until they are sent; the copy of the data is erased when you sign out.</p>
 
       <h2>10. Artificial intelligence agents (API and MCP)</h2>
       <p>A school's administration can enable access for AI agents (Claude or others) in the Developer area; this access is

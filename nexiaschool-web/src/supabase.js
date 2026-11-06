@@ -12,6 +12,14 @@ export const supabase = createClient(url, cle, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce", storageKey: "nexiaschool.session" },
 })
 
+/**
+ * Session gardée sur l'appareil, utilisée seulement hors ligne : sans réseau, une session expirée ne peut pas être
+ * renouvelée ; l'application reste utilisable (dernières données, saisies mises en attente) et la renouvelle au retour du réseau.
+ */
+export function sessionLocale() {
+  try { const s = JSON.parse(localStorage.getItem("nexiaschool.session") || "null"); return s?.user?.id ? s : null } catch { return null }
+}
+
 /** Message d'erreur lisible à partir d'une erreur Supabase. */
 export function messageErreur(e) {
   if (!e) return ""

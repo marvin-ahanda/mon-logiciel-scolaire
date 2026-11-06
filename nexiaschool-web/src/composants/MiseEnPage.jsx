@@ -7,6 +7,8 @@ import { BulleLogo } from "./Logo.jsx"
 import AlerteFinance from "./AlerteFinance.jsx"
 import AlerteDiscipline from "./AlerteDiscipline.jsx"
 import AlerteNotes from "./AlerteNotes.jsx"
+import EtatConnexion from "./EtatConnexion.jsx"
+import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
@@ -68,6 +70,9 @@ export default function MiseEnPage() {
   const lien = ({ isActive }) => "nav-link" + (isActive ? " active fw-semibold" : "")
 
   async function deconnecter() {
+    const n = enAttente(profil?.id, (x) => !x.erreur).length
+    if (n && !confirm(t("{v0} saisie(s) faite(s) hors ligne n'ont pas encore été envoyées. Elles restent sur cet appareil et partiront à votre prochaine connexion. Se déconnecter ?", { v0: n }))) return
+    navigator.serviceWorker?.controller?.postMessage("vider-donnees")       // données d'élèves gardées pour le hors-ligne
     await supabase.auth.signOut()
     naviguer(profil?.compte_google ? "/" : "/connexion")
   }
@@ -105,6 +110,7 @@ export default function MiseEnPage() {
           </div>
         </div>
       </nav>
+      <EtatConnexion />
       <main className="container-fluid py-3 px-3 px-lg-4">
         <Outlet />
       </main>

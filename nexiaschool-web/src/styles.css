@@ -112,3 +112,6 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 }
 @media (min-width: 992px) { .border-start-lg { border-left: 1px solid #dee2e6; } }
 .liste-erreurs { max-height: 220px; overflow: auto; }
+
+/* Bandeau d'état de la connexion (hors ligne, saisies en attente) */
+.etat-connexion { position: sticky; top: 0; z-index: 1030; }

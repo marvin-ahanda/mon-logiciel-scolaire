@@ -5,7 +5,7 @@ export const EDITEUR = {
   site: "https://nexiaschool.netlify.app",
   contact: import.meta.env.VITE_CONTACT_EMAIL || "contact@nexiaacademy.net",
   pays: "Cameroun",
-  miseAJour: "2026-11-05",
+  miseAJour: "2026-11-06",
 }
 
 export const contactTexte = () => EDITEUR.contact || "l'adresse de contact indiquée par l'éditeur (en cours de publication)"
