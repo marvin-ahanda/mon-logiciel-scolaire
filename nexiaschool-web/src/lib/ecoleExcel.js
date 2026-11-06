@@ -294,7 +294,7 @@ export async function exporterEcole(etablissement) {
   const tout = (table, colonnes, ordre = "id") => toutCharger(() => supabase.from(table).select(colonnes).order(ordre))
   const [exercices, sequences, sections, classes, matieres, attributions, personnels, eleves, inscriptions, notes, baremes, sanctions, infractions,
          absences, retards, incidents, frais, echeances, paiements, seuilsDiscipline, seuilsSanctions] = await Promise.all([
-    tout("exercices", "id, libelle, actif, cree_le"), tout("sequences", "id, exercice_id, numero, trimestre, verrouillee"),
+    tout("exercices", "id, libelle, actif, cree_le"), tout("sequences", "id, exercice_id, numero, trimestre, verrouillee, date_limite_notes"),
     tout("sections", "id, libelle, ordre"), tout("classes", "id, libelle, niveau, ordre, coef_min, section_id, cycle"), tout("matieres", "id, code, libelle"),
     tout("attributions", "id, exercice_id, classe_id, matiere_id, enseignant_id, coefficient, groupe"), tout("personnels", COLONNES_PERSONNEL),
     tout("eleves", "id, matricule, nom, prenom, sexe, date_naissance, lieu_naissance, telephone_parent, photo, cree_le"),
@@ -338,9 +338,11 @@ export async function exporterEcole(etablissement) {
                [t("Élèves"), eleves.length], [t("Personnel"), personnels.length], [t("Classes"), classes.length], [t("Matières"), matieres.length],
                [t("Notes"), notes.length], [t("Paiements"), paiements.length], [],
                [t("Remarque"), t("Les photos des élèves et le logo sont des fichiers : ils ne figurent pas dans ce classeur. Les codes d'accès ne sont jamais exportés.")]] },
-    { titre: t("Années scolaires"), intitule: t("Liste des années scolaires"), entetes: [t("Année scolaire"), t("Active"), t("Séquences verrouillées")],
+    { titre: t("Années scolaires"), intitule: t("Liste des années scolaires"), entetes: [t("Année scolaire"), t("Active"), t("Séquences verrouillées"), t("Délais de saisie des notes")],
       lignes: [...exercices].sort((a, b) => comparerNoms(b.libelle, a.libelle)).map((e) => [e.libelle, ouiNon(e.actif),
-        sequences.filter((s) => s.exercice_id === e.id && s.verrouillee).map((s) => s.numero).sort().join(", ")]) },
+        sequences.filter((s) => s.exercice_id === e.id && s.verrouillee).map((s) => s.numero).sort().join(", "),
+        sequences.filter((s) => s.exercice_id === e.id && s.date_limite_notes).sort((a, b) => a.numero - b.numero)
+          .map((s) => `S${s.numero} : ${new Date(s.date_limite_notes + "T00:00:00").toLocaleDateString(locale())}`).join(" ; ")]) },
     { titre: t("Sections"), intitule: t("Liste des sections"), entetes: [t("Section"), t("Ordre")],
       lignes: [...sections].sort((a, b) => a.ordre - b.ordre || comparerNoms(a.libelle, b.libelle)).map((s) => [s.libelle, s.ordre]) },
     { titre: t("Classes"), intitule: t("Liste des classes"), entetes: [t("Classe"), t("Niveau"), t("Section"), t("Cycle"), t("Ordre"), t("Coefficient minimum"), t("Élèves inscrits")],

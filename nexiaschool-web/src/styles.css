@@ -74,6 +74,9 @@ body { background: #f4f6fa; }
 body:has(.modal.d-block) .bulles-alertes { display: none; }
 .bulle-discipline { background: #6f42c1; }
 .bulle-discipline:hover { background: #59359a; }
+.bulle-notes { background: #e8590c; }
+.bulle-notes:hover { background: #c94c09; }
+@media print { .fiche-retard { break-inside: avoid; } }
 @media print { .fiche-alerte { break-inside: avoid; } }
 
 /* Sélecteur de langue */

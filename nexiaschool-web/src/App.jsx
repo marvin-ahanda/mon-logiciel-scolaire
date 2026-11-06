@@ -24,6 +24,7 @@ import { SessionProvider, useSession } from "./Session.jsx"
 import { supabase } from "./supabase.js"
 import { ChoixLangue, t } from "./i18n.jsx"
 import AlertesDiscipline from "./pages/AlertesDiscipline.jsx"
+import RetardsNotes from "./pages/RetardsNotes.jsx"
 
 const Console = lazy(() => import("./pages/Console.jsx"))      // chargée seulement par le propriétaire
 
@@ -109,6 +110,7 @@ export default function App() {
           </Route>
           <Route element={<Protege admin />}>
             <Route path="/eleves" element={<Eleves />} />
+            <Route path="/notes/retards" element={<RetardsNotes />} />
             <Route path="/parametres/*" element={<Parametres />} />
             <Route path="/personnel" element={<Personnel />} />
             <Route path="/statistiques/*" element={<Statistiques />} />

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
-import { comparerNoms, lireNote, nomComplet, note } from "../lib/format.js"
+import { comparerNoms, date, lireNote, nomComplet, note } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
@@ -202,6 +202,12 @@ export default function Saisie() {
               <select id="s-sequence" className="form-select" value={sequenceId} onChange={changer(setSequenceId)}>
                 {ref.sequences.map((s) => <option key={s.id} value={s.id}>{t("Séquence ")}{s.numero}{t(" (trim. ")}{s.trimestre}){s.verrouillee ? t(" — verrouillée") : ""}</option>)}</select></div>
           </div>
+          {sequence && !sequence.verrouillee && sequence.date_limite_notes && (
+            <div style={{ maxWidth: 860 }} className={`alert py-2 ${sequence.date_limite_notes < new Date().toISOString().slice(0, 10) ? "alert-warning" : "alert-light border"}`}>
+              {sequence.date_limite_notes < new Date().toISOString().slice(0, 10)
+                ? t("Délai de saisie dépassé (le {v0}) : terminez la saisie au plus vite.", { v0: date(sequence.date_limite_notes) })
+                : t("Délai de saisie des notes : {v0}.", { v0: date(sequence.date_limite_notes) })}
+            </div>)}
           {classeId && !matieres.length && (
             <div className="alert alert-light border" style={{ maxWidth: 860 }}>{t("Aucune matière n'est attribuée à cette classe.")}{estAdmin && <>{t(" Ajoutez-les dans ")}<Link to="/parametres/coefficients">{t("Paramètres → Matières par classe")}</Link>.</>}</div>)}
           {attribution && estAdmin && (

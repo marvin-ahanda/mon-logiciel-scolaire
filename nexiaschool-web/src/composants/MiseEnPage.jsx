@@ -6,6 +6,7 @@ import { nomComplet } from "../lib/format.js"
 import { BulleLogo } from "./Logo.jsx"
 import AlerteFinance from "./AlerteFinance.jsx"
 import AlerteDiscipline from "./AlerteDiscipline.jsx"
+import AlerteNotes from "./AlerteNotes.jsx"
 import { ChoixLangue, t } from "../i18n.jsx"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
@@ -83,7 +84,7 @@ export default function MiseEnPage() {
             <ul className="navbar-nav me-auto">
               <li className="nav-item"><NavLink className={lien} to="/" end>{t("Accueil")}</NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/eleves">{t("Élèves")}</NavLink></li>}
-              {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ["/notes/bulletins", t("Bulletins")]]} />}
+              {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ["/notes/bulletins", t("Bulletins")], ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
               {peutNoter && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
@@ -109,6 +110,7 @@ export default function MiseEnPage() {
       </main>
       {exercice && (peutFinance || peutDiscipline) && (
         <div className="bulles-alertes no-print">
+          {estAdmin && <AlerteNotes />}
           {peutDiscipline && <AlerteDiscipline />}
           {peutFinance && <AlerteFinance />}
         </div>)}

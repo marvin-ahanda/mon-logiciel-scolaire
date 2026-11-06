@@ -123,6 +123,7 @@ function Exercices() {
   const creer = (e) => { e.preventDefault(); action(async () => verifier(await supabase.from("exercices").insert({ libelle, actif: true }))) }
   const activer = (ex) => action(async () => verifier(await supabase.from("exercices").update({ actif: true }).eq("id", ex.id)))
   const verrou = (s) => action(async () => verifier(await supabase.from("sequences").update({ verrouillee: !s.verrouillee }).eq("id", s.id)))
+  const delai = (s, valeur) => action(async () => verifier(await supabase.from("sequences").update({ date_limite_notes: valeur || null }).eq("id", s.id)))
 
   if (!donnees) return <><Alerte>{erreurChargement}</Alerte><Chargement /></>
   return (
@@ -139,18 +140,24 @@ function Exercices() {
             <h2 className="h6 m-0">{t("Exercice ")}{ex.libelle} {ex.actif && <span className="badge text-bg-success">{t("actif")}</span>}</h2>
             {!ex.actif && <button className="btn btn-sm btn-outline-primary" onClick={() => activer(ex)}>{t("Activer")}</button>}
           </div>
-          <div className="d-flex flex-wrap gap-2">
-            {donnees.sequences.filter((s) => s.exercice_id === ex.id).map((s) => (
-              <button key={s.id} className={`btn btn-sm ${s.verrouillee ? "btn-secondary" : "btn-outline-secondary"}`} onClick={() => verrou(s)}
-                      title={s.verrouillee ? t("Séquence verrouillée : cliquer pour rouvrir la saisie") : t("Cliquer pour verrouiller la saisie")}>{t("Séquence ")}{s.numero}{t(" (T")}{s.trimestre}) {s.verrouillee ? "🔒" : ""}
-              </button>
-            ))}
-          </div>
+          <div className="table-responsive"><table className="table table-sm align-middle mb-0 tableau-sequences" style={{ maxWidth: 640 }}>
+            <thead><tr><th>{t("Séquence")}</th><th>{t("Délai de saisie des notes")}</th><th>{t("Saisie")}</th></tr></thead>
+            <tbody>{donnees.sequences.filter((s) => s.exercice_id === ex.id).map((s) => (
+              <tr key={s.id}>
+                <td className="text-nowrap">{t("Séquence ")}{s.numero}{t(" (T")}{s.trimestre})</td>
+                <td><input type="date" className="form-control form-control-sm" style={{ maxWidth: 180 }} defaultValue={s.date_limite_notes || ""}
+                           aria-label={t("Délai de saisie des notes, séquence {v0}", { v0: s.numero })}
+                           onChange={(e) => (e.target.value === "" || /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) && delai(s, e.target.value)} /></td>
+                <td><button className={`btn btn-sm ${s.verrouillee ? "btn-secondary" : "btn-outline-secondary"}`} onClick={() => verrou(s)}
+                      title={s.verrouillee ? t("Séquence verrouillée : cliquer pour rouvrir la saisie") : t("Cliquer pour verrouiller la saisie")}>
+                  {s.verrouillee ? t("🔒 Verrouillée") : t("Ouverte")}</button></td>
+              </tr>))}</tbody>
+          </table></div>
         </div></div>
       ))}
       <p className="small text-muted">{t(
         "Chaque exercice compte six séquences (deux par trimestre). Une séquence verrouillée n'accepte plus de saisie ni de correction."
-      )}</p>
+      )}{" "}{t("Une fois le délai de saisie passé, l'administration est alertée des enseignants qui n'ont pas saisi toutes leurs notes.")}</p>
     </>
   );
 }
