@@ -10,11 +10,13 @@ async function compterMesMatieres(profil, exercice) {
   const cle = `nexiaschool.mesMatieres.${profil.id}`
   if (!exercice) return 0
   try {
-    const { count, error } = await supabase.from("attributions").select("id", { count: "exact", head: true })
-      .eq("exercice_id", exercice.id).eq("enseignant_id", profil.id)
+    if (navigator.onLine === false) throw new Error("hors ligne")
+    // simple lecture (servie aussi par le cache hors ligne) : il suffit de savoir s'il y en a au moins une
+    const { data, error } = await supabase.from("attributions").select("id").eq("exercice_id", exercice.id).eq("enseignant_id", profil.id).limit(1)
     if (error) throw error
-    try { localStorage.setItem(cle, String(count || 0)) } catch { /* stockage indisponible */ }
-    return count || 0
+    const n = data?.length || 0
+    try { localStorage.setItem(cle, String(n)) } catch { /* stockage indisponible */ }
+    return n
   } catch {
     try { return Number(localStorage.getItem(cle)) || 0 } catch { return 0 }
   }
