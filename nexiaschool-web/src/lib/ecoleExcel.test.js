@@ -47,14 +47,17 @@ describe("import du fichier complet", () => {
       programme: L([{ classe: "6e B", matiere: "XYZ", coefficient: 30 }, { classe: "6e A", matiere: "XYZ", coefficient: 2, enseignant: "Ngo" }]),
       eleves: L([{ matricule: "E1", nom: "A", sexe: "X", date_naissance: "31/02/2014" }, { matricule: "E1", nom: "B", sexe: "F", classe: "3e" }]),
     }
-    const { erreurs } = analyserEcole({ lu, ignorees: [] }, vide, "")
+    const { erreurs, donnees } = analyserEcole({ lu, ignorees: [] }, vide, "")
+    // liste des classes seule : la section inconnue est créée avec la classe
+    expect(donnees.sections).toEqual([{ libelle: "Technique", ordre: 1 }])
+    expect(analyserEcole({ lu: { ...lu, sections: L([{ libelle: "Francophone" }]) }, ignorees: [] }, vide, "").erreurs
+      .map((e) => `${e.feuille}:${e.ligne}:${e.message}`)).toEqual(expect.arrayContaining([expect.stringMatching(/^classes:2:section « Technique » inconnue/)]))
     const textes = erreurs.map((e) => `${e.feuille}:${e.ligne}:${e.message}`)
     expect(textes).toEqual(expect.arrayContaining([
-      expect.stringMatching(/^classes:2:section « Technique » inconnue/),
       expect.stringMatching(/^personnels:2:fonction « Cuisinier » inconnue/),
       expect.stringMatching(/^programme:2:classe « 6e B » inconnue/),
       expect.stringMatching(/^programme:2:coefficient de 1 à 20/),
-      expect.stringMatching(/^programme:3:« Ngo » n'est ni enseignant ni administration/),
+      expect.stringMatching(/^programme:3:matière « XYZ » inconnue/),
       expect.stringMatching(/^eleves:2:sexe « X »/),
       expect.stringMatching(/^eleves:2:date « 31\/02\/2014 » invalide/),
       expect.stringMatching(/^eleves:3:matricule « E1 » en double/),

@@ -6,7 +6,7 @@ import { COLONNES_PERSONNEL } from "../lib/colonnes.js"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
 
-const VIDE = { nom: "", prenom: "", role: "enseignant", matricule: "", telephone: "", actif: true }
+const VIDE = { nom: "", prenom: "", role: "enseignant", matricule: "", telephone: "", poste: "", actif: true }
 const ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
 
 export default function Personnel() {
@@ -21,11 +21,11 @@ export default function Personnel() {
     try {
       if (edition.id) {
         await rpc("modifier_personnel", { p_id: edition.id, p_nom: edition.nom, p_prenom: edition.prenom, p_role: edition.role,
-                                          p_actif: edition.actif, p_matricule: edition.matricule, p_telephone: edition.telephone })
+                                          p_actif: edition.actif, p_matricule: edition.matricule, p_telephone: edition.telephone, p_poste: edition.poste || "" })
         if (edition.id === profil.id) await recharger()
       } else {
         const r = await rpc("creer_personnel", { p_nom: edition.nom, p_prenom: edition.prenom, p_role: edition.role,
-                                                 p_matricule: edition.matricule, p_telephone: edition.telephone })
+                                                 p_matricule: edition.matricule, p_telephone: edition.telephone, p_poste: edition.poste || "" })
         setFiche({ nom: r.nom, role: t(ROLES[edition.role]), code: r.code })
       }
       setEdition(null); rafraichir()
@@ -63,6 +63,8 @@ export default function Personnel() {
                 <option value="admin">{t("Administration (tous les droits)")}</option></select></div>
             <div className="col-md-4"><label className="form-label" htmlFor="pm">{t("Matricule")}</label><input className="form-control" id="pm" maxLength={30} {...champ("matricule")} /></div>
             <div className="col-md-4"><label className="form-label" htmlFor="pt">{t("Téléphone")}</label><input className="form-control" id="pt" maxLength={30} {...champ("telephone")} /></div>
+            <div className="col-12"><label className="form-label" htmlFor="po">{t("Poste / spécialité")}</label><input className="form-control" id="po" maxLength={100}
+              placeholder={t("ex. Censeur, Professeur de mathématiques, Intendant…")} value={edition.poste || ""} onChange={(e) => setEdition({ ...edition, poste: e.target.value })} /></div>
             {edition.id && <div className="col-12 form-check ms-2"><input className="form-check-input" type="checkbox" id="pa" checked={edition.actif}
               onChange={(e) => setEdition({ ...edition, actif: e.target.checked })} /><label className="form-check-label" htmlFor="pa">{t("Compte actif (un compte inactif ne peut plus se connecter)")}</label></div>}
           </div>
@@ -74,7 +76,7 @@ export default function Personnel() {
       <div className="card no-print"><div className="table-responsive"><table className="table table-hover align-middle mb-0">
         <thead className="table-light"><tr><th>{t("Nom")}</th><th>{t("Rôle")}</th><th>{t("État")}</th><th>{t("Code généré le")}</th><th>{t("Dernière connexion")}</th><th /></tr></thead>
         <tbody>{liste.map((p) => (
-          <tr key={p.id} className={p.actif ? "" : "text-muted"}><td>{nomComplet(p)}{p.matricule && <div className="small text-muted">{p.matricule}</div>}</td>
+          <tr key={p.id} className={p.actif ? "" : "text-muted"}><td>{nomComplet(p)}{(p.matricule || p.poste) && <div className="small text-muted">{[p.matricule, p.poste].filter(Boolean).join(" · ")}</div>}</td>
             <td><span className={`badge ${p.role === "admin" ? "text-bg-primary" : p.role === "surveillant" ? "text-bg-warning" : p.role === "comptable" ? "text-bg-success" : "text-bg-info"}`}>{t(ROLES[p.role])}</span>
               {p.compte_google && <span className="badge text-bg-light border ms-1" title={t("Se connecte avec son compte Google, sans code")}>{t("Google")}</span>}</td>
             <td>{p.actif ? "actif" : t("désactivé")}</td><td>{p.compte_google ? "—" : dateHeure(p.code_genere_le)}</td><td>{dateHeure(p.derniere_connexion)}</td>

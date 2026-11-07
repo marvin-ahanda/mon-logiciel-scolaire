@@ -7,6 +7,7 @@ import { t } from "../i18n.jsx"
  * Bulle d'alerte de saisie des notes (administration), en bas à droite.
  * Le badge rouge compte les séquences dont le délai de saisie est passé alors que des enseignants ne sont pas à jour.
  * Un clic marque ces alertes comme lues et ouvre la liste des enseignants en retard, classe par classe.
+ * La bulle n'apparaît que s'il reste des alertes non lues par la personne connectée (lecture propre à chaque compte).
  */
 export default function AlerteNotes() {
   const naviguer = useNavigate()
@@ -20,11 +21,11 @@ export default function AlerteNotes() {
     return () => { clearInterval(minuterie); window.removeEventListener("notes:maj", charger) }
   }, [charger])
   useEffect(() => { charger() }, [pathname, charger])
-  if (!a || !a.sequences.length || pathname === "/notes/retards") return null
+  if (!a || !a.non_lues || pathname === "/notes/retards") return null
   const enseignants = new Set(a.sequences.flatMap((s) => s.enseignants.map((e) => e.enseignant_id))).size
   const detail = a.sequences.map((s) => t("Séquence {v0} : {v1} enseignant(s) en retard", { v0: s.numero, v1: s.enseignants.length })).join("\n")
   return (
-    <button type="button" className="bulle-alerte bulle-notes no-print" onClick={() => naviguer("/notes/retards")}
+    <button type="button" className="bulle-alerte bulle-notes no-print" onClick={() => { setA({ ...a, non_lues: 0 }); naviguer("/notes/retards") }}
             title={t("Saisie des notes : {v0} enseignant(s) en retard\n{v1}", { v0: enseignants, v1: detail })}
             aria-label={t("{v0} nouvelle(s) alerte(s) de saisie des notes, {v1} enseignant(s) en retard : afficher la liste", { v0: a.non_lues, v1: enseignants })}>
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">

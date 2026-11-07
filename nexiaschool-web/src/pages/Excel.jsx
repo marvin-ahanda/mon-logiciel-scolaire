@@ -1,253 +1,232 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
-import { enDate, enNote, enSexe, lireClasseur, normaliser, telechargerClasseur, texte } from "../lib/excel.js"
+import { analyserEcole, chargerExistant, cumulerBilan, decouperImport, exporterListe, lireListe, LISTES, ROLES_IMPORT } from "../lib/ecoleExcel.js"
+import { telechargerClasseur } from "../lib/excel.js"
 import { comparerNoms, nomComplet } from "../lib/format.js"
 import { periodes } from "../lib/periodes.js"
 import { useSession } from "../Session.jsx"
-import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
+import { rpc, supabase, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
-import ExcelEcole from "./ExcelEcole.jsx"
 
-const ENTETES_ELEVES = ["Matricule", "Nom", "Prénom", "Sexe", "Date de naissance", "Lieu de naissance", "Téléphone du parent", "Classe"]
-// en-têtes reconnus à l'import (français et anglais)
-const COLONNES_ELEVES = { matricule: ["Matricule", "Student ID"], nom: ["Nom", "Last name", "Surname"], prenom: ["Prénom", "Prenom", "First name"], sexe: ["Sexe", "Sex", "Gender"],
-  date_naissance: ["Date de naissance", "Né le", "Ne le", "Date of birth"], lieu_naissance: ["Lieu de naissance", "Place of birth"],
-  telephone_parent: ["Téléphone du parent", "Téléphone", "Telephone", "Parent's phone", "Phone"], classe: ["Classe", "Class"] }
-
-function Carte({ titre, children }) {
-  return <div className="col-xl-6"><div className="card h-100"><div className="card-header fw-semibold">{t(titre)}</div><div className="card-body">{children}</div></div></div>
+// Ordre d'affichage des cartes, et contenu de chaque liste
+const ORDRE = ["eleves", "classes", "matieres", "personnels", "programme", "notes"]
+const CONTENU = {
+  eleves: "Matricule, nom et prénom, sexe, date et lieu de naissance, contact du parent, classe, redoublant (Oui / Non), nouvel élève (Oui / Non).",
+  classes: "Classe, niveau, section, cycle (1 ou 2) et ordre d'affichage. Une section qui n'existe pas encore est créée automatiquement.",
+  matieres: "Code et nom de chaque matière.",
+  personnels: "Matricule, nom et prénom, fonction (Administration, Enseignant, Surveillant général, Comptable / caissier), téléphone, poste ou spécialité. Chaque nouveau membre reçoit un code personnel.",
+  programme: "Classe, code et nom de la matière, coefficient (1 à 20), groupe (1 à 3) et matricule de l'enseignant qui la dispense.",
+  notes: "Classe, séquence, matricule et nom de l'élève, code de la matière et note sur 20. Une note vide est ignorée ; une note déjà enregistrée est remplacée.",
 }
 
-// --- Élèves ------------------------------------------------------------------------------------------------
-function Eleves({ ref_ }) {
-  const { exercice } = useSession()
-  const [classe, setClasse] = useState(""), [apercu, setApercu] = useState(null), [msg, setMsg] = useState({}), [envoi, setEnvoi] = useState(false)
+/** Résumé du fichier avant validation, selon la liste importée. */
+function Resume({ cle, r }) {
+  const ligne = (libelle, valeur, detail) => (
+    <tr><th scope="row" className="fw-normal">{libelle}</th><td className="text-end fw-semibold text-nowrap">{valeur}</td><td className="text-muted small">{detail}</td></tr>)
+  const parClasse = r.parClasse.filter((c) => (cle === "eleves" ? c.eleves : cle === "notes" ? c.notes : c.matieres))
+  return (
+    <>
+      <table className="table table-sm align-middle mb-3 resume-import"><tbody>
+        {r.annee && ["eleves", "programme"].includes(cle) && ligne(t("Année scolaire"), r.annee, r.anneeACreer ? t("sera créée et activée") : t("année active"))}
+        {cle === "eleves" && ligne(t("Élèves"), r.eleves.total, t("{v0} nouveau(x), {v1} mis à jour · {v2} garçon(s), {v3} fille(s){v4}",
+          { v0: r.eleves.nouveaux, v1: r.eleves.misAJour, v2: r.eleves.garcons, v3: r.eleves.filles,
+            v4: r.eleves.sansClasse ? t(" · {v0} sans classe", { v0: r.eleves.sansClasse }) : "" }))}
+        {cle === "classes" && ligne(t("Classes"), r.classes.total, t("{v0} nouvelle(s)", { v0: r.classes.nouvelles }))}
+        {cle === "classes" && r.sections.total > 0 && ligne(t("Sections"), r.sections.total, t("{v0} nouvelle(s), créée(s) avec les classes", { v0: r.sections.nouvelles }))}
+        {cle === "matieres" && ligne(t("Matières"), r.matieres.total, t("{v0} nouvelle(s)", { v0: r.matieres.nouvelles }))}
+        {cle === "personnels" && ligne(t("Personnel"), r.personnels.total, t("{v0} nouveau(x){v1} · {v2} déjà présent(s) : nom, fonction et code inchangés, téléphone et poste mis à jour", {
+          v0: r.personnels.nouveaux, v1: r.personnels.parRole.length ? ` (${r.personnels.parRole.map(([role, n]) => `${t(ROLES_IMPORT[role])} : ${n}`).join(", ")})` : "",
+          v2: r.personnels.existants }))}
+        {cle === "programme" && ligne(t("Matières par classe"), r.programme, t("coefficient, groupe et enseignant"))}
+        {cle === "notes" && ligne(t("Notes"), r.notes.total, [
+          r.notes.total ? t("{v0} élève(s) · séquence(s) {v1}", { v0: r.notes.eleves, v1: r.notes.sequences.join(", ") }) : "",
+          r.notes.autresAnnees ? t("{v0} note(s) d'une autre année ignorée(s)", { v0: r.notes.autresAnnees }) : "",
+          r.notes.vides ? t("{v0} case(s) vide(s) ignorée(s)", { v0: r.notes.vides }) : ""].filter(Boolean).join(" · "))}
+      </tbody></table>
+      {["eleves", "programme", "notes"].includes(cle) && parClasse.length > 0 && (<>
+        <h3 className="h6">{t("Par classe")}</h3>
+        <div className="table-responsive border rounded" style={{ maxHeight: 300 }}><table className="table table-sm mb-0 small">
+          <thead className="table-light"><tr><th>{t("Classe")}</th>
+            {cle === "eleves" && <><th className="text-end">{t("Élèves du fichier")}</th><th className="text-end">{t("Garçons")}</th><th className="text-end">{t("Filles")}</th></>}
+            {cle === "programme" && <><th className="text-end">{t("Matières")}</th><th className="text-end">{t("Total des coefficients")}</th></>}
+            {cle === "notes" && <th className="text-end">{t("Notes")}</th>}</tr></thead>
+          <tbody>{parClasse.map((c) => (
+            <tr key={c.classe}><td>{c.classe}</td>
+              {cle === "eleves" && <><td className="text-end">{c.eleves}</td><td className="text-end">{c.garcons}</td><td className="text-end">{c.filles}</td></>}
+              {cle === "programme" && <><td className="text-end">{c.matieres}</td><td className="text-end">{c.coefficients}</td></>}
+              {cle === "notes" && <td className="text-end">{c.notes}</td>}</tr>))}</tbody>
+        </table></div></>)}
+    </>
+  )
+}
 
-  function modele() {
-    telechargerClasseur([
-      { titre: t("Élèves"), entetes: ENTETES_ELEVES, lignes: [["2026-0001", "NGONO", "Marie", "F", new Date(Date.UTC(2014, 1, 14)), t("Yaoundé"), "+237 600 000 000", ref_.classes[0]?.libelle || "6e A"]] },
-      { titre: t("Mode d'emploi"), entetes: [t("Consignes")], largeurs: [110], lignes: [
-        [t(
-          "Une ligne par élève. Colonnes obligatoires : Matricule, Nom, Sexe (M ou F)."
-        )],
-        [t(
-          "Classe : libellé exact d'une classe existante (ex. « 6e A ») ; vide = l'élève n'est pas inscrit dans une classe."
-        )],
-        [t("Date de naissance : au format jj/mm/aaaa (ou date Excel).")],
-        [t(
-          "Un matricule déjà connu met à jour l'élève ; un nouveau matricule crée l'élève."
-        )],
-        [t(
-          "L'import est tout ou rien : s'il y a une erreur, rien n'est enregistré et les lignes à corriger sont signalées."
-        )]] }], "modele-import-eleves")
+function Validation({ cle, analyse, envoi, progression, onValider, onFermer }) {
+  const { resume: r, erreurs } = analyse
+  useEffect(() => {
+    const echap = (x) => x.key === "Escape" && !envoi && onFermer()
+    document.addEventListener("keydown", echap); return () => document.removeEventListener("keydown", echap)
+  }, [envoi, onFermer])
+  return (
+    <>
+      <div className="modal d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="titre-validation">
+        <div className="modal-dialog modal-lg modal-dialog-scrollable"><div className="modal-content">
+          <div className="modal-header">
+            <h2 className="modal-title h5" id="titre-validation">{erreurs.length ? t("Fichier à corriger") : t("Vérifiez puis validez l'import")} — {t(LISTES[cle].titre)}</h2>
+            <button type="button" className="btn-close" aria-label={t("Fermer")} disabled={envoi} onClick={onFermer} />
+          </div>
+          <div className="modal-body">
+            <p className="small text-muted mb-2">{t("Fichier : {v0}", { v0: analyse.fichier })}</p>
+            {erreurs.length > 0 && (
+              <div className="alert alert-danger">
+                <p className="fw-semibold mb-2">{t("{v0} erreur(s) : rien ne sera enregistré tant qu'elles ne sont pas corrigées.", { v0: erreurs.length })}</p>
+                <ul className="small mb-0 liste-erreurs">{erreurs.slice(0, 200).map((e, k) => (
+                  <li key={k}>{e.ligne ? `${t("Ligne {v0} :", { v0: e.ligne })} ` : ""}{e.message}</li>))}
+                  {erreurs.length > 200 && <li>…</li>}</ul>
+              </div>)}
+            <h3 className="h6">{t("Résumé")}</h3>
+            <Resume cle={cle} r={r} />
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-outline-secondary" disabled={envoi} onClick={onFermer}>{t("Annuler")}</button>
+            <button type="button" className="btn btn-success" disabled={erreurs.length > 0 || envoi} onClick={onValider}>
+              {envoi ? t("Enregistrement… {v0} %", { v0: progression }) : t("Valider l'import")}</button>
+          </div>
+        </div></div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>
+  )
+}
+
+function Bilan({ cle, r, onFermer }) {
+  const imprimer = () => {
+    document.body.classList.add("impression-ciblee")
+    const fin = () => { document.body.classList.remove("impression-ciblee"); window.removeEventListener("afterprint", fin) }
+    window.addEventListener("afterprint", fin); window.print()
+  }
+  const n = (o) => t("{v0} créé(s), {v1} mis à jour", { v0: o?.crees || 0, v1: o?.modifies || 0 })
+  return (
+    <div className="mt-3">
+      <div className="alert alert-success py-2">
+        <p className="fw-semibold mb-1">{r.interruption ? t("Import interrompu : voici ce qui a déjà été enregistré.") : t("Import terminé.")}</p>
+        <ul className="small mb-0">
+          {r.annee_creee && <li>{t("Année scolaire {v0} créée et activée.", { v0: r.annee })}</li>}
+          {cle === "eleves" && <li>{t("Élèves : {v0}", { v0: n(r.eleves) })}</li>}
+          {cle === "classes" && <li>{t("Classes : {v0}", { v0: n(r.classes) })}{r.sections?.crees > 0 && <> · {t("Sections : {v0}", { v0: n(r.sections) })}</>}</li>}
+          {cle === "matieres" && <li>{t("Matières : {v0}", { v0: n(r.matieres) })}</li>}
+          {cle === "personnels" && <li>{t("Personnel : {v0} créé(s), {v1} déjà présent(s)", { v0: r.personnels?.crees || 0, v1: r.personnels?.existants || 0 })}</li>}
+          {cle === "programme" && <li>{t("Matières par classe : {v0}", { v0: n(r.programme) })}</li>}
+          {cle === "notes" && <li>{t("Notes : {v0}", { v0: n(r.notes) })}</li>}
+        </ul>
+      </div>
+      {r.codes?.length > 0 && (
+        <div className="card border-warning zone-impression">
+          <div className="card-body">
+            <h3 className="h6">{t("Codes personnels du nouveau personnel")}</h3>
+            <p className="small text-danger no-print">{t("Notez ou imprimez ces codes maintenant : ils ne seront plus jamais affichés. Chacun pourra se connecter avec le nom de l'établissement, le code de l'établissement et son code personnel.")}</p>
+            <table className="table table-sm mb-2"><thead><tr><th>{t("Nom")}</th><th>{t("Fonction")}</th><th>{t("Code personnel")}</th></tr></thead>
+              <tbody>{r.codes.map((c) => <tr key={c.nom + c.code}><td>{c.nom}</td><td>{t(ROLES_IMPORT[c.role])}</td><td className="font-monospace fw-bold">{c.code}</td></tr>)}</tbody></table>
+            <div className="d-flex gap-2 no-print">
+              <button type="button" className="btn btn-primary" onClick={imprimer}>{t("Imprimer les codes")}</button>
+              <button type="button" className="btn btn-outline-secondary" onClick={onFermer}>{t("J'ai noté les codes")}</button>
+            </div>
+          </div>
+        </div>)}
+      {!r.codes?.length && <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onFermer}>{t("Fermer")}</button>}
+    </div>
+  )
+}
+
+/** Une liste : import (contrôle, résumé, enregistrement par lots) et export au même format. */
+function CarteListe({ cle, ref_, annee, onMaj }) {
+  const { exercice, estAdmin, profil, recharger } = useSession()
+  const [analyse, setAnalyse] = useState(null), [bilan, setBilan] = useState(null), [msg, setMsg] = useState({})
+  const [occupe, setOccupe] = useState(""), [progression, setProgression] = useState(0)
+  const [classeId, setClasseId] = useState(""), [code, setCode] = useState(""), [sequence, setSequence] = useState("")
+  const seulement = cle === "notes" && !estAdmin ? profil.id : null
+  const classes = cle === "notes" ? ref_.classesNotes : ref_.classes
+  const codes = [...new Map(ref_.attributions.filter((a) => !classeId || a.classe_id === classeId).map((a) => [a.matieres.code, a.matieres])).values()]
+    .sort((a, b) => comparerNoms(a.libelle, b.libelle))
+
+  async function importer(fichier) {
+    setMsg({}); setBilan(null); setOccupe("lecture")
+    try {
+      const [lu, existant] = await Promise.all([lireListe(fichier, cle), chargerExistant(exercice, { seulement })])
+      setAnalyse({ fichier: fichier.name, ...analyserEcole(lu, existant, annee.trim()) })
+    } catch (x) { setMsg({ erreur: x.message }) } finally { setOccupe("") }
+  }
+
+  async function valider() {
+    setOccupe("envoi"); setProgression(0)
+    const etapes = decouperImport(analyse.donnees).filter((e) => Object.entries(e).some(([k, v]) => k !== "annee" && v.length))
+    let total = null
+    try {
+      for (let k = 0; k < etapes.length; k++) {
+        total = cumulerBilan(total, await rpc(cle === "notes" ? "importer_notes" : "importer_ecole", { p: etapes[k] }))
+        setProgression(Math.round(((k + 1) / etapes.length) * 100))
+      }
+      setAnalyse(null); setBilan(total || {})
+    } catch (x) {
+      setAnalyse(null)
+      if (!total) setMsg({ erreur: t("Rien n'a été enregistré : {v0}", { v0: x.message }) })
+      else {
+        setBilan({ ...total, interruption: true })
+        setMsg({ erreur: t("L'enregistrement s'est interrompu ({v0}). Ce qui précède est enregistré : réimportez le même fichier pour terminer, rien ne sera dupliqué.", { v0: x.message }) })
+      }
+    } finally { setOccupe(""); recharger().catch(() => {}); onMaj() }
   }
 
   async function exporter() {
-    setMsg({})
+    setMsg({}); setOccupe("export")
     try {
-      const eleves = await toutCharger(() => supabase.from("eleves").select("*"))
-      const inscriptions = exercice ? await toutCharger(() => supabase.from("inscriptions").select("eleve_id, classe_id").eq("exercice_id", exercice.id)) : []
-      const classeDe = new Map(inscriptions.map((i) => [i.eleve_id, i.classe_id])), libelle = new Map(ref_.classes.map((c) => [c.id, c.libelle]))
-      const lignes = eleves.filter((e) => !classe || classeDe.get(e.id) === classe)
-        .map((e) => ({ e, c: libelle.get(classeDe.get(e.id)) || "" }))
-        .sort((a, b) => comparerNoms(a.c, b.c) || comparerNoms(nomComplet(a.e), nomComplet(b.e)))
-        .map(({ e, c }) => [e.matricule, e.nom, e.prenom, e.sexe, e.date_naissance ? new Date(e.date_naissance + "T00:00:00Z") : null, e.lieu_naissance, e.telephone_parent, c])
-      await telechargerClasseur([{ titre: t("Élèves"), entetes: ENTETES_ELEVES, lignes }], classe ? `eleves-${libelle.get(classe)}` : "eleves")
-    } catch (x) { setMsg({ erreur: x.message }) }
+      const suffixe = [classes.find((c) => c.id === classeId)?.libelle, code, sequence && `S${sequence}`].filter(Boolean).join("-")
+      const n = await exporterListe(cle, { exercice, classeId, code, sequence, seulement }, suffixe)
+      setMsg({ ok: t("{v0} ligne(s) exportée(s).", { v0: n }) })
+    } catch (x) { setMsg({ erreur: t("Export impossible : {v0}", { v0: x.message }) }) } finally { setOccupe("") }
   }
 
-  async function analyser(fichier) {
-    setMsg({}); setApercu(null)
-    try {
-      const { lignes, presentes } = await lireClasseur(fichier, COLONNES_ELEVES)
-      const manquantes = ["matricule", "nom", "sexe"].filter((c) => !presentes.has(c))
-      if (manquantes.length) throw new Error(t("Colonnes manquantes : {v0}. Utilisez le modèle.", {
-        v0: manquantes.join(", ")
-      }))
-      const existants = new Set((await toutCharger(() => supabase.from("eleves").select("matricule"))).map((e) => e.matricule))
-      const classes = new Map(ref_.classes.map((c) => [normaliser(c.libelle), c]))
-      const vus = new Set()
-      setApercu({ fichier: fichier.name, lignes: lignes.map(({ numero, valeurs: v }) => {
-        const erreurs = [], d = { matricule: texte(v.matricule, 30), nom: texte(v.nom, 100), prenom: texte(v.prenom, 100),
-          lieu_naissance: texte(v.lieu_naissance, 100), telephone_parent: texte(v.telephone_parent, 30) }
-        if (!d.matricule) erreurs.push(t("matricule manquant"))
-        else if (vus.has(d.matricule)) erreurs.push(t("matricule en double dans le fichier"))
-        vus.add(d.matricule)
-        if (!d.nom) erreurs.push(t("nom manquant"))
-        d.sexe = enSexe(v.sexe); if (!d.sexe) erreurs.push(t("sexe « {v0} » : M ou F attendu", { v0: texte(v.sexe) }))
-        try { d.date_naissance = enDate(v.date_naissance) } catch (x) { erreurs.push(x.message) }
-        const libelleClasse = texte(v.classe)
-        const c = libelleClasse ? classes.get(normaliser(libelleClasse)) : null
-        if (libelleClasse && !c) erreurs.push(t("classe « {v0} » inconnue", { v0: libelleClasse }))
-        if (c && !exercice) erreurs.push(t("aucun exercice actif pour inscrire l'élève"))
-        d.classe_id = c?.id || null
-        return { numero, donnees: d, classe: c?.libelle || "", action: existants.has(d.matricule) ? t("mise à jour") : t("création"), erreurs };
-      }) })
-    } catch (x) { setMsg({ erreur: x.message }) }
-  }
-
-  async function confirmer() {
-    setEnvoi(true)
-    try {
-      const r = await rpc("importer_eleves", { p_lignes: apercu.lignes.map((l) => l.donnees) })
-      setMsg({ ok: t("Import terminé : {v0} élève(s) créé(s), {v1} mis à jour.", {
-        v0: r.crees,
-        v1: r.modifies
-      }) }); setApercu(null)
-    } catch (x) { setMsg({ erreur: t("Rien n'a été enregistré : {v0}", {
-      v0: x.message
-    }) }) } finally { setEnvoi(false) }
-  }
-
-  const nbErreurs = apercu?.lignes.filter((l) => l.erreurs.length).length || 0
+  const besoinAnnee = ["programme", "notes"].includes(cle) && !exercice
   return (
-    <Carte titre={t("Élèves")}>
-      <Alerte>{msg.erreur}</Alerte><Alerte type="success">{msg.ok}</Alerte>
-      <p className="small text-muted">{t(
-        "Création ou mise à jour selon le matricule, avec aperçu avant enregistrement (tout ou rien)."
-      )}</p>
-      <div className="d-flex flex-wrap gap-2 mb-3">
-        <label className="btn btn-primary mb-0">{t("Importer des élèves…")}<input type="file" hidden accept=".xlsx" onChange={(e) => { e.target.files[0] && analyser(e.target.files[0]); e.target.value = "" }} /></label>
-        <button className="btn btn-outline-secondary" onClick={modele}>{t("Télécharger le modèle")}</button>
-      </div>
-      <div className="d-flex gap-2 mb-2">
-        <select className="form-select" value={classe} onChange={(e) => setClasse(e.target.value)} aria-label={t("Classe à exporter")}>
-          <option value="">{t("Toutes les classes")}</option>{ref_.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select>
-        <button className="btn btn-outline-primary text-nowrap" onClick={exporter}>{t("Exporter")}</button>
-      </div>
-      {apercu && (
-        <div className="mt-3">
-          <h3 className="h6">{t("Aperçu : ")}{apercu.fichier} — {apercu.lignes.length}{t(" ligne(s)")}{nbErreurs > 0 && <span className="text-danger">, {nbErreurs}{t(" à corriger")}</span>}</h3>
-          <div className="table-responsive border rounded" style={{ maxHeight: 360 }}><table className="table table-sm mb-0 small">
-            <thead className="table-light"><tr><th>{t("Ligne")}</th><th>{t("Matricule")}</th><th>{t("Élève")}</th><th>{t("Classe")}</th><th>{t("Action")}</th></tr></thead>
-            <tbody>{apercu.lignes.map((l) => (
-              <tr key={l.numero} className={l.erreurs.length ? "table-danger" : ""}><td>{l.numero}</td><td>{l.donnees.matricule}</td>
-                <td>{l.donnees.nom} {l.donnees.prenom}{l.erreurs.map((x) => <div key={x} className="text-danger">{x}</div>)}</td><td>{l.classe}</td><td>{l.action}</td></tr>))}</tbody>
-          </table></div>
-          <div className="d-flex gap-2 mt-2">
-            <button className="btn btn-success" disabled={nbErreurs > 0 || envoi || !apercu.lignes.length} onClick={confirmer}>{envoi ? t("Enregistrement…") : "Confirmer l'import"}</button>
-            <button className="btn btn-outline-secondary" onClick={() => setApercu(null)}>{t("Annuler")}</button>
-          </div>
-          {nbErreurs > 0 && <p className="small text-danger mt-1">{t(
-            "Corrigez le fichier puis importez-le de nouveau : rien n'est enregistré tant qu'il reste une erreur."
-          )}</p>}
+    <div className="col-xl-6">
+      <div className="card h-100 carte-liste" data-liste={cle}>
+        <div className="card-header fw-semibold">{t(LISTES[cle].titre)}</div>
+        <div className="card-body">
+          <Alerte>{msg.erreur}</Alerte><Alerte type="success">{msg.ok}</Alerte>
+          <p className="small text-muted">{t(CONTENU[cle])}</p>
+          {besoinAnnee && cle === "notes" ? <div className="alert alert-warning py-2 small">{t("Aucune année scolaire active.")}</div> : (<>
+            {["eleves", "programme", "notes"].includes(cle) && (
+              <div className="row g-2 mb-2">
+                <div className={cle === "notes" ? "col-sm-4" : "col-sm-12"}>
+                  <select className="form-select form-select-sm" value={classeId} onChange={(e) => { setClasseId(e.target.value); setCode("") }} aria-label={t("Classe")}>
+                    <option value="">{t("Toutes les classes")}</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>
+                {cle === "notes" && <>
+                  <div className="col-sm-4"><select className="form-select form-select-sm" value={code} onChange={(e) => setCode(e.target.value)} aria-label={t("Matière")}>
+                    <option value="">{t("Toutes les matières")}</option>{codes.map((m) => <option key={m.code} value={m.code}>{m.libelle}</option>)}</select></div>
+                  <div className="col-sm-4"><select className="form-select form-select-sm" value={sequence} onChange={(e) => setSequence(e.target.value)} aria-label={t("Séquence")}>
+                    <option value="">{t("Toutes les séquences")}</option>{[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{t("Séquence {v0}", { v0: n })}</option>)}</select></div>
+                </>}
+              </div>)}
+            <div className="d-flex flex-wrap gap-2">
+              <label className={`btn btn-primary btn-sm mb-0 ${occupe ? "disabled" : ""}`}>
+                {occupe === "lecture" ? t("Lecture du fichier…") : t("Importer…")}
+                <input type="file" hidden accept=".xlsx" disabled={!!occupe} onChange={(e) => { e.target.files[0] && importer(e.target.files[0]); e.target.value = "" }} />
+              </label>
+              <button type="button" className="btn btn-outline-primary btn-sm" disabled={!!occupe} onClick={exporter}>
+                {occupe === "export" ? t("Préparation du fichier…") : t("Exporter")}</button>
+            </div>
+            {cle === "notes" && <p className="small text-muted mt-2 mb-0">{t("L'export liste chaque élève avec une case Note à remplir : choisissez une classe, une matière et une séquence pour obtenir un fichier léger, puis réimportez-le.")}</p>}
+          </>)}
+          {bilan && <Bilan cle={cle} r={bilan} onFermer={() => setBilan(null)} />}
         </div>
-      )}
-    </Carte>
-  );
+      </div>
+      {analyse && <Validation cle={cle} analyse={analyse} envoi={occupe === "envoi"} progression={progression} onValider={valider} onFermer={() => setAnalyse(null)} />}
+    </div>
+  )
 }
 
-// --- Notes -------------------------------------------------------------------------------------------------
-function Notes({ ref_ }) {
-  const { exercice } = useSession()
-  const [attributionId, setAttributionId] = useState(""), [sequenceId, setSequenceId] = useState("")
-  const [apercu, setApercu] = useState(null), [msg, setMsg] = useState({}), [envoi, setEnvoi] = useState(false)
-  const attribution = ref_.attributions.find((a) => a.id === attributionId), sequence = ref_.sequences.find((s) => s.id === sequenceId)
-
-  async function donneesNotes() {
-    const inscriptions = await toutCharger(() => supabase.from("inscriptions").select("id, eleves(matricule, nom, prenom)").eq("classe_id", attribution.classe_id).eq("exercice_id", exercice.id))
-    const notes = await toutCharger(() => supabase.from("notes").select("inscription_id, valeur").eq("attribution_id", attribution.id).eq("sequence_id", sequence.id))
-    return { inscriptions: inscriptions.sort((a, b) => comparerNoms(nomComplet(a.eleves), nomComplet(b.eleves))), notes: new Map(notes.map((n) => [n.inscription_id, Number(n.valeur)])) }
-  }
-
-  async function liste() {
-    setMsg({})
-    try {
-      const { inscriptions, notes } = await donneesNotes()
-      await telechargerClasseur([{ titre: t("Notes"), entetes: ["Matricule", t("Élève"), "Note"], largeurs: [16, 40, 10],
-        lignes: inscriptions.map((i) => [i.eleves.matricule, nomComplet(i.eleves), notes.get(i.id) ?? null]) },
-        { titre: t("Mode d'emploi"), entetes: [t("Consignes")], largeurs: [110], lignes: [
-          [t("{v0} — {v1} — Séquence {v2} ({v3})", {
-            v0: attribution.classes.libelle,
-            v1: attribution.matieres.libelle,
-            v2: sequence.numero,
-            v3: exercice.libelle
-          })],
-          [t(
-            "Saisissez les notes sur 20 dans la colonne « Note » (deux décimales au plus, virgule ou point)."
-          )],
-          [t(
-            "Une case vide ne modifie ni ne supprime aucune note. Ne modifiez pas la colonne « Matricule »."
-          )]] }],
-        `notes-${attribution.classes.libelle}-${attribution.matieres.code}-S${sequence.numero}`)
-    } catch (x) { setMsg({ erreur: x.message }) }
-  }
-
-  async function analyser(fichier) {
-    setMsg({}); setApercu(null)
-    try {
-      if (sequence.verrouillee) throw new Error(t("La séquence est verrouillée : aucune note ne peut être importée."))
-      const { lignes, presentes } = await lireClasseur(fichier, { matricule: ["Matricule", "Student ID"], note: ["Note", "Note /20", "Note sur 20", "Grade", "Grade /20"] })
-      if (!presentes.has("matricule") || !presentes.has("note")) throw new Error(t(
-        "Colonnes « Matricule » et « Note » obligatoires : utilisez la liste téléchargée."
-      ))
-      const { inscriptions, notes } = await donneesNotes()
-      const parMatricule = new Map(inscriptions.map((i) => [i.eleves.matricule, i]))
-      const vus = new Set()
-      setApercu({ fichier: fichier.name, lignes: lignes.map(({ numero, valeurs: v }) => {
-        const erreurs = [], matricule = texte(v.matricule), ins = parMatricule.get(matricule)
-        if (!ins) erreurs.push(t("matricule « {v0} » absent de la classe", {
-          v0: matricule
-        }))
-        else if (vus.has(matricule)) erreurs.push(t("élève en double dans le fichier"))
-        vus.add(matricule)
-        let nouvelle = null
-        try { nouvelle = enNote(v.note) } catch (x) { erreurs.push(x.message) }
-        return { numero, matricule, ins, eleve: ins ? nomComplet(ins.eleves) : "", actuelle: ins ? notes.get(ins.id) ?? null : null, nouvelle, erreurs }
-      }) })
-    } catch (x) { setMsg({ erreur: x.message }) }
-  }
-
-  async function confirmer() {
-    const aEcrire = apercu.lignes.filter((l) => l.nouvelle !== null && l.nouvelle !== l.actuelle)
-      .map((l) => ({ inscription_id: l.ins.id, attribution_id: attribution.id, sequence_id: sequence.id, valeur: l.nouvelle }))
-    setEnvoi(true)
-    try {
-      if (aEcrire.length) verifier(await supabase.from("notes").upsert(aEcrire, { onConflict: "inscription_id,attribution_id,sequence_id" }))
-      setMsg({ ok: t("{v0} note(s) enregistrée(s).", {
-        v0: aEcrire.length
-      }) }); setApercu(null)
-    } catch (x) { setMsg({ erreur: t("Rien n'a été enregistré : {v0}", {
-      v0: x.message
-    }) }) } finally { setEnvoi(false) }
-  }
-
-  const nbErreurs = apercu?.lignes.filter((l) => l.erreurs.length).length || 0
-  return (
-    <Carte titre="Notes">
-      <Alerte>{msg.erreur}</Alerte><Alerte type="success">{msg.ok}</Alerte>
-      <p className="small text-muted">{t(
-        "Téléchargez la liste de la classe, saisissez les notes dans Excel, puis importez-la. Une case vide ne supprime aucune note."
-      )}</p>
-      <div className="row g-2 mb-2">
-        <div className="col-md-7"><select className="form-select" value={attributionId} onChange={(e) => { setAttributionId(e.target.value); setApercu(null) }} aria-label={t("Classe et matière")}>
-          <option value="">{t("Classe et matière…")}</option>{ref_.attributions.map((a) => <option key={a.id} value={a.id}>{a.classes.libelle} — {a.matieres.libelle}</option>)}</select></div>
-        <div className="col-md-5"><select className="form-select" value={sequenceId} onChange={(e) => { setSequenceId(e.target.value); setApercu(null) }} aria-label={t("Séquence")}>
-          <option value="">{t("Séquence…")}</option>{ref_.sequences.map((s) => <option key={s.id} value={s.id}>{t("Séquence ")}{s.numero}{s.verrouillee ? t(" (verrouillée)") : ""}</option>)}</select></div>
-      </div>
-      <div className="d-flex flex-wrap gap-2">
-        <button className="btn btn-outline-secondary" disabled={!attribution || !sequence} onClick={liste}>{t("Télécharger la liste")}</button>
-        <label className={`btn btn-primary mb-0 ${!attribution || !sequence ? "disabled" : ""}`}>{t("Importer les notes…")}<input type="file" hidden accept=".xlsx" disabled={!attribution || !sequence} onChange={(e) => { e.target.files[0] && analyser(e.target.files[0]); e.target.value = "" }} /></label>
-      </div>
-      {apercu && (
-        <div className="mt-3">
-          <h3 className="h6">{t("Aperçu : ")}{apercu.fichier}{nbErreurs > 0 && <span className="text-danger"> — {nbErreurs}{t(" ligne(s) à corriger")}</span>}</h3>
-          <div className="table-responsive border rounded" style={{ maxHeight: 360 }}><table className="table table-sm mb-0 small">
-            <thead className="table-light"><tr><th>{t("Ligne")}</th><th>{t("Élève")}</th><th className="text-end">{t("Actuelle")}</th><th className="text-end">{t("Nouvelle")}</th></tr></thead>
-            <tbody>{apercu.lignes.map((l) => (
-              <tr key={l.numero} className={l.erreurs.length ? "table-danger" : l.nouvelle !== null && l.nouvelle !== l.actuelle ? "table-success" : ""}>
-                <td>{l.numero}</td><td>{l.eleve || l.matricule}{l.erreurs.map((x) => <div key={x} className="text-danger">{x}</div>)}</td>
-                <td className="text-end">{l.actuelle?.toLocaleString(locale()) ?? ""}</td><td className="text-end">{l.nouvelle?.toLocaleString(locale()) ?? ""}</td></tr>))}</tbody>
-          </table></div>
-          <div className="d-flex gap-2 mt-2">
-            <button className="btn btn-success" disabled={nbErreurs > 0 || envoi} onClick={confirmer}>{envoi ? t("Enregistrement…") : "Confirmer l'import"}</button>
-            <button className="btn btn-outline-secondary" onClick={() => setApercu(null)}>{t("Annuler")}</button>
-          </div>
-        </div>
-      )}
-    </Carte>
-  );
+function Carte({ titre, children }) {
+  return <div className="col-xl-6"><div className="card h-100"><div className="card-header fw-semibold">{t(titre)}</div><div className="card-body">{children}</div></div></div>
 }
 
 // --- Export des résultats ----------------------------------------------------------------------------------
@@ -290,30 +269,33 @@ function ExportResultats({ ref_ }) {
 
 export default function Excel() {
   const { exercice, estAdmin, profil } = useSession()
-  const [ref_, erreur] = useDonnees(async () => {
+  const [annee, setAnnee] = useState(() => { const d = new Date(), a = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; return `${a}-${a + 1}` })
+  const [ref_, erreur, rafraichir] = useDonnees(async () => {
     const classes = verifier(await supabase.from("classes").select("*").order("ordre").order("libelle"))
-    if (!exercice) return { classes, attributions: [], sequences: [], periodes: [], classesResultats: [] }
+    if (!exercice) return { classes, classesNotes: [], attributions: [], sequences: [], periodes: [], classesResultats: [] }
     let q = supabase.from("attributions").select("id, classe_id, classes(libelle, ordre), matieres(code, libelle)").eq("exercice_id", exercice.id)
     if (!estAdmin) q = q.eq("enseignant_id", profil.id)
     const attributions = verifier(await q).sort((a, b) => a.classes.ordre - b.classes.ordre || comparerNoms(a.classes.libelle, b.classes.libelle) || comparerNoms(a.matieres.libelle, b.matieres.libelle))
     const sequences = verifier(await supabase.from("sequences").select("*").eq("exercice_id", exercice.id).order("numero"))
     const siennes = new Set(attributions.map((a) => a.classe_id))
-    return { classes, attributions, sequences, periodes: periodes(sequences), classesResultats: estAdmin ? classes : classes.filter((c) => siennes.has(c.id)) }
+    const classesSiennes = estAdmin ? classes : classes.filter((c) => siennes.has(c.id))
+    return { classes, classesNotes: classesSiennes, attributions, sequences, periodes: periodes(sequences), classesResultats: classesSiennes }
   }, [exercice?.id])
   return (
     <>
-      <h1 className="h3 mb-3">{t("Import et export Excel")}</h1>
-      {/* hors du chargement : le bilan de l'import (codes du personnel) reste affiché quand l'année scolaire change */}
-      {estAdmin && <div className="row g-3 mb-3"><ExcelEcole /></div>}
-      {!ref_ ? <><Alerte>{erreur}</Alerte><Chargement /></> : <>
-      {!exercice && <div className="alert alert-warning">{t(
-        "Aucun exercice actif : seuls l'import et l'export des élèves sont possibles."
-      )}</div>}
-      <div className="row g-3">
-        {estAdmin && <Eleves ref_={ref_} />}
-        {exercice && <Notes ref_={ref_} />}
-        {exercice && <ExportResultats ref_={ref_} />}
-      </div></>}
+      <h1 className="h3 mb-2">{t("Import et export Excel")}</h1>
+      <p className="text-muted small mb-3">{t("Chaque liste s'importe et s'exporte séparément, dans des fichiers légers. Le fichier exporté sert de modèle : complétez-le puis réimportez-le. Un résumé est présenté avant tout enregistrement.")}
+        {estAdmin && <> {t("Pour une nouvelle école : classes, matières, personnel, matières par classe, élèves, puis notes.")}</>}</p>
+      {estAdmin && !exercice && (
+        <div className="mb-3" style={{ maxWidth: 360 }}>
+          <label className="form-label small mb-1" htmlFor="annee-import">{t("Année scolaire à créer (pour les élèves et les matières par classe)")}</label>
+          <input id="annee-import" className="form-control form-control-sm" value={annee} onChange={(e) => setAnnee(e.target.value)} placeholder="2026-2027" />
+        </div>)}
+      {!ref_ ? <><Alerte>{erreur}</Alerte><Chargement /></> : (
+        <div className="row g-3">
+          {ORDRE.filter((cle) => estAdmin || cle === "notes").map((cle) => <CarteListe key={cle} cle={cle} ref_={ref_} annee={annee} onMaj={rafraichir} />)}
+          {exercice && <ExportResultats ref_={ref_} />}
+        </div>)}
     </>
-  );
+  )
 }

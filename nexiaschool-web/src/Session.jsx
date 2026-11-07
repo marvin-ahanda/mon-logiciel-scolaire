@@ -5,6 +5,21 @@ import { sessionLocale, supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
 
+/** Nombre de matières confiées à la personne cette année (gardé sur l'appareil pour le mode hors ligne). */
+async function compterMesMatieres(profil, exercice) {
+  const cle = `nexiaschool.mesMatieres.${profil.id}`
+  if (!exercice) return 0
+  try {
+    const { count, error } = await supabase.from("attributions").select("id", { count: "exact", head: true })
+      .eq("exercice_id", exercice.id).eq("enseignant_id", profil.id)
+    if (error) throw error
+    try { localStorage.setItem(cle, String(count || 0)) } catch { /* stockage indisponible */ }
+    return count || 0
+  } catch {
+    try { return Number(localStorage.getItem(cle)) || 0 } catch { return 0 }
+  }
+}
+
 export function SessionProvider({ children }) {
   const [etat, setEtat] = useState({ pret: false, session: null, profil: null, etablissement: null, exercice: null })
 
@@ -35,7 +50,8 @@ export function SessionProvider({ children }) {
         supabase.from("exercices").select("*").eq("actif", true).maybeSingle().then(verifier),
         adresseLogo(etablissement.logo),
       ])
-      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire })
+      const mesMatieres = await compterMesMatieres(profil, exercice)
+      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire, mesMatieres })
     } catch (e) {
       console.error("NexIASchool : chargement du profil impossible", e)
       setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: e?.message || "erreur" })
@@ -59,8 +75,9 @@ export function SessionProvider({ children }) {
 
   const role = etat.profil?.role
   const valeur = { ...etat, recharger, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
-                   peutDiscipline: role === "admin" || role === "surveillant", peutNoter: role === "admin" || role === "enseignant" || (role === "surveillant" && !!etat.etablissement?.notes_surveillants)
-                     || (role === "comptable" && !!etat.etablissement?.notes_comptables),
+                   peutDiscipline: role === "admin" || role === "surveillant",
+                   // saisie des notes : l'administration, les enseignants, et toute personne à qui une matière est confiée cette année
+                   peutNoter: role === "admin" || role === "enseignant" || (etat.mesMatieres || 0) > 0,
                    estComptable: role === "comptable", peutFinance: role === "admin" || role === "comptable" }
   return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>
 }

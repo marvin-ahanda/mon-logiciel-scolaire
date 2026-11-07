@@ -152,7 +152,7 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
 }
 
 export default function Saisie() {
-  const { exercice, estAdmin, profil, etablissement } = useSession()
+  const { exercice, estAdmin, profil } = useSession()
   const [classeId, setClasseId] = useState(""), [attributionId, setAttributionId] = useState(""), [sequenceId, setSequenceId] = useState("")
   const [modifie, setModifie] = useState(false)
 
@@ -227,11 +227,7 @@ export default function Saisie() {
           {classeId && !matieres.length && (
             <div className="alert alert-light border" style={{ maxWidth: 860 }}>{t("Aucune matière n'est attribuée à cette classe.")}{estAdmin && <>{t(" Ajoutez-les dans ")}<Link to="/parametres/coefficients">{t("Paramètres → Matières par classe")}</Link>.</>}</div>)}
           {attribution && estAdmin && (
-            <p className="small text-muted mb-2">{t("Enseignant : ")}{prof ? nomComplet(prof) : t("aucun (seule l'administration peut saisir)")}
-              {prof && ((prof.role === "surveillant" && !etablissement?.notes_surveillants) || (prof.role === "comptable" && !etablissement?.notes_comptables))
-                && <span className="text-danger">{t(
-                " — cette personne n'est pas autorisée à saisir des notes : confiez la matière à un enseignant, ou autorisez son rôle dans Paramètres → Établissement."
-              )}</span>}</p>)}
+            <p className="small text-muted mb-2">{t("Enseignant : ")}{prof ? nomComplet(prof) : t("aucun (seule l'administration peut saisir)")}</p>)}
           {attribution && sequence
             ? <Grille key={`${attribution.id}|${sequence.id}`} attribution={attribution} sequence={sequence} exercice={exercice} onModifie={setModifie} />
             : classeId && matieres.length > 0 && <p className="text-muted">{t("Choisissez la matière pour afficher la liste des élèves.")}</p>}

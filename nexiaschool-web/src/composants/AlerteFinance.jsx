@@ -7,6 +7,7 @@ import { t, locale } from "../i18n.jsx"
  * Bulle d'alerte des retards de paiement (administration et comptabilité), en bas à droite.
  * Le badge rouge compte les alertes non lues : une par échéance dont le délai est dépassé et qui laisse des élèves
  * non en règle. Un clic marque les alertes comme lues et ouvre la liste des élèves non en règle.
+ * La bulle n'apparaît que s'il reste des alertes non lues par la personne connectée (lecture propre à chaque compte).
  */
 export default function AlerteFinance() {
   const naviguer = useNavigate()
@@ -18,16 +19,17 @@ export default function AlerteFinance() {
     window.addEventListener("finance:maj", charger)
     return () => { clearInterval(minuterie); window.removeEventListener("finance:maj", charger) }
   }, [charger])
-  if (!a || (!a.insolvables && !a.non_lues)) return null
+  if (!a || !a.non_lues) return null
   const detail = a.alertes.map((x) => t("{v0} (délai du {v1}) : {v2} élève(s)", {
     v0: x.libelle,
     v1: new Date(`${x.date_limite}T00:00:00`).toLocaleDateString(locale()),
     v2: x.eleves
   })).join("\n")
   async function ouvrir() {
-    await rpc("finance_marquer_alertes_lues").catch(() => {})
     setA({ ...a, non_lues: 0 })
     naviguer("/finance/insolvables")
+    await rpc("finance_marquer_alertes_lues").catch(() => {})
+    window.dispatchEvent(new Event("finance:maj"))
   }
   return (
     <button type="button" className="bulle-alerte no-print" onClick={ouvrir}

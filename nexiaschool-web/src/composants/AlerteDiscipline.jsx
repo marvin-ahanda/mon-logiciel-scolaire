@@ -7,6 +7,8 @@ import { t } from "../i18n.jsx"
  * Bulle d'alerte de discipline (administration et surveillants), en bas à droite.
  * Le badge rouge compte les élèves qui viennent d'atteindre un seuil (heures d'absence non justifiées, blâmes,
  * avertissements…). Un clic marque les alertes comme lues et ouvre la synthèse disciplinaire de ces élèves.
+ * La bulle n'apparaît que s'il reste des alertes non lues par la personne connectée (lecture propre à chaque compte) :
+ * après le clic, elle disparaît pour cette personne seulement, et revient à la prochaine nouvelle alerte.
  */
 export default function AlerteDiscipline() {
   const naviguer = useNavigate()
@@ -20,10 +22,11 @@ export default function AlerteDiscipline() {
     return () => { clearInterval(minuterie); window.removeEventListener("discipline:maj", charger) }
   }, [charger])
   useEffect(() => { if (pathname === "/discipline/alertes") charger() }, [pathname, charger])
-  if (!a || !a.eleves.length || pathname === "/discipline/alertes") return null
+  if (!a || !a.non_lues || pathname === "/discipline/alertes") return null
   const nouveaux = a.eleves.filter((e) => e.nouvelle)
   const detail = (nouveaux.length ? nouveaux : a.eleves).slice(0, 8).map((e) => `${e.nom} ${e.prenom} (${e.classe})`).join("\n")
   function ouvrir() {
+    setA({ ...a, non_lues: 0 })      // la page des alertes les marque lues pour ce compte
     naviguer("/discipline/alertes", { state: { nouvelles: nouveaux.map((e) => e.inscription_id) } })
   }
   return (

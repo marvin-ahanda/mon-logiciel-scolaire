@@ -1,11 +1,11 @@
-// Fichier Excel complet de l'établissement : modèle à remplir, lecture et contrôle avant import, export de toutes les données.
-import { locale, t } from "../i18n.jsx"
-import { COLONNES_PERSONNEL } from "./colonnes.js"
+// Listes Excel de l'établissement, importées et exportées séparément (élèves, classes, matières, personnel, matières par classe, notes) :
+// lecture, contrôle complet avant tout enregistrement, envoi par lots courts, et export au même format (l'export sert de modèle).
+import { t } from "../i18n.jsx"
 import { enDate, enNote, enOuiNon, enSexe, extraireLignes, lireFeuilles, normaliser, telechargerClasseur, texte } from "./excel.js"
 import { comparerNoms, nomComplet } from "./format.js"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 
-export const TAILLE_MAX_ECOLE = 5 * 1024 * 1024
+export const TAILLE_MAX_LISTE = 5 * 1024 * 1024
 
 // --- Feuilles reconnues à l'import (noms et en-têtes en français ou en anglais) ------------------------------------
 const FEUILLES = {
@@ -18,7 +18,8 @@ const FEUILLES = {
     colonnes: { code: ["Code", "Code matière", "Subject code"], libelle: ["Matière", "Subject", "Libellé", "Nom de la matière"] } },
   personnels: { noms: ["Personnel", "Staff", "Liste du personnel"], obligatoires: ["nom", "role"],
     colonnes: { nom: ["Nom", "Last name", "Surname"], prenom: ["Prénom", "Prenom", "First name"], role: ["Fonction", "Rôle", "Role", "Function"],
-                matricule: ["Matricule du personnel", "Matricule", "Staff ID"], telephone: ["Téléphone", "Telephone", "Phone"] } },
+                matricule: ["Matricule du personnel", "Matricule", "Staff ID"], telephone: ["Téléphone", "Telephone", "Phone"],
+                poste: ["Poste / spécialité", "Poste / spécialité (information)", "Poste ou spécialité", "Poste", "Spécialité", "Position", "Speciality"] } },
   programme: { noms: ["Matières par classe", "Matieres par classe", "Subjects per class", "Programme", "Coefficients"],
     obligatoires: ["classe", "matiere", "coefficient"],
     colonnes: { classe: ["Classe", "Class"], matiere: ["Code matière", "Matière", "Subject code", "Subject", "Code"],
@@ -31,7 +32,7 @@ const FEUILLES = {
                 telephone_parent: ["Contact du parent", "Parent's contact", "Parent contact", "Téléphone du parent", "Téléphone", "Telephone", "Parent's phone", "Phone"],
                 classe: ["Classe", "Class"], redoublant: ["Redoublant", "Repeater", "Repeating"], nouveau: ["Nouvel élève", "Nouveau", "New student", "New"] } },
   // même présentation que la feuille « Notes » de l'export : un fichier exporté se réimporte tel quel
-  notes: { noms: ["Notes", "Grades", "Marks", "Notes des élèves"], obligatoires: ["matricule", "matiere", "sequence", "note"],
+  notes: { noms: ["Notes", "Grades", "Marks", "Notes des élèves", "Liste des notes"], obligatoires: ["matricule", "matiere", "sequence", "note"],
     colonnes: { matricule: ["Matricule", "Student ID"], matiere: ["Code matière", "Matière", "Subject code", "Subject"],
                 sequence: ["Séquence", "Sequence", "Séq.", "Seq"], note: ["Note", "Note /20", "Note sur 20", "Grade", "Grade /20", "Mark"],
                 annee: ["Année scolaire", "School year"], classe: ["Classe", "Class"] } },
@@ -63,50 +64,26 @@ const entier = (v) => {
   return Number.isInteger(n) ? n : null
 }
 
-// --- Modèle à télécharger -------------------------------------------------------------------------------------------
-export function modeleEcole() {
-  return telechargerClasseur([
-    { titre: t("Sections"), entetes: [t("Section"), t("Ordre")], lignes: [[t("Francophone"), 1], [t("Anglophone"), 2]] },
-    { titre: t("Classes"), entetes: [t("Classe"), t("Niveau"), t("Section"), t("Cycle"), t("Ordre")],
-      lignes: [["6e A", "6e", t("Francophone"), 1, 1], ["2nde C", "2nde", t("Francophone"), 2, 2], ["Form 1", "Form 1", t("Anglophone"), 1, 3]] },
-    { titre: t("Matières"), entetes: [t("Code"), t("Matière")], lignes: [["MATH", t("Mathématiques")], ["FR", t("Français")], ["ANG", t("Anglais")]] },
-    { titre: t("Personnel"), entetes: [t("Nom"), t("Prénom"), t("Fonction"), t("Matricule du personnel"), t("Téléphone")],
-      lignes: [["MBALLA", "Jean", t("Enseignant"), "P001", "+237 690 000 000"], ["NGO", "Marie", t("Surveillant général"), "P002", ""],
-               ["ESSOMBA", "Claire", t("Comptable / caissier"), "P003", ""]] },
-    { titre: t("Matières par classe"), entetes: [t("Classe"), t("Code matière"), t("Coefficient"), t("Groupe"), t("Enseignant")],
-      lignes: [["6e A", "MATH", 4, 1, "P001"], ["6e A", "FR", 4, 1, ""], ["6e A", "ANG", 2, 1, ""], ["Form 1", "MATH", 4, 1, "MBALLA Jean"]] },
-    { titre: t("Élèves"), entetes: [t("Matricule"), t("Nom"), t("Prénom"), t("Sexe"), t("Date de naissance"), t("Lieu de naissance"),
-                                     t("Contact du parent"), t("Classe"), t("Redoublant"), t("Nouvel élève")],
-      lignes: [["2026-0001", "NGONO", "Marie", "F", new Date(Date.UTC(2014, 1, 14)), t("Yaoundé"), "+237 677 000 000", "6e A", t("Non"), t("Oui")],
-               ["2026-0002", "SMITH", "John", "M", new Date(Date.UTC(2014, 5, 3)), "Bamenda", "+237 655 000 000", "Form 1", t("Non"), t("Non")]] },
-    { titre: t("Notes"), entetes: [t("Matricule"), t("Code matière"), t("Séquence"), t("Note")],
-      lignes: [["2026-0001", "MATH", 1, 14.5], ["2026-0001", "FR", 1, 12], ["2026-0002", "MATH", 1, 9.75]] },
-    { titre: t("Mode d'emploi"), entetes: [t("Consignes")], largeurs: [120], lignes: [
-      [t("Remplissez les feuilles utiles (vous pouvez en laisser vides) sans changer les titres des colonnes, puis importez le fichier.")],
-      [t("Sections et Classes : le nom de la section d'une classe doit figurer dans la feuille Sections (ou exister déjà). Cycle : 1 (premier) ou 2 (second).")],
-      [t("Personnel : Fonction = Administration, Enseignant, Surveillant général ou Comptable / caissier. Chaque nouveau membre reçoit un code personnel affiché à la fin de l'import.")],
-      [t("Matières par classe : une ligne par matière enseignée dans une classe, avec son coefficient (1 à 20), son groupe (1 à 3) et, si vous le souhaitez, l'enseignant (matricule ou NOM Prénom).")],
-      [t("Élèves : Matricule, Nom et Sexe (M ou F) obligatoires ; date de naissance au format jj/mm/aaaa ; Redoublant et Nouvel élève : Oui ou Non.")],
-      [t("Notes : une ligne par note, avec le matricule de l'élève, le code de la matière (enseignée dans sa classe), la séquence (1 à 6) et la note sur 20. Une note vide est ignorée ; une note déjà enregistrée est remplacée.")],
-      [t("Ce qui existe déjà est reconnu et mis à jour (même classe, même code de matière, même matricule) ; le personnel déjà présent n'est jamais modifié.")],
-      [t("L'import est tout ou rien : s'il reste une erreur, rien n'est enregistré et les lignes à corriger sont indiquées.")],
-    ] }], "modele-ecole-complete")
+// --- Lecture d'une liste ----------------------------------------------------------------------------------------------
+/** En-têtes acceptés pour une liste : ceux du modèle, plus leur traduction (un fichier exporté en anglais se réimporte). */
+function colonnesDe(cle) {
+  return Object.fromEntries(Object.entries(FEUILLES[cle].colonnes).map(([k, noms]) => [k, [...new Set([...noms, ...noms.map((n) => t(n))])]]))
 }
 
-// --- Lecture et contrôle ----------------------------------------------------------------------------------------------
-/** Lit le classeur et range chaque feuille reconnue. */
-export async function lireEcole(fichier) {
-  const feuilles = await lireFeuilles(fichier, TAILLE_MAX_ECOLE)
-  const lu = {}, ignorees = []
-  for (const f of feuilles) {
-    const n = normaliser(f.nom)
-    const cle = Object.keys(FEUILLES).find((k) => FEUILLES[k].noms.some((x) => normaliser(x) === n))
-    if (!cle) { if (!["modedemploi", "consignes", "instructions", "sommaire", "summary"].includes(n)) ignorees.push(f.nom); continue }
-    const def = FEUILLES[cle]
-    const r = extraireLignes(f.data, def.colonnes, def.obligatoires)
-    lu[cle] = r ? { nom: f.nom, ...r } : { nom: f.nom, lignes: [], introuvable: true }
+/**
+ * Lit la liste « cle » dans un classeur : la feuille qui porte son nom, sinon la première dont les en-têtes correspondent.
+ * Renvoie { lu: { [cle]: { nom, lignes } }, ignorees: [] }, prêt pour analyserEcole.
+ */
+export async function lireListe(fichier, cle) {
+  const feuilles = await lireFeuilles(fichier, TAILLE_MAX_LISTE)
+  const def = FEUILLES[cle], colonnes = colonnesDe(cle), noms = new Set([...def.noms, ...def.noms.map((n) => t(n))].map(normaliser))
+  const parNom = feuilles.find((f) => noms.has(normaliser(f.nom)))
+  for (const f of parNom ? [parNom, ...feuilles.filter((x) => x !== parNom)] : feuilles) {
+    const r = extraireLignes(f.data, colonnes, def.obligatoires)
+    if (r) return { lu: { [cle]: { nom: f.nom, ...r } }, ignorees: [] }
   }
-  return { lu, ignorees }
+  throw new Error(t("Colonnes attendues introuvables ({v0}) : exportez la liste pour obtenir le modèle, puis complétez-le.",
+    { v0: def.obligatoires.map((k) => colonnes[k][0]).join(", ") }))
 }
 
 /**
@@ -120,7 +97,7 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     if (f.introuvable) err(cle, null, t("en-têtes non reconnus : utilisez le modèle ({v0})", { v0: FEUILLES[cle].obligatoires.join(", ") }))
   }
   if (!Object.values(lu).some((f) => f.lignes.length)) {
-    erreurs.push({ feuille: "", ligne: null, message: t("Aucune feuille reconnue (Sections, Classes, Matières, Personnel, Matières par classe, Élèves, Notes) : utilisez le modèle.") })
+    erreurs.push({ feuille: "", ligne: null, message: t("Le fichier ne contient aucune ligne à importer.") })
   }
   const lignes = (cle) => lu[cle]?.lignes || []
 
@@ -144,7 +121,13 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     if (!libelle) { err("classes", numero, t("nom de classe manquant")); continue }
     if (libelle.length > 50) err("classes", numero, t("nom de classe trop long (50 caractères au plus)"))
     if (classesFichier.has(normaliser(libelle))) err("classes", numero, t("classe « {v0} » en double", { v0: libelle }))
-    if (section && !nomsSections.has(normaliser(section))) err("classes", numero, t("section « {v0} » inconnue", { v0: section }))
+    if (section && !nomsSections.has(normaliser(section))) {
+      if (lu.sections) err("classes", numero, t("section « {v0} » inconnue", { v0: section }))
+      else if (section.length > 60) err("classes", numero, t("nom de section trop long (60 caractères au plus)"))
+      else {      // liste des classes seule : la section est créée avec la classe
+        sections.push({ libelle: section, ordre: existant.sections.length + sections.length + 1 }); nomsSections.set(normaliser(section), section)
+      }
+    }
     if (cycle === null) err("classes", numero, t("cycle « {v0} » : 1 ou 2 attendu", { v0: texte(v.cycle) }))
     if (ordre === null) err("classes", numero, t("ordre : nombre entier attendu"))
     classesFichier.add(normaliser(libelle)); classesConnues.set(normaliser(libelle), libelle)
@@ -179,7 +162,8 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     || normaliser(`${x.nom} ${x.prenom}`) === normaliser(`${p.nom} ${p.prenom}`))
   const personnesFichier = new Set()
   for (const { numero, valeurs: v } of lignes("personnels")) {
-    const p = { nom: texte(v.nom, 150), prenom: texte(v.prenom, 150), role: enRole(v.role), matricule: texte(v.matricule, 30), telephone: texte(v.telephone, 30) }
+    const p = { nom: texte(v.nom, 150), prenom: texte(v.prenom, 150), role: enRole(v.role), matricule: texte(v.matricule, 30), telephone: texte(v.telephone, 30),
+                poste: texte(v.poste, 100) }
     if (!p.nom) { err("personnels", numero, t("nom manquant")); continue }
     if (!p.role) err("personnels", numero, t("fonction « {v0} » inconnue (Administration, Enseignant, Surveillant général ou Comptable / caissier)", { v0: texte(v.role) }))
     const cle = normaliser(`${p.nom} ${p.prenom}`)
@@ -192,8 +176,6 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
 
   // Matières par classe
   const programme = [], couples = new Set()
-  // rôles qui peuvent recevoir une matière (paramètre de l'établissement)
-  const rolesNotes = ["enseignant", "admin", ...(existant.notesSurveillants ? ["surveillant"] : []), ...(existant.notesComptables ? ["comptable"] : [])]
   // fichier exporté : plusieurs années possibles, seule la plus récente est reprise
   const anneesProgramme = [...new Set(lignes("programme").map((l) => texte(l.valeurs.annee)).filter(Boolean))].sort()
   const anneeRetenue = anneesProgramme.at(-1)
@@ -207,7 +189,6 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     if (enseignant) {
       const role = designations.get(normaliser(enseignant))
       if (!role) err("programme", numero, t("enseignant « {v0} » absent du personnel", { v0: enseignant }))
-      else if (!rolesNotes.includes(role)) err("programme", numero, t("« {v0} » n'est ni enseignant ni administration", { v0: enseignant }))
     }
     const couple = `${normaliser(classe)}|${code}`
     if (code && couples.has(couple)) err("programme", numero, t("matière « {v0} » en double pour la classe {v1}", { v0: code, v1: classe }))
@@ -258,9 +239,15 @@ export function analyserEcole({ lu, ignorees }, existant, annee) {
     if (!matricule) err("notes", numero, t("matricule manquant"))
     else if (!matriculesConnus.has(matricule)) err("notes", numero, t("élève « {v0} » inconnu : absent de la feuille Élèves et de l'établissement", { v0: matricule }))
     else if (!classeDe.get(matricule)) err("notes", numero, t("élève « {v0} » sans classe pour l'année {v1}", { v0: matricule, v1: anneeCible }))
+    const classeIndiquee = texte(v.classe)
+    if (classeIndiquee && classeDe.get(matricule) && normaliser(classeIndiquee) !== normaliser(classeDe.get(matricule))) {
+      err("notes", numero, t("l'élève « {v0} » est inscrit en {v1}, pas en {v2}", { v0: matricule, v1: classeDe.get(matricule), v2: classeIndiquee }))
+    }
     if (!code) err("notes", numero, t("matière « {v0} » inconnue (indiquez son code)", { v0: texte(v.matiere) }))
     else if (classeDe.get(matricule) && !offertes.has(`${normaliser(classeDe.get(matricule))}|${code}`)) {
-      err("notes", numero, t("la matière {v0} n'est pas enseignée en {v1} (feuille Matières par classe)", { v0: code, v1: classeDe.get(matricule) }))
+      err("notes", numero, existant.seulement
+        ? t("la matière {v0} ne vous est pas confiée en {v1}", { v0: code, v1: classeDe.get(matricule) })
+        : t("la matière {v0} n'est pas enseignée en {v1} (feuille Matières par classe)", { v0: code, v1: classeDe.get(matricule) }))
     }
     if (!sequence || sequence < 1 || sequence > 6) err("notes", numero, t("séquence de 1 à 6 attendue"))
     else if (verrouillees.has(sequence)) err("notes", numero, t("la séquence {v0} est verrouillée : ses notes ne peuvent plus être modifiées", { v0: sequence }))
@@ -343,158 +330,111 @@ export function cumulerBilan(total, r) {
   return b
 }
 
-/** Données déjà enregistrées, utiles au contrôle du fichier. */
-export async function chargerExistant(exercice, etablissement = {}) {
+/** Données déjà enregistrées, utiles au contrôle du fichier. seulement : id de la personne qui n'importe que ses matières. */
+export async function chargerExistant(exercice, { seulement } = {}) {
   const [sections, classes, matieres, personnels, eleves, attributions, inscrits, sequences] = await Promise.all([
     supabase.from("sections").select("libelle, ordre").then(verifier),
     supabase.from("classes").select("libelle, ordre").then(verifier),
     supabase.from("matieres").select("code, libelle").then(verifier),
     supabase.from("personnels").select("nom, prenom, role, matricule, actif").then(verifier),
     toutCharger(() => supabase.from("eleves").select("matricule")),
-    exercice ? toutCharger(() => supabase.from("attributions").select("coefficient, classes(libelle), matieres(code)").eq("exercice_id", exercice.id)) : [],
+    exercice ? toutCharger(() => supabase.from("attributions").select("coefficient, enseignant_id, classes(libelle), matieres(code)").eq("exercice_id", exercice.id)) : [],
     exercice ? toutCharger(() => supabase.from("inscriptions").select("eleves(matricule), classes(libelle)").eq("exercice_id", exercice.id)) : [],
     exercice ? supabase.from("sequences").select("numero, verrouillee").eq("exercice_id", exercice.id).then(verifier) : [],
   ])
   return { exercice, sections, classes, matieres, personnels, eleves: eleves.map((e) => e.matricule),
-           notesSurveillants: !!etablissement.notes_surveillants, notesComptables: !!etablissement.notes_comptables,
            classesEleves: Object.fromEntries(inscrits.filter((i) => i.eleves && i.classes).map((i) => [i.eleves.matricule, i.classes.libelle])),
            sequencesVerrouillees: sequences.filter((x) => x.verrouillee).map((x) => x.numero),
-           attributions: attributions.map((a) => ({ classe: a.classes.libelle, code: a.matieres.code, coefficient: a.coefficient })) }
+           seulement: seulement || null,
+           attributions: attributions.filter((a) => !seulement || a.enseignant_id === seulement)
+             .map((a) => ({ classe: a.classes.libelle, code: a.matieres.code, coefficient: a.coefficient })) }
 }
 
-// --- Export de toutes les données ------------------------------------------------------------------------------------
+// --- Export d'une liste (même présentation que l'import : le fichier exporté sert de modèle) ---------------------------
 const jourExcel = (d) => (d ? new Date(String(d).slice(0, 10) + "T00:00:00Z") : null)
 const ouiNon = (b) => (b ? t("Oui") : t("Non"))
-const dateHeureTexte = (d) => (d ? new Date(d).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) : "")
 
-/** Exporte toutes les données de l'établissement dans un classeur, une feuille par catégorie. */
-export async function exporterEcole(etablissement) {
-  const tout = (table, colonnes, ordre = "id") => toutCharger(() => supabase.from(table).select(colonnes).order(ordre))
-  const [exercices, sequences, sections, classes, matieres, attributions, personnels, eleves, inscriptions, notes, baremes, sanctions, infractions,
-         absences, retards, incidents, frais, echeances, paiements, seuilsDiscipline, seuilsSanctions] = await Promise.all([
-    tout("exercices", "id, libelle, actif, cree_le"), tout("sequences", "id, exercice_id, numero, trimestre, verrouillee, date_limite_notes"),
-    tout("sections", "id, libelle, ordre"), tout("classes", "id, libelle, niveau, ordre, coef_min, section_id, cycle"), tout("matieres", "id, code, libelle"),
-    tout("attributions", "id, exercice_id, classe_id, matiere_id, enseignant_id, coefficient, groupe"), tout("personnels", COLONNES_PERSONNEL),
-    tout("eleves", "id, matricule, nom, prenom, sexe, date_naissance, lieu_naissance, telephone_parent, photo, cree_le"),
-    tout("inscriptions", "id, exercice_id, classe_id, eleve_id, redoublant, nouveau"),
-    tout("notes", "id, inscription_id, attribution_id, sequence_id, valeur, maj"),
-    tout("parametres_discipline", "exercice_id, note_max, points_par_retard, points_par_heure", "exercice_id"), tout("sanctions", "id, libelle, points_perdus"),
-    tout("infractions", "id, libelle, sanction_id"),
-    tout("absences", "id, inscription_id, sequence_id, date, heures_non_justifiees, heures_justifiees, motif"),
-    tout("retards", "id, inscription_id, sequence_id, date"), tout("incidents", "id, inscription_id, sequence_id, date, infraction_id, observation"),
-    tout("frais_scolarite", "exercice_id, pension_nouveaux, pension_anciens", "exercice_id"), tout("echeances", "id, exercice_id, rang, libelle, montant, date_limite"),
-    tout("paiements", "id, inscription_id, numero, montant, date_paiement, mode, reference, observation, saisi_par, cree_le"),
-    tout("seuils_discipline", "etablissement_id, heures_non_justifiees", "etablissement_id"), tout("seuils_sanctions", "sanction_id, seuil", "sanction_id"),
-  ])
-  const par = (liste, cle = "id") => new Map(liste.map((x) => [x[cle], x]))
-  const ex = par(exercices), seq = par(sequences), sec = par(sections), cla = par(classes), mat = par(matieres), att = par(attributions)
-  const per = par(personnels), elv = par(eleves), ins = par(inscriptions), sanc = par(sanctions), infr = par(infractions)
-  const actif = exercices.find((e) => e.actif)
-  const annee = (id) => ex.get(id)?.libelle || ""
-  const nomPersonnel = (id) => (per.get(id) ? nomComplet(per.get(id)) : "")
-  const ordreClasse = (id) => cla.get(id)?.ordre ?? 0
-  const triClasse = (a, b) => ordreClasse(a) - ordreClasse(b) || comparerNoms(cla.get(a)?.libelle || "", cla.get(b)?.libelle || "")
-  const eleveDe = (insId) => elv.get(ins.get(insId)?.eleve_id)
-  const classeDe = (insId) => cla.get(ins.get(insId)?.classe_id)?.libelle || ""
-  const classeActuelle = new Map(inscriptions.filter((i) => i.exercice_id === actif?.id).map((i) => [i.eleve_id, i]))
-  const parAnnee = (a, b) => comparerNoms(annee(b.exercice_id), annee(a.exercice_id))
-
-  const classesTenues = new Map()
-  for (const a of attributions.filter((x) => x.enseignant_id && x.exercice_id === actif?.id)
-    .sort((x, y) => triClasse(x.classe_id, y.classe_id) || comparerNoms(mat.get(x.matiere_id)?.code || "", mat.get(y.matiere_id)?.code || ""))) {
-    const l = classesTenues.get(a.enseignant_id) || []
-    l.push(`${cla.get(a.classe_id)?.libelle} (${mat.get(a.matiere_id)?.code})`); classesTenues.set(a.enseignant_id, l)
-  }
-  const evenementsEleve = (liste) => liste.map((x) => ({ x, e: eleveDe(x.inscription_id) }))
-    .sort((a, b) => String(b.x.date).localeCompare(String(a.x.date)) || comparerNoms(nomComplet(a.e || {}), nomComplet(b.e || {})))
-
-  const feuilles = [
-    { titre: t("Sommaire"), intitule: t("Données de l'établissement — {v0}", { v0: etablissement.nom }), entetes: [t("Rubrique"), t("Valeur")], largeurs: [34, 80],
-      lignes: [[t("Établissement"), etablissement.nom], [t("Ville"), etablissement.ville], [t("Adresse"), etablissement.adresse], [t("Téléphone"), etablissement.telephone],
-               [t("Devise"), etablissement.devise], [t("Chef d'établissement"), etablissement.nom_chef], [t("Site web"), etablissement.site_web || ""],
-               [t("Année scolaire active"), actif?.libelle || ""], [t("Exporté le"), dateHeureTexte(new Date())], [],
-               [t("Élèves"), eleves.length], [t("Personnel"), personnels.length], [t("Classes"), classes.length], [t("Matières"), matieres.length],
-               [t("Notes"), notes.length], [t("Paiements"), paiements.length], [],
-               [t("Remarque"), t("Les photos des élèves et le logo sont des fichiers : ils ne figurent pas dans ce classeur. Les codes d'accès ne sont jamais exportés.")]] },
-    { titre: t("Années scolaires"), intitule: t("Liste des années scolaires"), entetes: [t("Année scolaire"), t("Active"), t("Séquences verrouillées"), t("Délais de saisie des notes")],
-      lignes: [...exercices].sort((a, b) => comparerNoms(b.libelle, a.libelle)).map((e) => [e.libelle, ouiNon(e.actif),
-        sequences.filter((s) => s.exercice_id === e.id && s.verrouillee).map((s) => s.numero).sort().join(", "),
-        sequences.filter((s) => s.exercice_id === e.id && s.date_limite_notes).sort((a, b) => a.numero - b.numero)
-          .map((s) => `S${s.numero} : ${new Date(s.date_limite_notes + "T00:00:00").toLocaleDateString(locale())}`).join(" ; ")]) },
-    { titre: t("Sections"), intitule: t("Liste des sections"), entetes: [t("Section"), t("Ordre")],
-      lignes: [...sections].sort((a, b) => a.ordre - b.ordre || comparerNoms(a.libelle, b.libelle)).map((s) => [s.libelle, s.ordre]) },
-    { titre: t("Classes"), intitule: t("Liste des classes"), entetes: [t("Classe"), t("Niveau"), t("Section"), t("Cycle"), t("Ordre"), t("Coefficient minimum"), t("Élèves inscrits")],
-      lignes: [...classes].sort((a, b) => triClasse(a.id, b.id)).map((c) => [c.libelle, c.niveau, sec.get(c.section_id)?.libelle || "", c.cycle, c.ordre, c.coef_min,
-        inscriptions.filter((i) => i.exercice_id === actif?.id && i.classe_id === c.id).length]) },
-    { titre: t("Matières"), intitule: t("Liste des matières"), entetes: [t("Code"), t("Matière")],
-      lignes: [...matieres].sort((a, b) => comparerNoms(a.code, b.code)).map((m) => [m.code, m.libelle]) },
-    { titre: t("Matières par classe"), intitule: t("Matières, coefficients et enseignants par classe"),
-      entetes: [t("Année scolaire"), t("Classe"), t("Code matière"), t("Matière"), t("Coefficient"), t("Groupe"), t("Enseignant")],
-      lignes: [...attributions].sort((a, b) => parAnnee(a, b) || triClasse(a.classe_id, b.classe_id) || a.groupe - b.groupe
-          || comparerNoms(mat.get(a.matiere_id)?.code || "", mat.get(b.matiere_id)?.code || ""))
-        .map((a) => [annee(a.exercice_id), cla.get(a.classe_id)?.libelle, mat.get(a.matiere_id)?.code, mat.get(a.matiere_id)?.libelle, a.coefficient, a.groupe,
-                     nomPersonnel(a.enseignant_id)]) },
-    { titre: t("Personnel"), intitule: t("Liste du personnel"),
-      entetes: [t("Nom"), t("Prénom"), t("Fonction"), t("Matricule du personnel"), t("Téléphone"), t("Actif"), t("Connexion Google"), t("Classes tenues"), t("Dernière connexion"), t("Créé le")],
-      lignes: [...personnels].sort((a, b) => comparerNoms(nomComplet(a), nomComplet(b))).map((p) => [p.nom, p.prenom, t(ROLES_IMPORT[p.role] || p.role), p.matricule,
-        p.telephone, ouiNon(p.actif), ouiNon(p.compte_google), (classesTenues.get(p.id) || []).join(", "), dateHeureTexte(p.derniere_connexion), jourExcel(p.cree_le)]) },
-    { titre: t("Élèves"), intitule: t("Liste des élèves"),
-      entetes: [t("Matricule"), t("Nom"), t("Prénom"), t("Sexe"), t("Date de naissance"), t("Lieu de naissance"), t("Contact du parent"), t("Classe"),
-                t("Redoublant"), t("Nouvel élève"), t("Photo")],
-      lignes: eleves.map((e) => ({ e, i: classeActuelle.get(e.id) }))
-        .sort((a, b) => (a.i && b.i ? triClasse(a.i.classe_id, b.i.classe_id) : a.i ? -1 : b.i ? 1 : 0) || comparerNoms(nomComplet(a.e), nomComplet(b.e)))
-        .map(({ e, i }) => [e.matricule, e.nom, e.prenom, e.sexe, jourExcel(e.date_naissance), e.lieu_naissance, e.telephone_parent,
-                            cla.get(i?.classe_id)?.libelle || "", i ? ouiNon(i.redoublant) : "", i ? ouiNon(i.nouveau) : "", ouiNon(e.photo)]) },
-    { titre: t("Inscriptions"), intitule: t("Inscriptions de toutes les années scolaires"),
-      entetes: [t("Année scolaire"), t("Classe"), t("Matricule"), t("Élève"), t("Redoublant"), t("Nouvel élève")],
-      lignes: [...inscriptions].sort((a, b) => parAnnee(a, b) || triClasse(a.classe_id, b.classe_id) || comparerNoms(nomComplet(elv.get(a.eleve_id)), nomComplet(elv.get(b.eleve_id))))
-        .map((i) => [annee(i.exercice_id), cla.get(i.classe_id)?.libelle, elv.get(i.eleve_id)?.matricule, nomComplet(elv.get(i.eleve_id)), ouiNon(i.redoublant), ouiNon(i.nouveau)]) },
-    { titre: t("Notes"), intitule: t("Toutes les notes (sur 20)"),
-      entetes: [t("Année scolaire"), t("Séquence"), t("Classe"), t("Matricule"), t("Élève"), t("Code matière"), t("Matière"), t("Coefficient"), t("Note"), t("Saisie le")],
-      lignes: notes.map((n) => ({ n, a: att.get(n.attribution_id), s: seq.get(n.sequence_id), e: eleveDe(n.inscription_id) }))
-        .sort((x, y) => parAnnee(x.a, y.a) || (x.s?.numero ?? 0) - (y.s?.numero ?? 0) || triClasse(x.a?.classe_id, y.a?.classe_id)
-          || comparerNoms(mat.get(x.a?.matiere_id)?.code || "", mat.get(y.a?.matiere_id)?.code || "") || comparerNoms(nomComplet(x.e || {}), nomComplet(y.e || {})))
-        .map(({ n, a, s, e }) => [annee(a?.exercice_id), s?.numero, cla.get(a?.classe_id)?.libelle, e?.matricule, nomComplet(e || {}), mat.get(a?.matiere_id)?.code,
-                                  mat.get(a?.matiere_id)?.libelle, a?.coefficient, Number(n.valeur), jourExcel(n.maj)]) },
-    { titre: t("Barème de discipline"), intitule: t("Barème de la note de discipline par année"),
-      entetes: [t("Année scolaire"), t("Note maximale"), t("Points par retard"), t("Points par heure d'absence non justifiée")],
-      lignes: [...baremes].sort(parAnnee).map((b) => [annee(b.exercice_id), Number(b.note_max), Number(b.points_par_retard), Number(b.points_par_heure)]) },
-    { titre: t("Sanctions et infractions"), intitule: t("Infractions et sanctions associées"),
-      entetes: [t("Infraction"), t("Sanction"), t("Points perdus")],
-      lignes: [...infractions.map((i) => [i.libelle, sanc.get(i.sanction_id)?.libelle, Number(sanc.get(i.sanction_id)?.points_perdus ?? 0)]),
-               ...sanctions.filter((s) => !infractions.some((i) => i.sanction_id === s.id)).map((s) => ["", s.libelle, Number(s.points_perdus)])]
-        .sort((a, b) => comparerNoms(a[0], b[0]) || comparerNoms(a[1], b[1])) },
-    { titre: t("Seuils d'alerte"), intitule: t("Seuils d'alerte de discipline (année en cours)"), entetes: [t("Critère"), t("Seuil")],
-      lignes: [...(seuilsDiscipline[0]?.heures_non_justifiees ? [[t("Heures d'absence non justifiées (cumul)"), seuilsDiscipline[0].heures_non_justifiees]] : []),
-               ...seuilsSanctions.map((x) => [t("Nombre de sanctions : {v0}", { v0: sanc.get(x.sanction_id)?.libelle || "" }), x.seuil])] },
-    { titre: t("Absences"), intitule: t("Absences des élèves"),
-      entetes: [t("Année scolaire"), t("Séquence"), t("Date"), t("Classe"), t("Matricule"), t("Élève"), t("Heures non justifiées"), t("Heures justifiées"), t("Motif")],
-      lignes: evenementsEleve(absences).map(({ x, e }) => [annee(seq.get(x.sequence_id)?.exercice_id), seq.get(x.sequence_id)?.numero, jourExcel(x.date),
-        classeDe(x.inscription_id), e?.matricule, nomComplet(e || {}), x.heures_non_justifiees, x.heures_justifiees, x.motif]) },
-    { titre: t("Retards"), intitule: t("Retards des élèves"),
-      entetes: [t("Année scolaire"), t("Séquence"), t("Date"), t("Classe"), t("Matricule"), t("Élève")],
-      lignes: evenementsEleve(retards).map(({ x, e }) => [annee(seq.get(x.sequence_id)?.exercice_id), seq.get(x.sequence_id)?.numero, jourExcel(x.date),
-        classeDe(x.inscription_id), e?.matricule, nomComplet(e || {})]) },
-    { titre: t("Incidents"), intitule: t("Incidents disciplinaires (infractions et sanctions)"),
-      entetes: [t("Année scolaire"), t("Séquence"), t("Date"), t("Classe"), t("Matricule"), t("Élève"), t("Infraction"), t("Sanction"), t("Observation")],
-      lignes: evenementsEleve(incidents).map(({ x, e }) => [annee(seq.get(x.sequence_id)?.exercice_id), seq.get(x.sequence_id)?.numero, jourExcel(x.date),
-        classeDe(x.inscription_id), e?.matricule, nomComplet(e || {}), infr.get(x.infraction_id)?.libelle, sanc.get(infr.get(x.infraction_id)?.sanction_id)?.libelle,
-        x.observation]) },
-    { titre: t("Frais de scolarité"), intitule: t("Frais de scolarité et échéancier"),
-      entetes: [t("Année scolaire"), t("Rubrique"), t("Montant (FCFA)"), t("Date limite")],
-      lignes: [...frais].sort(parAnnee).flatMap((f) => [
-        [annee(f.exercice_id), t("Pension des nouveaux élèves"), f.pension_nouveaux, null], [annee(f.exercice_id), t("Pension des anciens élèves"), f.pension_anciens, null],
-        ...echeances.filter((e) => e.exercice_id === f.exercice_id).sort((a, b) => a.rang - b.rang).map((e) => [annee(e.exercice_id), t(e.libelle), e.montant, jourExcel(e.date_limite)])]) },
-    { titre: t("Paiements"), intitule: t("Paiements encaissés (reçus)"),
-      entetes: [t("N° de reçu"), t("Date"), t("Année scolaire"), t("Classe"), t("Matricule"), t("Élève"), t("Montant (FCFA)"), t("Mode"), t("Référence"), t("Observation"), t("Encaissé par")],
-      lignes: [...paiements].sort((a, b) => a.numero - b.numero).map((p) => {
-        const i = ins.get(p.inscription_id), e = elv.get(i?.eleve_id)
-        return [p.numero, jourExcel(p.date_paiement), annee(i?.exercice_id), cla.get(i?.classe_id)?.libelle, e?.matricule, nomComplet(e || {}), p.montant,
-                t(MODES_EXPORT[p.mode] || p.mode), p.reference, p.observation, nomPersonnel(p.saisi_par)]
-      }) },
-  ]
-  await telechargerClasseur(feuilles, `donnees-${normaliser(etablissement.nom).slice(0, 40) || "etablissement"}`)
-  return { feuilles: feuilles.length, eleves: eleves.length, notes: notes.length }
+export const ENTETES = {
+  eleves: ["Matricule", "Nom", "Prénom", "Sexe", "Date de naissance", "Lieu de naissance", "Contact du parent", "Classe", "Redoublant", "Nouvel élève"],
+  classes: ["Classe", "Niveau", "Section", "Cycle", "Ordre"],
+  matieres: ["Code", "Matière"],
+  personnels: ["Matricule du personnel", "Nom", "Prénom", "Fonction", "Téléphone", "Poste / spécialité"],
+  programme: ["Classe", "Code matière", "Matière", "Coefficient", "Groupe", "Enseignant"],
+  notes: ["Classe", "Séquence", "Matricule", "Élève", "Code matière", "Note"],
+}
+export const LISTES = {
+  eleves: { titre: "Élèves", intitule: "Liste des élèves", fichier: "eleves" },
+  classes: { titre: "Classes", intitule: "Liste des classes", fichier: "classes" },
+  matieres: { titre: "Matières", intitule: "Liste des matières", fichier: "matieres" },
+  personnels: { titre: "Personnel", intitule: "Liste du personnel", fichier: "personnel" },
+  programme: { titre: "Matières par classe", intitule: "Matières, coefficients et enseignants par classe", fichier: "matieres-par-classe" },
+  notes: { titre: "Notes", intitule: "Notes des élèves (sur 20)", fichier: "notes" },
 }
 
-const MODES_EXPORT = { especes: "Espèces", mobile_money: "Mobile money", virement: "Virement", cheque: "Chèque", autre: "Autre" }
+const tout = (table, colonnes, filtre = (q) => q) => toutCharger(() => filtre(supabase.from(table).select(colonnes)).order("id"))
+const ordreClasses = (classes) => { const o = new Map(classes.map((c) => [c.id, c])); return (a, b) => ((o.get(a)?.ordre ?? 0) - (o.get(b)?.ordre ?? 0)) || comparerNoms(o.get(a)?.libelle || "", o.get(b)?.libelle || "") }
+
+/** Lignes de la liste « cle » (en-têtes ENTETES[cle]). options : { exercice, classeId, code, sequence, seulement }. */
+export async function lignesListe(cle, { exercice, classeId, code, sequence, seulement } = {}) {
+  const classes = cle === "matieres" || cle === "personnels" ? [] : await tout("classes", "id, libelle, niveau, ordre, cycle, section_id")
+  const cla = new Map(classes.map((c) => [c.id, c])), triClasse = ordreClasses(classes)
+  if (cle === "classes") {
+    const sec = new Map((await tout("sections", "id, libelle")).map((x) => [x.id, x.libelle]))
+    return [...classes].sort((a, b) => triClasse(a.id, b.id)).map((c) => [c.libelle, c.niveau, sec.get(c.section_id) || "", c.cycle, c.ordre])
+  }
+  if (cle === "matieres") return (await tout("matieres", "code, libelle")).sort((a, b) => comparerNoms(a.code, b.code)).map((m) => [m.code, m.libelle])
+  if (cle === "personnels") {
+    return (await tout("personnels", "nom, prenom, role, matricule, telephone, poste, actif")).filter((p) => p.actif)
+      .sort((a, b) => comparerNoms(a.matricule || "~", b.matricule || "~") || comparerNoms(nomComplet(a), nomComplet(b)))
+      .map((p) => [p.matricule, p.nom, p.prenom, t(ROLES_IMPORT[p.role] || p.role), p.telephone, p.poste])
+  }
+  if (cle === "eleves") {
+    const eleves = await tout("eleves", "id, matricule, nom, prenom, sexe, date_naissance, lieu_naissance, telephone_parent")
+    const ins = new Map((exercice ? await tout("inscriptions", "eleve_id, classe_id, redoublant, nouveau", (q) => q.eq("exercice_id", exercice.id)) : [])
+      .map((i) => [i.eleve_id, i]))
+    return eleves.map((e) => ({ e, i: ins.get(e.id) })).filter(({ i }) => !classeId || i?.classe_id === classeId)
+      .sort((a, b) => (a.i && b.i ? triClasse(a.i.classe_id, b.i.classe_id) : a.i ? -1 : b.i ? 1 : 0) || comparerNoms(nomComplet(a.e), nomComplet(b.e)))
+      .map(({ e, i }) => [e.matricule, e.nom, e.prenom, e.sexe, jourExcel(e.date_naissance), e.lieu_naissance, e.telephone_parent,
+                          cla.get(i?.classe_id)?.libelle || "", i ? ouiNon(i.redoublant) : "", i ? ouiNon(i.nouveau) : ""])
+  }
+  if (!exercice) return []
+  const [matieres, attributionsTout] = await Promise.all([tout("matieres", "id, code, libelle"),
+    tout("attributions", "id, classe_id, matiere_id, enseignant_id, coefficient, groupe", (q) => q.eq("exercice_id", exercice.id))])
+  const mat = new Map(matieres.map((m) => [m.id, m]))
+  const triAttr = (a, b) => triClasse(a.classe_id, b.classe_id) || a.groupe - b.groupe || comparerNoms(mat.get(a.matiere_id)?.code || "", mat.get(b.matiere_id)?.code || "")
+  if (cle === "programme") {
+    const per = new Map((await tout("personnels", "id, nom, prenom, matricule")).map((p) => [p.id, p]))
+    return [...attributionsTout].filter((a) => !classeId || a.classe_id === classeId).sort(triAttr).map((a) => {
+      const p = per.get(a.enseignant_id)
+      return [cla.get(a.classe_id)?.libelle, mat.get(a.matiere_id)?.code, mat.get(a.matiere_id)?.libelle, a.coefficient, a.groupe, p ? p.matricule || nomComplet(p) : ""]
+    })
+  }
+  // notes : une ligne par élève, matière et séquence (note vide si elle n'est pas encore saisie), pour remplir et réimporter
+  const attributions = attributionsTout.filter((a) => (!classeId || a.classe_id === classeId) && (!code || mat.get(a.matiere_id)?.code === code)
+    && (!seulement || a.enseignant_id === seulement)).sort(triAttr)
+  const sequences = (await tout("sequences", "id, numero", (q) => q.eq("exercice_id", exercice.id))).filter((x) => !sequence || x.numero === Number(sequence))
+    .sort((a, b) => a.numero - b.numero)
+  if (!attributions.length || !sequences.length) return []
+  const classesVoulues = new Set(attributions.map((a) => a.classe_id))
+  const inscrits = (await tout("inscriptions", "id, classe_id, eleves(matricule, nom, prenom)", (q) => q.eq("exercice_id", exercice.id)))
+    .filter((i) => classesVoulues.has(i.classe_id) && i.eleves).sort((a, b) => comparerNoms(nomComplet(a.eleves), nomComplet(b.eleves)))
+  const ids = attributions.map((a) => a.id)
+  const notes = await tout("notes", "inscription_id, attribution_id, sequence_id, valeur",
+    (q) => (ids.length <= 60 ? q.in("attribution_id", ids) : q).in("sequence_id", sequences.map((x) => x.id)))
+  const valeur = new Map(notes.map((n) => [`${n.inscription_id}|${n.attribution_id}|${n.sequence_id}`, Number(n.valeur)]))
+  const lignes = []
+  for (const s of sequences) for (const a of attributions) for (const i of inscrits) {
+    if (i.classe_id !== a.classe_id) continue
+    lignes.push([cla.get(a.classe_id)?.libelle, s.numero, i.eleves.matricule, nomComplet(i.eleves), mat.get(a.matiere_id)?.code,
+                 valeur.get(`${i.id}|${a.id}|${s.id}`) ?? null])
+  }
+  return lignes
+}
+
+/** Télécharge la liste « cle » au format de l'import. */
+export async function exporterListe(cle, options = {}, suffixe = "") {
+  const lignes = await lignesListe(cle, options)
+  await telechargerClasseur([{ titre: t(LISTES[cle].titre), intitule: t(LISTES[cle].intitule), entetes: ENTETES[cle].map((e) => t(e)), lignes }],
+    `${LISTES[cle].fichier}${suffixe ? "-" + normaliser(suffixe) : ""}`)
+  return lignes.length
+}
