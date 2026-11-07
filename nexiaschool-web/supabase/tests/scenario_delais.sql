@@ -6,13 +6,13 @@ select id as seq3 from public.sequences where exercice_id = :'ex_a' and numero =
 select pg_temp.verifier(json_array_length(public.notes_retards()->'sequences') = 0, 'sans délai : aucune alerte de saisie');
 
 select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
-update public.sequences set date_limite_notes = current_date - 1 where id = :'seq3';
+update public.sequences set date_limite_notes = (now() at time zone 'Africa/Douala')::date - 1 where id = :'seq3';
 select pg_temp.verifier((select date_limite_notes from public.sequences where id = :'seq3') is null, 'un enseignant ne fixe pas le délai');
 
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
-update public.sequences set date_limite_notes = current_date + 3 where id = :'seq3';
+update public.sequences set date_limite_notes = (now() at time zone 'Africa/Douala')::date + 3 where id = :'seq3';
 select pg_temp.verifier(json_array_length(public.notes_retards()->'sequences') = 0, 'délai pas encore atteint : pas d''alerte');
-update public.sequences set date_limite_notes = current_date - 2 where id = :'seq3';
+update public.sequences set date_limite_notes = (now() at time zone 'Africa/Douala')::date - 2 where id = :'seq3';
 create or replace function pg_temp.seq() returns json language sql as $$ select public.notes_retards()->'sequences'->0 $$;
 select pg_temp.verifier((pg_temp.seq()->>'numero')::int = 3 and (pg_temp.seq()->>'jours_retard')::int = 2
   and pg_temp.seq()->'enseignants'->0->>'enseignant_id' = :'prof_a'
@@ -33,7 +33,7 @@ select set_config('request.jwt.claim.sub', :'code_user_a', false) \g /dev/null
 select pg_temp.verifier((public.notes_retards()->>'non_lues')::int = 1, 'toujours nouvelle pour l''autre administrateur');
 
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
-update public.sequences set date_limite_notes = current_date - 1 where id = :'seq3';
+update public.sequences set date_limite_notes = (now() at time zone 'Africa/Douala')::date - 1 where id = :'seq3';
 select pg_temp.verifier((public.notes_retards()->>'non_lues')::int = 1, 'nouveau délai dépassé : nouvelle alerte');
 
 -- L'enseignant saisit toutes les notes de sa classe : il n'est plus en retard

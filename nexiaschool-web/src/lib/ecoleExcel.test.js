@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 vi.stubGlobal("navigator", { languages: ["fr-FR"] })        // messages vérifiés en français
 vi.mock("../supabase.js", () => ({ supabase: {}, toutCharger: vi.fn(), verifier: (x) => x }))
-const { analyserEcole, cumulerBilan, decouperImport, enCycle, enRole, LOTS } = await import("./ecoleExcel.js")
+const { analyserEcole, cumulerBilan, decouperImport, enCycle, enRole, LOTS, reconnaitreListe } = await import("./ecoleExcel.js")
 
 const L = (lignes) => ({ lignes: lignes.map((valeurs, k) => ({ numero: k + 2, valeurs })) })
 const vide = { exercice: null, sections: [], classes: [], matieres: [], personnels: [{ nom: "AHANDA", prenom: "Marvin", role: "admin", matricule: "", actif: true }],
@@ -40,30 +40,64 @@ describe("import du fichier complet", () => {
     expect(resume.parClasse.find((c) => c.classe === "6e A")).toMatchObject({ eleves: 1, filles: 1, matieres: 2, coefficients: 7 })
   })
 
-  it("signale chaque erreur avec sa feuille et sa ligne", () => {
+  it("accepte un fichier mal renseigné : complète, met de côté et signale ce qui est à compléter", () => {
     const lu = {
-      classes: L([{ libelle: "6e A", section: "Technique" }]),
-      personnels: L([{ nom: "Ngo", role: "Cuisinier" }, { nom: "Ngo", role: "Surveillant" }]),
-      programme: L([{ classe: "6e B", matiere: "XYZ", coefficient: 30 }, { classe: "6e A", matiere: "XYZ", coefficient: 2, enseignant: "Ngo" }]),
-      eleves: L([{ matricule: "E1", nom: "A", sexe: "X", date_naissance: "31/02/2014" }, { matricule: "E1", nom: "B", sexe: "F", classe: "3e" }]),
+      classes: L([{ libelle: "6e A", section: "Technique", cycle: "trois" }, { libelle: "" }]),
+      personnels: L([{ nom: "Ngo", role: "Cuisinier" }, { nom: "Ngo", role: "Surveillant" }, { prenom: "Paul", role: "Enseignant" }]),
+      programme: L([{ classe: "6e B", code: "XYZ", matiere: "Dessin", coefficient: 30 }, { classe: "6e A", code: "XYZ", coefficient: "abc", enseignant: "Inconnu" },
+                    { classe: "", code: "MATH" }]),
+      eleves: L([{ matricule: "E1", nom: "A", sexe: "X", date_naissance: "31/02/2014" }, { matricule: "E1", nom: "B", sexe: "F", classe: "3e" },
+                 { nom: "C", sexe: "M", redoublant: "peut-être" }, { prenom: "Inès", sexe: "f" }, { matricule: "E5" }, {}]),
     }
-    const { erreurs, donnees } = analyserEcole({ lu, ignorees: [] }, vide, "")
-    // liste des classes seule : la section inconnue est créée avec la classe
+    const { erreurs, remarques, donnees, resume } = analyserEcole({ lu, ignorees: [] }, vide, "")
+    expect(erreurs).toEqual([])
+    const r = Object.fromEntries(remarques.map((x) => [x.code, x]))
+    // classes : section créée, cycle illisible laissé vide, ligne sans nom ignorée
     expect(donnees.sections).toEqual([{ libelle: "Technique", ordre: 1 }])
-    expect(analyserEcole({ lu: { ...lu, sections: L([{ libelle: "Francophone" }]) }, ignorees: [] }, vide, "").erreurs
-      .map((e) => `${e.feuille}:${e.ligne}:${e.message}`)).toEqual(expect.arrayContaining([expect.stringMatching(/^classes:2:section « Technique » inconnue/)]))
-    const textes = erreurs.map((e) => `${e.feuille}:${e.ligne}:${e.message}`)
-    expect(textes).toEqual(expect.arrayContaining([
-      expect.stringMatching(/^personnels:2:fonction « Cuisinier » inconnue/),
-      expect.stringMatching(/^programme:2:classe « 6e B » inconnue/),
-      expect.stringMatching(/^programme:2:coefficient de 1 à 20/),
-      expect.stringMatching(/^programme:3:matière « XYZ » inconnue/),
-      expect.stringMatching(/^eleves:2:sexe « X »/),
-      expect.stringMatching(/^eleves:2:date « 31\/02\/2014 » invalide/),
-      expect.stringMatching(/^eleves:3:matricule « E1 » en double/),
-      expect.stringMatching(/^eleves:3:classe « 3e » inconnue/),
-      expect.stringMatching(/^:null:Indiquez l'année scolaire/),
-    ]))
+    expect(donnees.classes.find((c) => c.libelle === "6e A")).toMatchObject({ section: "Technique", cycle: undefined })
+    expect(r.classe_cycle.n).toBe(1)
+    // personnel : fonction inconnue -> enseignant ; même personne deux fois -> la dernière ; prénom seul -> nom
+    expect(donnees.personnels).toEqual([expect.objectContaining({ nom: "Ngo", role: "surveillant" }), expect.objectContaining({ nom: "Paul", role: "enseignant" })])
+    expect(r.personnel_fonction.n).toBe(1)
+    // matières par classe : classe et matière créées, coefficient ramené, enseignant introuvable laissé vide, ligne incomplète ignorée
+    expect(donnees.classes.map((c) => c.libelle)).toEqual(expect.arrayContaining(["6e B", "3e"]))
+    expect(donnees.matieres).toEqual([{ code: "XYZ", libelle: "Dessin" }])
+    expect(donnees.programme).toEqual([expect.objectContaining({ classe: "6e B", matiere: "XYZ", coefficient: 20, enseignant: "" }),
+                                       expect.objectContaining({ classe: "6e A", matiere: "XYZ", coefficient: 1, enseignant: "" })])
+    expect(r.programme_coefficient.n).toBe(2); expect(r.programme_enseignant.n).toBe(1); expect(r.programme_incomplet.n).toBe(1)
+    expect(r.classe_creee.exemples).toEqual(expect.arrayContaining(["6e B", "3e"]))
+    // élèves : tout est importé ; sexe et date à préciser, matricules provisoires, nom à compléter
+    expect(donnees.eleves).toHaveLength(5)
+    expect(donnees.eleves[0]).toMatchObject({ matricule: "E1", nom: "A", sexe: null, date_naissance: null })
+    expect(donnees.eleves[1]).toMatchObject({ matricule: "PROV-0001", nom: "B", sexe: "F", classe: "3e" })
+    expect(donnees.eleves[2]).toMatchObject({ matricule: "PROV-0002", nom: "C", sexe: "M" })
+    expect(donnees.eleves[2]).not.toHaveProperty("redoublant")
+    expect(donnees.eleves[3]).toMatchObject({ nom: "Inès", sexe: "F" })
+    expect(donnees.eleves[4]).toMatchObject({ matricule: "E5", nom: "À COMPLÉTER", sexe: null })
+    expect(r.eleve_matricule.n).toBe(3); expect(r.eleve_sexe.n).toBe(2); expect(r.eleve_date.n).toBe(1); expect(r.eleve_nom.n).toBe(1)
+    expect(r.ligne_vide.n).toBe(2)
+    // aucune année active : l'année par défaut est créée plutôt que de bloquer
+    expect(donnees.annee).toMatch(/^\d{4}-\d{4}$/); expect(resume.anneeACreer).toBe(true)
+    // seul un fichier sans aucune ligne utilisable est refusé
+    expect(analyserEcole({ lu: { eleves: L([{}]) }, ignorees: [] }, vide, "").erreurs).toHaveLength(1)
+  })
+
+  it("ne refuse un fichier que s'il ne correspond pas à la liste choisie", () => {
+    const personnel = [["Liste du personnel"], [], ["Matricule du personnel", "Nom", "Prénom", "Fonction", "Téléphone", "Poste / spécialité"], ["P1", "NGO", "Marie", "Enseignant", "", ""]]
+    const eleves = [["Nom", "Prénom", "Sexe", "Classe", "Date de naissance"], ["ABENA", "Lucie", "F", "6e A", "01/02/2014"]]
+    const notes = [["Classe", "Séquence", "Matricule", "Élève", "Code matière", "Note"], ["6e A", 1, "E1", "ABENA Lucie", "MATH", 12]]
+    expect(reconnaitreListe(personnel, "eleves").refus).toMatch(/ressemble à la liste « Personnel »/)
+    expect(reconnaitreListe(personnel, "personnels")).toMatchObject({ h: 2 })
+    expect(reconnaitreListe(eleves, "eleves").positions).toMatchObject({ nom: 0, prenom: 1, sexe: 2, classe: 3 })
+    expect(reconnaitreListe(eleves, "classes").refus).toMatch(/ressemble à la liste « Élèves »/)
+    expect(reconnaitreListe(notes, "eleves").refus).toMatch(/ressemble à la liste « Notes »/)
+    expect(reconnaitreListe(notes, "notes").positions).toMatchObject({ matricule: 2, eleve: 3, code: 4, note: 5 })
+    expect(reconnaitreListe([["Code", "Matière"], ["MATH", "Maths"]], "programme").refus).toMatch(/ne correspond pas à la liste « Matières par classe »/)
+    expect(reconnaitreListe([["Code", "Matière"], ["MATH", "Maths"]], "matieres").positions).toMatchObject({ code: 0, libelle: 1 })
+    expect(reconnaitreListe([["Bonjour"], ["rien"]], "eleves").refus).toMatch(/Aucune colonne reconnue/)
+    // colonnes dans le désordre, en-têtes en anglais
+    expect(reconnaitreListe([["Class", "Sex", "Last name", "Student ID"], ["6e A", "M", "BELLA", "E2"]], "eleves").positions)
+      .toMatchObject({ classe: 0, sexe: 1, nom: 2, matricule: 3 })
   })
 
   it("ne reprend que l'année la plus récente d'un fichier exporté", () => {
@@ -93,16 +127,13 @@ describe("import du fichier complet", () => {
       { matricule: "E9", matiere: "MATH", sequence: 1, note: 10 }, { matricule: "E1", matiere: "ENG", sequence: 1, note: 10 },
       { matricule: "E1", matiere: "MATH", sequence: 7, note: 10 }, { matricule: "E1", matiere: "MATH", sequence: 1, note: 25 },
       { matricule: "E2", matiere: "ENG", sequence: 4, note: 10 }, { matricule: "E2", matiere: "ENG", sequence: 4, note: 11 },
-      { matricule: "E2", matiere: "ENG", sequence: 5, note: 9 }]) }, ignorees: [] },
-      { ...vide, exercice: { libelle: "2026-2027" }, sequencesVerrouillees: [5] }, "")
-    expect(mauvais.erreurs.map((e) => `${e.feuille}:${e.ligne}:${e.message}`)).toEqual(expect.arrayContaining([
-      expect.stringMatching(/^notes:2:élève « E9 » inconnu/),
-      expect.stringMatching(/^notes:3:la matière ENG n'est pas enseignée en 6e A/),
-      expect.stringMatching(/^notes:4:séquence de 1 à 6 attendue/),
-      expect.stringMatching(/^notes:5:25 n'est pas compris entre 0 et 20/),
-      expect.stringMatching(/^notes:7:note en double/),
-      expect.stringMatching(/^notes:8:la séquence 5 est verrouillée/),
-    ]))
+      { matricule: "E2", matiere: "ENG", sequence: 5, note: 9 }, { matricule: "X?", eleve: "Smith", matiere: "ENG", sequence: 1, note: 14, classe: "6e A" }]) }, ignorees: [] },
+      { ...vide, exercice: { libelle: "2026-2027" }, sequencesVerrouillees: [5], elevesNoms: new Map([["smith", ["E2"]]]) }, "")
+    // les notes utilisables passent ; les autres sont mises de côté et signalées
+    expect(mauvais.erreurs).toEqual([])
+    expect(mauvais.donnees.notes).toEqual([["E2", "ENG", 4, 11], ["E2", "ENG", 1, 14]])
+    const r = Object.fromEntries(mauvais.remarques.map((x) => [x.code, x.n]))
+    expect(r).toMatchObject({ notes_eleve: 1, notes_matiere: 1, notes_sequence: 2, notes_valeur: 1, doublon: 1, notes_matricule: 1, notes_classe: 1 })
   })
   it("découpe l'enregistrement en appels courts, dans l'ordre, et additionne les bilans", () => {
     const n = (k) => Array.from({ length: k }, (_, i) => i)

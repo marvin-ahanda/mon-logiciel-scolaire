@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
-import { analyserEcole, chargerExistant, cumulerBilan, decouperImport, exporterListe, lireListe, LISTES, ROLES_IMPORT } from "../lib/ecoleExcel.js"
+import { analyserEcole, chargerExistant, cumulerBilan, decouperImport, exporterListe, lieuRemarque, lireListe, LISTES, REMARQUES, ROLES_IMPORT } from "../lib/ecoleExcel.js"
 import { telechargerClasseur } from "../lib/excel.js"
 import { comparerNoms, nomComplet } from "../lib/format.js"
 import { periodes } from "../lib/periodes.js"
@@ -18,6 +19,17 @@ const CONTENU = {
   personnels: "Matricule, nom et prénom, fonction (Administration, Enseignant, Surveillant général, Comptable / caissier), téléphone, poste ou spécialité. Chaque nouveau membre reçoit un code personnel.",
   programme: "Classe, code et nom de la matière, coefficient (1 à 20), groupe (1 à 3) et matricule de l'enseignant qui la dispense.",
   notes: "Classe, séquence, matricule et nom de l'élève, code de la matière et note sur 20. Une note vide est ignorée ; une note déjà enregistrée est remplacée.",
+}
+
+/** Points complétés automatiquement ou mis de côté, avec l'endroit où les reprendre. */
+function Remarques({ remarques }) {
+  return (
+    <ul className="small mb-0 liste-remarques">{remarques.map((r) => { const lieu = lieuRemarque(r.code); return (
+      <li key={r.code} className="mb-1"><strong>{r.n}</strong> {t(REMARQUES[r.code][0])}
+        {r.exemples.length > 0 && <span className="text-muted"> — {r.exemples.join(", ")}{r.n > r.exemples.length ? "…" : ""}</span>}
+        {r.lignes.length > 0 && <span className="text-muted"> ({t("lignes")} {r.lignes.join(", ")}{r.n > r.lignes.length ? "…" : ""})</span>}
+        {lieu && <> → <Link to={lieu[0]}>{t(lieu[1])}</Link></>}</li>) })}</ul>
+  )
 }
 
 /** Résumé du fichier avant validation, selon la liste importée. */
@@ -72,17 +84,19 @@ function Validation({ cle, analyse, envoi, progression, onValider, onFermer }) {
       <div className="modal d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="titre-validation">
         <div className="modal-dialog modal-lg modal-dialog-scrollable"><div className="modal-content">
           <div className="modal-header">
-            <h2 className="modal-title h5" id="titre-validation">{erreurs.length ? t("Fichier à corriger") : t("Vérifiez puis validez l'import")} — {t(LISTES[cle].titre)}</h2>
+            <h2 className="modal-title h5" id="titre-validation">{erreurs.length ? t("Rien à importer") : t("Vérifiez puis validez l'import")} — {t(LISTES[cle].titre)}</h2>
             <button type="button" className="btn-close" aria-label={t("Fermer")} disabled={envoi} onClick={onFermer} />
           </div>
           <div className="modal-body">
             <p className="small text-muted mb-2">{t("Fichier : {v0}", { v0: analyse.fichier })}</p>
             {erreurs.length > 0 && (
               <div className="alert alert-danger">
-                <p className="fw-semibold mb-2">{t("{v0} erreur(s) : rien ne sera enregistré tant qu'elles ne sont pas corrigées.", { v0: erreurs.length })}</p>
-                <ul className="small mb-0 liste-erreurs">{erreurs.slice(0, 200).map((e, k) => (
-                  <li key={k}>{e.ligne ? `${t("Ligne {v0} :", { v0: e.ligne })} ` : ""}{e.message}</li>))}
-                  {erreurs.length > 200 && <li>…</li>}</ul>
+                <ul className="small mb-0 liste-erreurs">{erreurs.map((e, k) => <li key={k}>{e.message}</li>)}</ul>
+              </div>)}
+            {!erreurs.length && analyse.remarques.length > 0 && (
+              <div className="alert alert-warning">
+                <p className="fw-semibold mb-2">{t("Le fichier sera importé. Ces points ont été complétés automatiquement ou mis de côté : vous pourrez les reprendre après l'import, à l'endroit indiqué.")}</p>
+                <Remarques remarques={analyse.remarques} />
               </div>)}
             <h3 className="h6">{t("Résumé")}</h3>
             <Resume cle={cle} r={r} />
@@ -120,6 +134,11 @@ function Bilan({ cle, r, onFermer }) {
           {cle === "notes" && <li>{t("Notes : {v0}", { v0: n(r.notes) })}</li>}
         </ul>
       </div>
+      {r.remarques?.length > 0 && (
+        <div className="alert alert-warning py-2 a-completer-import">
+          <p className="fw-semibold mb-1">{t("À compléter maintenant :")}</p>
+          <Remarques remarques={r.remarques} />
+        </div>)}
       {r.codes?.length > 0 && (
         <div className="card border-warning zone-impression">
           <div className="card-body">
@@ -166,12 +185,12 @@ function CarteListe({ cle, ref_, annee, onMaj }) {
         total = cumulerBilan(total, await rpc(cle === "notes" ? "importer_notes" : "importer_ecole", { p: etapes[k] }))
         setProgression(Math.round(((k + 1) / etapes.length) * 100))
       }
-      setAnalyse(null); setBilan(total || {})
+      setAnalyse(null); setBilan({ ...(total || {}), remarques: analyse.remarques })
     } catch (x) {
       setAnalyse(null)
       if (!total) setMsg({ erreur: t("Rien n'a été enregistré : {v0}", { v0: x.message }) })
       else {
-        setBilan({ ...total, interruption: true })
+        setBilan({ ...total, interruption: true, remarques: analyse.remarques })
         setMsg({ erreur: t("L'enregistrement s'est interrompu ({v0}). Ce qui précède est enregistré : réimportez le même fichier pour terminer, rien ne sera dupliqué.", { v0: x.message }) })
       }
     } finally { setOccupe(""); recharger().catch(() => {}); onMaj() }
@@ -267,30 +286,65 @@ function ExportResultats({ ref_ }) {
   );
 }
 
+/** Ce qui reste à compléter dans l'établissement (après un import incomplet, par exemple), avec l'endroit où le faire. */
+function ACompleter({ c }) {
+  const points = [
+    [c.sexe, "élève(s) dont le sexe est à préciser", "/eleves?filtre=a-completer", "Élèves → À compléter"],
+    [c.provisoires, "élève(s) avec un matricule provisoire (PROV-…)", "/eleves?filtre=a-completer", "Élèves → À compléter"],
+    [c.sansNom, "élève(s) sans nom", "/eleves?filtre=a-completer", "Élèves → À compléter"],
+    [c.nonInscrits, "élève(s) inscrit(s) dans aucune classe cette année", "/eleves?filtre=a-completer", "Élèves → À compléter"],
+    [c.classesVides, "classe(s) sans niveau, section ni cycle", "/parametres/classes", "Paramètres → Classes"],
+    [c.sansEnseignant, "matière(s) par classe sans enseignant", "/parametres/coefficients", "Paramètres → Matières par classe"],
+  ].filter(([n]) => n > 0)
+  if (!points.length) return null
+  return (
+    <div className="alert alert-warning py-2 mb-3 panneau-a-completer">
+      <p className="fw-semibold mb-1">{t("Informations à compléter")}</p>
+      <ul className="small mb-0">{points.map(([n, texte, lien, lieu]) => (
+        <li key={texte}><strong>{n}</strong> {t(texte)} → <Link to={lien}>{t(lieu)}</Link></li>))}</ul>
+    </div>
+  )
+}
+
+async function compterACompleter(exercice) {
+  const nb = async (q) => { const { count, error } = await q; if (error) throw error; return count || 0 }
+  const tete = (table) => supabase.from(table).select("id", { count: "exact", head: true })
+  const [sexe, provisoires, sansNom, eleves, inscrits, classes, sansEnseignant] = await Promise.all([
+    nb(tete("eleves").is("sexe", null)), nb(tete("eleves").like("matricule", "PROV-%")), nb(tete("eleves").eq("nom", "À COMPLÉTER")),
+    nb(tete("eleves")), exercice ? nb(tete("inscriptions").eq("exercice_id", exercice.id)) : 0,
+    supabase.from("classes").select("niveau, section_id, cycle").then(verifier),
+    exercice ? nb(tete("attributions").eq("exercice_id", exercice.id).is("enseignant_id", null)) : 0,
+  ])
+  return { sexe, provisoires, sansNom, nonInscrits: exercice ? Math.max(0, eleves - inscrits) : 0,
+           classesVides: classes.filter((x) => !x.niveau && !x.section_id && !x.cycle).length, sansEnseignant }
+}
+
 export default function Excel() {
   const { exercice, estAdmin, profil } = useSession()
   const [annee, setAnnee] = useState(() => { const d = new Date(), a = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; return `${a}-${a + 1}` })
   const [ref_, erreur, rafraichir] = useDonnees(async () => {
     const classes = verifier(await supabase.from("classes").select("*").order("ordre").order("libelle"))
-    if (!exercice) return { classes, classesNotes: [], attributions: [], sequences: [], periodes: [], classesResultats: [] }
+    if (!exercice) return { classes, classesNotes: [], attributions: [], sequences: [], periodes: [], classesResultats: [], aCompleter: estAdmin ? await compterACompleter(null) : null }
     let q = supabase.from("attributions").select("id, classe_id, classes(libelle, ordre), matieres(code, libelle)").eq("exercice_id", exercice.id)
     if (!estAdmin) q = q.eq("enseignant_id", profil.id)
     const attributions = verifier(await q).sort((a, b) => a.classes.ordre - b.classes.ordre || comparerNoms(a.classes.libelle, b.classes.libelle) || comparerNoms(a.matieres.libelle, b.matieres.libelle))
     const sequences = verifier(await supabase.from("sequences").select("*").eq("exercice_id", exercice.id).order("numero"))
     const siennes = new Set(attributions.map((a) => a.classe_id))
     const classesSiennes = estAdmin ? classes : classes.filter((c) => siennes.has(c.id))
-    return { classes, classesNotes: classesSiennes, attributions, sequences, periodes: periodes(sequences), classesResultats: classesSiennes }
+    return { classes, classesNotes: classesSiennes, attributions, sequences, periodes: periodes(sequences), classesResultats: classesSiennes,
+             aCompleter: estAdmin ? await compterACompleter(exercice) : null }
   }, [exercice?.id])
   return (
     <>
       <h1 className="h3 mb-2">{t("Import et export Excel")}</h1>
-      <p className="text-muted small mb-3">{t("Chaque liste s'importe et s'exporte séparément, dans des fichiers légers. Le fichier exporté sert de modèle : complétez-le puis réimportez-le. Un résumé est présenté avant tout enregistrement.")}
+      <p className="text-muted small mb-3">{t("Chaque liste s'importe et s'exporte séparément. Le fichier exporté sert de modèle, mais un fichier en désordre ou incomplet est aussi accepté : ce qui manque est complété au mieux et vous est signalé, avec l'endroit où le reprendre.")}
         {estAdmin && <> {t("Pour une nouvelle école : classes, matières, personnel, matières par classe, élèves, puis notes.")}</>}</p>
       {estAdmin && !exercice && (
         <div className="mb-3" style={{ maxWidth: 360 }}>
           <label className="form-label small mb-1" htmlFor="annee-import">{t("Année scolaire à créer (pour les élèves et les matières par classe)")}</label>
           <input id="annee-import" className="form-control form-control-sm" value={annee} onChange={(e) => setAnnee(e.target.value)} placeholder="2026-2027" />
         </div>)}
+      {ref_?.aCompleter && <ACompleter c={ref_.aCompleter} />}
       {!ref_ ? <><Alerte>{erreur}</Alerte><Chargement /></> : (
         <div className="row g-3">
           {ORDRE.filter((cle) => estAdmin || cle === "notes").map((cle) => <CarteListe key={cle} cle={cle} ref_={ref_} annee={annee} onMaj={rafraichir} />)}

@@ -73,10 +73,23 @@ select pg_temp.verifier((current_setting('app.r2')::json->'eleves'->>'modifies')
   and (select count(*) from public.classes) = 2 and (select count(*) from public.personnels) = 3 and (select count(*) from public.exercices) = 1,
   'réimport : tout est mis à jour, sans doublon ni nouvelle année');
 
--- Un enseignant inconnu bloque tout l'import
-do $$ begin perform public.importer_ecole(jsonb_build_object('programme', '[{"classe": "6e A", "matiere": "MATH", "coefficient": 2, "enseignant": "Inconnu"}]'::jsonb));
-  raise exception 'enseignant inconnu accepté';
-exception when sqlstate 'P0001' then raise notice 'ok : enseignant introuvable refusé'; end $$;
+-- Import tolérant : un fichier mal renseigné passe, ce qui manque est complété au mieux
+select public.importer_ecole(jsonb_build_object('programme', '[{"classe": "6e A", "matiere": "MATH", "coefficient": 2, "enseignant": "Inconnu"},
+  {"classe": "3e Z", "matiere": "DESS", "libelle_matiere": "Dessin", "coefficient": 45, "groupe": 9}, {"classe": "", "matiere": "MATH"}]'::jsonb)) \g /dev/null
+select pg_temp.verifier((select a.coefficient from public.attributions a join public.matieres m on m.id = a.matiere_id join public.classes c on c.id = a.classe_id
+                          where m.code = 'MATH' and c.libelle = '6e A') = 2
+  and (select a.enseignant_id from public.attributions a join public.matieres m on m.id = a.matiere_id join public.classes c on c.id = a.classe_id
+        where m.code = 'MATH' and c.libelle = '6e A') is not null,
+  'enseignant introuvable : la matière garde son enseignant actuel, rien ne bloque');
+select pg_temp.verifier((select count(*) from public.classes where libelle = '3e Z') = 1 and (select libelle from public.matieres where code = 'DESS') = 'Dessin'
+  and (select a.coefficient::text || '/' || a.groupe from public.attributions a join public.matieres m on m.id = a.matiere_id where m.code = 'DESS') = '20/3',
+  'classe et matière inconnues créées, coefficient et groupe ramenés dans leurs limites, ligne incomplète ignorée');
+select public.importer_ecole(jsonb_build_object('personnels', '[{"nom": "Ewane", "prenom": "Sali", "role": "cuisinier"}, {"nom": "", "role": "enseignant"}]'::jsonb)) \g /dev/null
+select pg_temp.verifier((select role from public.personnels where nom = 'EWANE') = 'enseignant', 'fonction inconnue : enseignant (à vérifier), ligne sans nom ignorée');
+select public.importer_ecole(jsonb_build_object('eleves', '[{"matricule": "C003", "nom": "Ndo", "classe": "6e A"}, {"matricule": "C001", "nom": "À COMPLÉTER", "sexe": null}]'::jsonb)) \g /dev/null
+select pg_temp.verifier((select sexe from public.eleves where matricule = 'C003') is null, 'élève sans sexe accepté (à préciser ensuite)');
+select pg_temp.verifier((select nom || '/' || prenom || '/' || sexe || '/' || telephone_parent from public.eleves where matricule = 'C001') = 'ABENA/Lucie/F/677 00 00 00',
+  'une case vide ou « À COMPLÉTER » n''efface jamais une information déjà enregistrée');
 
 -- Notes : [matricule, code matière, séquence, note] pour l'année active, contrôlées avant toute écriture
 do $$ begin perform public.importer_ecole(jsonb_build_object('notes', '[["C001", "MATH", 1, 12.5], ["C001", "ENG", 1, 10]]'::jsonb));
