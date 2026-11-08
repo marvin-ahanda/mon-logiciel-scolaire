@@ -93,9 +93,9 @@ function Validation({ cle, analyse, envoi, progression, onValider, onFermer }) {
               <div className="alert alert-danger">
                 <ul className="small mb-0 liste-erreurs">{erreurs.map((e, k) => <li key={k}>{e.message}</li>)}</ul>
               </div>)}
-            {!erreurs.length && analyse.remarques.length > 0 && (
+            {analyse.remarques.length > 0 && (
               <div className="alert alert-warning">
-                <p className="fw-semibold mb-2">{t("Le fichier sera importé. Ces points ont été complétés automatiquement ou mis de côté : vous pourrez les reprendre après l'import, à l'endroit indiqué.")}</p>
+                {!erreurs.length && <p className="fw-semibold mb-2">{t("Le fichier sera importé. Ces points ont été complétés automatiquement ou mis de côté : vous pourrez les reprendre après l'import, à l'endroit indiqué.")}</p>}
                 <Remarques remarques={analyse.remarques} />
               </div>)}
             <h3 className="h6">{t("Résumé")}</h3>

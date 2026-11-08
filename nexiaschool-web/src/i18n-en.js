@@ -1298,6 +1298,7 @@ export const EN = {
   "élève(s) inscrit(s) dans aucune classe cette année": "student(s) enrolled in no class this year",
   "classe(s) sans niveau, section ni cycle": "class(es) with no level, section or cycle",
   "matière(s) par classe sans enseignant": "subject(s) per class without a teacher",
+  "Rien à importer : toutes les lignes du fichier ont été mises de côté (raisons ci-dessous).": "Nothing to import: every row of the file was set aside (reasons below).",
 }
 
 // Messages d'erreur de la base comportant une partie variable : [motif, remplacement]

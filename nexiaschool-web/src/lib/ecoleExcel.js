@@ -417,9 +417,11 @@ export function analyserEcole({ lu }, existant, annee) {
 
   const besoinAnnee = !existant.exercice && (eleves.some((e) => e.classe) || programme.length > 0 || notes.length > 0)
   const vide = !sections.length && !classes.length && !matieres.length && !personnels.length && !programme.length && !eleves.length && !notes.length
-  if (vide) erreurs.push({ feuille: "", ligne: null, message: autresAnnees || vides
-    ? t("Aucune note à importer : les cases Note sont vides ou concernent une autre année scolaire.")
-    : t("Le fichier ne contient aucune ligne à importer.") })
+  if (vide) erreurs.push({ feuille: "", ligne: null, message: remarques.size
+    ? t("Rien à importer : toutes les lignes du fichier ont été mises de côté (raisons ci-dessous).")
+    : autresAnnees || vides
+      ? t("Aucune note à importer : les cases Note sont vides ou concernent une autre année scolaire.")
+      : t("Le fichier ne contient aucune ligne à importer.") })
 
   // Résumé par classe : élèves du fichier, matières et coefficients (fichier + déjà enregistrés), notes
   const parClasse = new Map()
