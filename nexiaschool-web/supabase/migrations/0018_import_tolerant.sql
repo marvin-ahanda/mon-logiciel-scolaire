@@ -215,3 +215,10 @@ end $$;
 
 revoke execute on function public.importer_ecole(jsonb) from public, anon, authenticated;
 grant execute on function public.importer_ecole(jsonb) to authenticated;
+
+-- Les connexions du serveur sont réutilisées : après quelques appels, Postgres peut figer un plan « générique » qui ignore
+-- l'établissement et la taille du lot, et un import de notes passe alors de moins d'une seconde à plusieurs minutes.
+-- Ces fonctions recalculent donc leur plan à chaque appel (coût négligeable).
+alter function public._enregistrer_notes(uuid, uuid, jsonb, uuid) set plan_cache_mode = force_custom_plan;
+alter function public.importer_ecole(jsonb) set plan_cache_mode = force_custom_plan;
+alter function public.importer_notes(jsonb) set plan_cache_mode = force_custom_plan;
