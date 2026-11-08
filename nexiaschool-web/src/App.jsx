@@ -10,6 +10,7 @@ import { Conditions, Confidentialite } from "./pages/Legal.jsx"
 import Developpeur from "./pages/Developpeur.jsx"
 import Developpeurs from "./pages/Developpeurs.jsx"
 import OAuthAutoriser from "./pages/OAuthAutoriser.jsx"
+import Verifier from "./pages/Verifier.jsx"
 import PageBulletins from "./pages/Bulletins.jsx"
 import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
 import Eleves from "./pages/Eleves.jsx"
@@ -86,6 +87,7 @@ export default function App() {
           <Route path="/conditions" element={<Conditions />} />
           <Route path="/developpeurs" element={<Developpeurs />} />
           <Route path="/oauth/autoriser" element={<OAuthAutoriser />} />
+          <Route path="/verifier/:code" element={<Verifier />} />
           <Route path="/console/*" element={<Suspense fallback={<Chargement />}><Console /></Suspense>} />
           <Route path="/" element={<Racine />}>
             <Route index element={<Accueil />} />

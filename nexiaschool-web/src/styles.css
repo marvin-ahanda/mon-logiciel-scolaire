@@ -7,6 +7,28 @@ body { background: #f4f6fa; }
 .photo-bulletin { width: 72px; height: 90px; object-fit: cover; border-radius: 4px; flex: none; }
 .photo-bulletin.vide { background: #e9ecef; border: 1px dashed #adb5bd; }
 .tableau-bulletin td, .tableau-bulletin th { padding: .2rem .4rem; font-size: .85rem; }
+/* Bulletin : logo flouté au centre (derrière le texte), titre, enseignant en italique, visas, QR code anti-fraude */
+.feuille-bulletin { position: relative; overflow: hidden; }
+.feuille-bulletin > :not(.filigrane-bulletin) { position: relative; z-index: 1; }
+.filigrane-bulletin { position: absolute; left: 50%; top: 52%; width: 68%; max-width: 540px; transform: translate(-50%, -50%);
+  z-index: 0; pointer-events: none; user-select: none; }
+.tableau-bulletin { --bs-table-bg: transparent; border-color: #adb5bd; }
+.tableau-bulletin th { background: rgba(233, 236, 239, .82); }
+.tableau-bulletin .ligne-groupe td { background: rgba(241, 243, 245, .8); }
+.titre-bulletin { text-align: center; font-size: 1.05rem; font-weight: 500; letter-spacing: .05em; margin: .3rem 0 .55rem; }
+.enseignant-bulletin { font-style: italic; font-size: .76rem; color: #495057; line-height: 1.15; }
+.site-plateforme { font-size: .66rem; color: #6c757d; text-align: right; margin: -.35rem 0 .1rem; }
+.identite-bulletin .cellule-photo { width: 84px; padding: 4px; text-align: center; vertical-align: middle; }
+.visas-bulletin th { width: 33.33%; text-align: center; vertical-align: top; }
+.visas-bulletin td { height: 4.6rem; }
+.pied-bulletin { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; }
+.qr-bulletin { display: flex; align-items: center; gap: .5rem; flex: none; font-size: .66rem; line-height: 1.25; color: #495057; }
+.qr-code { width: 76px; height: 76px; display: block; }
+.code-bulletin { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .06em; color: #212529; }
+@media print {
+  .filigrane-bulletin, .tableau-bulletin th, .tableau-bulletin .ligne-groupe td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bulletin .tableau-bulletin { margin-bottom: .3rem !important; }
+}
 .signature { min-height: 5rem; }
 
 /* Logo de l'établissement : bulle (barre de l'application) et en-tête du bulletin */

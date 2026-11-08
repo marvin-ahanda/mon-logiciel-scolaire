@@ -337,4 +337,5 @@ reset role;
 \ir scenario_alertes.sql
 \ir scenario_delais.sql
 \ir scenario_notes_roles.sql
+\ir scenario_bulletins.sql
 \echo SCÉNARIO TERMINÉ

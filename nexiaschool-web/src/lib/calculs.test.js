@@ -45,3 +45,12 @@ describe("règles reprises du logiciel d'origine", () => {
     expect(stats).toMatchObject({ effectif: 3, classes: 2, moyenneClasse: 10, reussis: 1, tauxReussite: 50 })
   })
 })
+
+describe("compétence et décision du bulletin", () => {
+  it("suit les tranches du logiciel d'origine", async () => {
+    const { competence, decision } = await import("./calculs.js")
+    expect([0, 10, 10.01, 14, 14.01, 17, 17.01, 20, null].map(competence)).toEqual(
+      ["Non acquis", "Non acquis", "En cours d'acquisition", "En cours d'acquisition", "Acquis", "Acquis", "Expert", "Expert", ""])
+    expect([9.99, 10, null].map(decision)).toEqual(["Redouble", "Admis(e) en classe supérieure", ""])
+  })
+})

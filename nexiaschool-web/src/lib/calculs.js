@@ -20,6 +20,18 @@ export function appreciation(m) {
   return m === 20 ? "Excellent" : ""
 }
 
+const COMPETENCES = [[0, 10, "Non acquis"], [10, 14, "En cours d'acquisition"], [14, 17, "Acquis"], [17, 20, "Expert"]]
+
+/** Niveau de compétence (logiciel d'origine) : [0;10] Non acquis, ]10;14] En cours d'acquisition, ]14;17] Acquis, ]17;20] Expert. */
+export function competence(m) {
+  if (m === null || m === undefined) return ""
+  for (const [bas, haut, libelle] of COMPETENCES) if ((m > bas || (bas === 0 && m === 0)) && m <= haut) return libelle
+  return ""
+}
+
+/** Décision de fin d'année proposée d'après la moyenne annuelle. */
+export const decision = (m) => (m === null || m === undefined ? "" : m >= MOYENNE_REUSSITE ? "Admis(e) en classe supérieure" : "Redouble")
+
 /** Moyenne simple des valeurs présentes (null si aucune). */
 export function moyenneSimple(valeurs) {
   const v = valeurs.filter((x) => x !== null && x !== undefined)

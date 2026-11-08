@@ -1,5 +1,6 @@
 import { supabase, toutCharger, verifier } from "../supabase.js"
 import { calculerResultats, notePeriode } from "./calculs.js"
+import { t } from "../i18n.jsx"
 import { comparerNoms, nomComplet } from "./format.js"
 
 /** Toutes les données nécessaires aux résultats d'une classe pour l'exercice. */
@@ -24,7 +25,19 @@ export async function chargerClasse(classe, exercice) {
   }
 }
 
-/** Résultats d'une classe pour une période. */
+/** Colonnes de détail du bulletin : séquences du trimestre, ou trimestres de l'année ; aucune pour une séquence. */
+export function sousPeriodes(periode, sequences) {
+  if (periode.type === "trimestre") return sequences.filter((s) => s.trimestre === periode.trimestre)
+    .map((s) => ({ libelle: t("Séq. {v0}", { v0: s.numero }), periode: { type: "sequence", sequenceId: s.id } }))
+  if (periode.type === "annee") return [1, 2, 3].map((n) => ({ libelle: t("Trim. {v0}", { v0: n }), periode: { type: "trimestre", trimestre: n } }))
+  return []
+}
+
+/**
+ * Résultats d'une classe pour une période.
+ * Chaque ligne porte aussi `details` (notes des sous-périodes, alignées sur `entetes`) ;
+ * pour l'année, chaque élève porte `moyennesTrimestres` ([T1, T2, T3]).
+ */
 export function resultatsPeriode(donnees, periode) {
   const parCle = new Map()
   for (const n of donnees.notes) {
@@ -37,5 +50,16 @@ export function resultatsPeriode(donnees, periode) {
     const v = notePeriode(periode, seqs, donnees.sequences)
     if (v !== null) notes.set(cle, v)
   }
-  return calculerResultats(donnees.eleves, donnees.attributions, notes, donnees.classe.coef_min || 0)
+  const res = calculerResultats(donnees.eleves, donnees.attributions, notes, donnees.classe.coef_min || 0)
+  const sous = sousPeriodes(periode, donnees.sequences)
+  for (const r of res.resultats) for (const l of r.lignes) {
+    const seqs = parCle.get(`${r.inscriptionId}|${l.attributionId}`)
+    l.details = sous.map((s) => (seqs ? notePeriode(s.periode, seqs, donnees.sequences) : null))
+  }
+  if (periode.type === "annee") {
+    const parTrimestre = [1, 2, 3].map((n) => new Map(resultatsPeriode(donnees, { type: "trimestre", trimestre: n }).resultats
+      .map((r) => [r.inscriptionId, r.moyenne ?? r.moyenneNonClassee])))
+    for (const r of res.resultats) r.moyennesTrimestres = parTrimestre.map((m) => m.get(r.inscriptionId) ?? null)
+  }
+  return { ...res, entetes: sous.map((s) => s.libelle) }
 }
