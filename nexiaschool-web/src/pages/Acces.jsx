@@ -17,7 +17,7 @@ function Carte({ titre, children }) {
         <div className="card shadow-sm">
           <div className="card-body p-4">
             <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
-              <h1 className="h4 mb-0 text-primary d-flex align-items-center gap-2"><img src="/logo-nexia-192.png" alt="" width="32" height="32" className="rounded-2" />NexIA School</h1>
+              <h1 className="h4 mb-0 text-primary d-flex align-items-center gap-2"><img src={`${import.meta.env.BASE_URL}logo-nexia-192.png`} alt="" width="32" height="32" className="rounded-2" />NexIA School</h1>
               <ChoixLangue />
             </div>
             <p className="text-muted mb-4">{titre}</p>

@@ -2,14 +2,14 @@
   "name": "NexIA School",
   "short_name": "NexIA School",
   "description": "Gestion scolaire : notes, bulletins, discipline et finances.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#0b46e5",
   "lang": "fr",
   "icons": [
-    { "src": "/logo-nexia-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/logo-nexia-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "logo-nexia-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "logo-nexia-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }

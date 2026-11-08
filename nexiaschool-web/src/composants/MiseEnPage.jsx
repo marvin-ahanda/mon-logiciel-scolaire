@@ -81,7 +81,7 @@ export default function MiseEnPage() {
     <>
       <nav className="navbar navbar-expand-xl navbar-dark bg-primary no-print">
         <div className="container-fluid">
-          <Link className="navbar-brand fw-semibold d-flex align-items-center gap-2" to="/"><img src="/logo-nexia-192.png" alt="" width="30" height="30" className="rounded-2 bg-white" /><span className="marque-texte">NexIA School</span></Link>
+          <Link className="navbar-brand fw-semibold d-flex align-items-center gap-2" to="/"><img src={`${import.meta.env.BASE_URL}logo-nexia-192.png`} alt="" width="30" height="30" className="rounded-2 bg-white" /><span className="marque-texte">NexIA School</span></Link>
           <button className="navbar-toggler" type="button" aria-label={t("Menu")} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
             <span className="navbar-toggler-icon" />
           </button>

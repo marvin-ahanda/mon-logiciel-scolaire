@@ -77,7 +77,7 @@ function Racine() {
 export default function App() {
   return (
     <SessionProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
         <Routes>
           <Route path="/etablissement" element={<Etablissement />} />
           <Route path="/inscription" element={<Inscription />} />

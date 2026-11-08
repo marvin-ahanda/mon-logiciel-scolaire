@@ -56,7 +56,7 @@ export async function rpc(nom, params) {
 export async function connexionGoogle(chemin = "/") {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${window.location.origin}${chemin}`, queryParams: { prompt: "select_account" } },
+    options: { redirectTo: `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}${chemin}`, queryParams: { prompt: "select_account" } },
   })
   if (error) throw new Error(messageErreur(error))
 }

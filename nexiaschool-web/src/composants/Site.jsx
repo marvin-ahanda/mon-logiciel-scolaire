@@ -11,7 +11,7 @@ import "../landing.css"
 export function Marque({ clair = false, taille }) {
   return (
     <span className={`lp-marque ${clair ? "lp-marque-clair" : ""}`} style={taille ? { "--marque": `${taille}px` } : undefined}>
-      <img src="/logo-nexia-192.png" alt="" width="48" height="48" />
+      <img src={`${import.meta.env.BASE_URL}logo-nexia-192.png`} alt="" width="48" height="48" />
       <span><b>NexIA</b> School</span>
     </span>
   )

@@ -1,0 +1,49 @@
+# Seconde adresse de l'application : https://marvin-ahanda.github.io/mon-logiciel-scolaire/
+# À chaque envoi sur la branche déployée (la même que Netlify), l'application est testée, construite
+# pour le sous-dossier /mon-logiciel-scolaire/, puis publiée sur la branche gh-pages servie par GitHub Pages.
+name: GitHub Pages
+
+on:
+  push:
+    branches: [netlify-supabase]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexiaschool-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: nexiaschool-web/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Construction pour GitHub Pages
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          # Valeurs publiques (déjà présentes dans le code envoyé au navigateur), les mêmes que sur Netlify
+          VITE_SUPABASE_URL: https://woxdqzocwqnrpfmxlsbq.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_wfw2lxWPuDSEYWDvIh2BPg_BhO55ZfX
+      - name: Publication sur la branche gh-pages
+        working-directory: nexiaschool-web/dist
+        run: |
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publication de ${GITHUB_SHA}"
+          git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

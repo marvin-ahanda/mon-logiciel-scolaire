@@ -7,6 +7,7 @@ const VERSION = "__VERSION__"
 const APP = `nexiaschool-app-${VERSION}`
 const DONNEES = "nexiaschool-donnees"
 const FICHIERS = __FICHIERS__
+const BASE = "__BASE__"
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(APP).then((c) => c.addAll(FICHIERS)).then(() => self.skipWaiting()))
@@ -50,7 +51,7 @@ self.addEventListener("fetch", (e) => {
   if (url.origin === self.location.origin) {
     if (url.pathname.startsWith("/mcp") || url.pathname.startsWith("/.well-known") || url.pathname.startsWith("/.netlify")) return
     if (r.mode === "navigate") {
-      e.respondWith(fetch(r).catch(() => caches.match("/", { cacheName: APP })))
+      e.respondWith(fetch(r).catch(() => caches.match(BASE, { cacheName: APP })))
       return
     }
     e.respondWith(cacheDabord(r))
