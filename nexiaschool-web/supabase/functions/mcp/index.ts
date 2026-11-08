@@ -6,6 +6,7 @@
 import { appreciation, calculerResultats, notePeriode } from "./calculs.js"
 import { calculerBilans, sequencesDePeriode } from "./discipline.js"
 import { statistiquesClasse } from "./statistiques.js"
+import { analyserEvaluation, attenduTexte, copiesEleves, estCorrigible } from "./smarteval.js"
 
 const env = (k) => (globalThis.Deno ? globalThis.Deno.env.get(k) : globalThis.process?.env?.[k])
 const BASE = env("NEXIA_BASE_URL") || "https://nexiaschool.netlify.app"
@@ -94,7 +95,31 @@ const OUTILS = [
     inputSchema: { type: "object", properties: { matricule: { type: "string" }, nom: { type: "string" }, prenom: { type: "string" }, sexe: { type: "string", enum: ["M", "F"] },
       date_naissance: { type: "string", description: "AAAA-MM-JJ" }, classe: P_CLASSE, confirmer: P_CONFIRMER }, required: ["matricule", "nom", "sexe"] },
     annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: "smarteval_lister", title: "SmartEval : mes évaluations digitalisées",
+    description: "Évaluations digitalisées (SmartEval) créées par l'utilisateur : titre, matière, classes, séquence, compétence visée, statut du lien, nombre de soumissions et moyenne.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "smarteval_resultats", title: "SmartEval : résultats, notions et profils des élèves",
+    description: "Résultats d'une évaluation SmartEval : questions avec corrigé et notion évaluée, taux de réussite, réussite par question et par notion, " +
+      "profil de chaque élève (notions maîtrisées / à revoir) et copie de chaque élève. Sert à aider l'enseignant à remédier avant l'évaluation sur papier : " +
+      "élèves en difficulté et sur quelles notions, binômes ou trinômes, exercices adaptés à chaque profil, activités d'intégration en classe.",
+    inputSchema: { type: "object", properties: { evaluation: { type: "string", description: "Titre (ou partie du titre) ou identifiant de l'évaluation (voir smarteval_lister)" },
+      copies: { type: "boolean", default: true, description: "Inclure la copie de chaque élève (réponses question par question)" } }, required: ["evaluation"] },
+    annotations: { readOnlyHint: true } },
 ]
+
+// Démarche d'analyse proposée à l'IA pour une évaluation SmartEval (outil smarteval_resultats et invite analyse_smarteval)
+const GUIDE_SMARTEVAL = [
+  "Tu aides un enseignant à exploiter une évaluation digitalisée (SmartEval) passée après les leçons d'une séquence et avant l'évaluation sur papier.",
+  "Objectif : que la compétence visée soit atteinte par tous et que le taux de réussite à l'évaluation sur papier progresse, avec un travail ciblé et peu coûteux pour l'enseignant.",
+  "Présente, en français simple et concret :",
+  "1. Le bilan : taux de réussite (note ≥ 10/20), moyenne, et les notions les mieux et les moins réussies (avec les pourcentages).",
+  "2. Les questions qui ont posé problème et les erreurs fréquentes (ce qu'elles révèlent comme confusion ou idée fausse).",
+  "3. Le profil de chaque élève en difficulté : notions à revoir, type d'erreur, et une orientation précise pour l'aider.",
+  "4. Des binômes ou trinômes : un élève à l'aise sur une notion avec un ou deux élèves en difficulté sur cette même notion (noms précis, notion travaillée).",
+  "5. Des exercices complémentaires adaptés à chaque profil (remédiation pour les élèves en difficulté, consolidation pour les moyens, approfondissement pour les meilleurs), avec leurs corrigés.",
+  "6. Le déroulé d'une ou deux séances d'intégration en classe : notions sur lesquelles insister, activités, organisation des groupes, durée.",
+  "Apprécie toi-même les réponses ouvertes (paragraphes) des copies. Reste bienveillant : les élèves sont mineurs, ne partage pas leurs données en dehors de cette aide.",
+].join("\n")
 
 // --- Calculs à partir des données d'une classe --------------------------------------------------------------
 function periodeDe(code, sequences) {
@@ -220,6 +245,19 @@ async function executer(outil, a, cle) {
       return rpc("api_ajouter_eleve", { p_cle: cle, p_matricule: a.matricule, p_nom: a.nom, p_prenom: a.prenom || "", p_sexe: a.sexe,
         p_date_naissance: a.date_naissance || null, p_classe: a.classe || "" })
     }
+    case "smarteval_lister": return rpc("api_smarteval_liste", { p_cle: cle })
+    case "smarteval_resultats": {
+      const e = await rpc("api_smarteval_resultats", { p_cle: cle, p_evaluation: String(a.evaluation ?? "") })
+      return {
+        evaluation: { id: e.id, titre: e.titre, matiere: e.matiere, competence_visee: e.competence, consignes: e.consignes, annee: e.annee,
+          sequence: e.sequence, classes: (e.classes || []).map((c) => c.libelle), statut: e.statut, ouverte_jusqu_au: e.ferme_le,
+          questions: (e.questions || []).map((q, k) => ({ numero: k + 1, intitule: q.intitule, type: q.type, notion: q.notion || null, points: q.points,
+            ...(q.options?.length ? { options: q.options } : {}), reponse_attendue: attenduTexte(q) || null, corrigee_automatiquement: estCorrigible(q) })) },
+        ...analyserEvaluation(e),
+        ...(a.copies === false ? {} : { copies: copiesEleves(e) }),
+        demarche_d_analyse: GUIDE_SMARTEVAL,
+      }
+    }
   }
   throw new ErreurApi(`Outil inconnu : ${outil}`)
 }
@@ -228,7 +266,13 @@ async function executer(outil, a, cle) {
 const INSTRUCTIONS = "Serveur de NexIA School, logiciel de gestion scolaire (notes, bulletins, discipline). Commencez par contexte_etablissement. " +
   "Les données concernent des élèves mineurs : n'en partagez que le nécessaire. Pour toute écriture (saisir_notes, enregistrer_appel, ajouter_eleve), " +
   "faites d'abord un aperçu (confirmer=false), montrez-le à l'utilisateur et n'appelez avec confirmer=true qu'après son accord explicite. " +
-  "Les notes sont sur 20 ; périodes : s1 à s6, t1 à t3, annee."
+  "Les notes sont sur 20 ; périodes : s1 à s6, t1 à t3, annee. " +
+  "SmartEval : smarteval_lister puis smarteval_resultats donnent les évaluations digitalisées de l'utilisateur et les réponses de ses élèves ; " +
+  "suivez la démarche d'analyse fournie pour l'aider à remédier avant l'évaluation sur papier."
+
+const INVITES = [{ name: "analyse_smarteval", title: "Analyser une évaluation SmartEval",
+  description: "Bilan, profils d'élèves, binômes et trinômes, exercices adaptés et séances d'intégration à partir des soumissions d'une évaluation digitalisée.",
+  arguments: [{ name: "evaluation", description: "Titre ou identifiant de l'évaluation SmartEval", required: true }] }]
 
 async function traiterMessage(m, cle) {
   const reponse = (resultat) => ({ jsonrpc: "2.0", id: m.id, result: resultat })
@@ -239,11 +283,18 @@ async function traiterMessage(m, cle) {
       await rpc("api_contexte", { p_cle: cle })                               // vérifie la clé dès la connexion
       const demandee = m.params?.protocolVersion
       return reponse({ protocolVersion: VERSIONS.includes(demandee) ? demandee : VERSIONS[1],
-        capabilities: { tools: { listChanged: false } },
+        capabilities: { tools: { listChanged: false }, prompts: { listChanged: false } },
         serverInfo: { name: "nexiaschool", title: "NexIA School", version: "1.0.0", websiteUrl: BASE }, instructions: INSTRUCTIONS })
     }
     case "ping": return reponse({})
     case "tools/list": return reponse({ tools: OUTILS })
+    case "prompts/list": return reponse({ prompts: INVITES })
+    case "prompts/get": {
+      if (m.params?.name !== "analyse_smarteval") return erreur(-32602, `Invite inconnue : ${m.params?.name}`)
+      const ev = String(m.params?.arguments?.evaluation || "").slice(0, 200)
+      return reponse({ description: INVITES[0].description, messages: [{ role: "user", content: { type: "text",
+        text: `Analyse mon évaluation SmartEval « ${ev} » : appelle l'outil smarteval_resultats (evaluation = « ${ev} »), puis suis cette démarche.\n\n${GUIDE_SMARTEVAL}` } }] })
+    }
     case "tools/call": {
       const nomOutil = m.params?.name
       if (!OUTILS.some((o) => o.name === nomOutil)) return erreur(-32602, `Outil inconnu : ${nomOutil}`)

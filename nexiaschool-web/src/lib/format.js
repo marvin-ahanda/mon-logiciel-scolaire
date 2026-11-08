@@ -2,6 +2,9 @@ import { locale, t } from "../i18n.jsx"
 const formats = {}
 const nombre = () => (formats[locale()] ||= new Intl.NumberFormat(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 export const note = (v) => (v === null || v === undefined ? "" : nombre().format(v))
+const pourcents = {}
+/** Pourcentage à une décimale au plus : « 66,7 % ». */
+export const pourcentage = (v) => (v === null || v === undefined ? "—" : `${(pourcents[locale()] ||= new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 })).format(v)} %`)
 export const date = (v) => (v ? new Date(v).toLocaleDateString(locale()) : "—")
 export const dateHeure = (v) => (v ? new Date(v).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) : "—")
 export const nomComplet = (p) => [p?.nom?.toUpperCase(), p?.prenom].filter(Boolean).join(" ")

@@ -11,6 +11,8 @@ import Developpeur from "./pages/Developpeur.jsx"
 import Developpeurs from "./pages/Developpeurs.jsx"
 import OAuthAutoriser from "./pages/OAuthAutoriser.jsx"
 import Verifier from "./pages/Verifier.jsx"
+import EvaluationEleve from "./pages/EvaluationEleve.jsx"
+import SmartEval, { EditeurEvaluation, JournalSmartEval, ResultatsEvaluation } from "./pages/SmartEval.jsx"
 import PageBulletins from "./pages/Bulletins.jsx"
 import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
 import Eleves from "./pages/Eleves.jsx"
@@ -88,12 +90,18 @@ export default function App() {
           <Route path="/developpeurs" element={<Developpeurs />} />
           <Route path="/oauth/autoriser" element={<OAuthAutoriser />} />
           <Route path="/verifier/:code" element={<Verifier />} />
+          <Route path="/e/:jeton" element={<EvaluationEleve />} />
           <Route path="/console/*" element={<Suspense fallback={<Chargement />}><Console /></Suspense>} />
           <Route path="/" element={<Racine />}>
             <Route index element={<Accueil />} />
           </Route>
           <Route element={<Protege />}>
             <Route path="/developpeur" element={<Developpeur />} />
+            <Route path="/smarteval" element={<SmartEval />} />
+            <Route path="/smarteval/nouvelle" element={<EditeurEvaluation />} />
+            <Route path="/smarteval/journal" element={<JournalSmartEval />} />
+            <Route path="/smarteval/:id/modifier" element={<EditeurEvaluation />} />
+            <Route path="/smarteval/:id" element={<ResultatsEvaluation />} />
           </Route>
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />

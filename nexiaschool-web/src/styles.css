@@ -137,3 +137,59 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 
 /* Bandeau d'état de la connexion (hors ligne, saisies en attente) */
 .etat-connexion { position: sticky; top: 0; z-index: 1030; }
+
+/* SmartEval : formulaires façon Google Forms, copies A4, bulle */
+.se-badge-ia { background: linear-gradient(135deg, #7c3aed, #0ea5e9); color: #fff; font-size: .62em; vertical-align: middle; }
+.se-bandeau { padding: 1rem 1.25rem; border-radius: .75rem; color: #fff; background: linear-gradient(120deg, #0b46e5, #7c3aed); }
+.se-bandeau .se-badge-ia { background: rgba(255, 255, 255, .25); }
+.se-page { min-height: 100vh; background: #eef2fb; padding: 18px 12px 40px; }
+.se-colonne { max-width: 780px; margin: 0 auto; }
+.se-carte { background: #fff; border: 1px solid #dadce0; border-radius: 10px; padding: 20px 22px; margin-bottom: 12px; }
+.se-carte-titre { border-top: 10px solid #0b46e5; }
+.se-carte.se-erreur { border-color: #d93025; box-shadow: 0 0 0 1px #d93025; }
+.se-feuille-entete { padding: 14px 18px; }
+.se-feuille-entete .entete-bulletin { border-bottom: none; margin: 0; padding: 0; }
+.se-intitule { font-size: 1.02rem; font-weight: 500; }
+.se-points { float: right; font-size: .78rem; color: #5f6368; font-weight: 400; }
+.se-aide { font-size: .85rem; color: #5f6368; margin-top: .25rem; white-space: pre-line; }
+.se-consignes { white-space: pre-line; }
+.se-competence { font-size: .9rem; background: #f1f5ff; border-left: 3px solid #0b46e5; padding: .35rem .6rem; border-radius: 0 6px 6px 0; }
+.se-ligne { border: 0; border-bottom: 1px solid #c4c7c5; border-radius: 0; padding-left: 0; padding-right: 0; background: transparent; }
+.se-ligne:focus { box-shadow: none; border-bottom: 2px solid #0b46e5; }
+.se-option { margin: .45rem 0; }
+.se-option .form-check-input { width: 1.15em; height: 1.15em; }
+.se-liste { max-width: 320px; }
+.se-echelle { display: flex; align-items: flex-end; gap: .9rem; flex-wrap: wrap; justify-content: center; }
+.se-echelle-point { display: flex; flex-direction: column; align-items: center; gap: .3rem; font-size: .85rem; cursor: pointer; }
+.se-echelle-libelle { font-size: .85rem; color: #5f6368; padding-bottom: .1rem; }
+.se-recap-liste li { margin-bottom: .6rem; }
+.se-confirmation { text-align: center; border-top: 10px solid #198754; }
+.se-confirmation-icone { width: 64px; height: 64px; border-radius: 50%; background: #198754; color: #fff; font-size: 34px; line-height: 64px; margin: 0 auto .75rem; }
+.se-editeur-question { border-left: 6px solid #4285f4; }
+.se-intitule-saisie { background: #f8f9fa; border: 0; border-bottom: 1px solid #c4c7c5; border-radius: 4px 4px 0 0; font-size: 1rem; resize: vertical; }
+.se-titre-saisie { font-size: 1.6rem; border: 0; border-bottom: 1px solid #c4c7c5; border-radius: 0; padding-left: 0; }
+.se-titre-saisie:focus, .se-intitule-saisie:focus { box-shadow: none; border-bottom: 2px solid #0b46e5; }
+.se-puce { width: 1.4rem; text-align: center; color: #5f6368; flex: none; }
+.se-pied-question { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; border-top: 1px solid #e8eaed; margin-top: 1rem; padding-top: .75rem; }
+.se-notion { max-width: 300px; }
+.se-points-saisie { width: 130px; }
+.se-identite-verrouillee { background: #f8f9fa; }
+.se-barre { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; margin-bottom: 2px; }
+.se-barre > div { height: 100%; }
+.bulle-smarteval { background: linear-gradient(135deg, #7c3aed, #0ea5e9); }
+.bulle-smarteval:hover { background: linear-gradient(135deg, #6d28d9, #0284c7); }
+.copie-a4 { background: #fff; max-width: 210mm; min-height: 280mm; margin: 0 auto 1.25rem; padding: 12mm; box-shadow: 0 1px 6px rgba(0, 0, 0, .15); border-radius: 4px; }
+.copie-a4 .entete-bulletin { margin-top: 0; }
+.se-copie-table td, .se-copie-table th { font-size: .8rem; }
+@media print {
+  .copie-a4 { box-shadow: none; margin: 0; max-width: none; min-height: 0; padding: 10mm 12mm; break-after: page; border-radius: 0; }
+  .copie-a4:last-child { break-after: auto; }
+  .se-copie-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+@media (max-width: 575px) { .se-carte { padding: 16px 14px; } .se-echelle { gap: .55rem; } .copie-a4 { padding: 6mm; } }
+@media (max-width: 575px) {
+  .entete-evaluation { grid-template-columns: 1fr; gap: .4rem; text-align: center; }
+  .entete-evaluation > div:nth-child(2) { order: -1; }
+  .entete-evaluation > .text-end { text-align: center !important; }
+  .entete-evaluation .logo-bulletin { width: 64px; height: 64px; margin: 0 auto; }
+}

@@ -7,6 +7,7 @@ import { BulleLogo } from "./Logo.jsx"
 import AlerteFinance from "./AlerteFinance.jsx"
 import AlerteDiscipline from "./AlerteDiscipline.jsx"
 import AlerteNotes from "./AlerteNotes.jsx"
+import AlerteSmartEval from "./AlerteSmartEval.jsx"
 import EtatConnexion from "./EtatConnexion.jsx"
 import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
@@ -93,6 +94,7 @@ export default function MiseEnPage() {
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
               {peutNoter && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
+              <li className="nav-item"><NavLink className={lien} to="/smarteval">SmartEval <span className="badge se-badge-ia">IA</span></NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/personnel">{t("Personnel")}</NavLink></li>}
@@ -114,8 +116,9 @@ export default function MiseEnPage() {
       <main className="container-fluid py-3 px-3 px-lg-4">
         <Outlet />
       </main>
-      {exercice && (peutFinance || peutDiscipline) && (
+      {exercice && (
         <div className="bulles-alertes no-print">
+          <AlerteSmartEval />
           {estAdmin && <AlerteNotes />}
           {peutDiscipline && <AlerteDiscipline />}
           {peutFinance && <AlerteFinance />}
