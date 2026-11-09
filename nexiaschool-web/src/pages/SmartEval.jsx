@@ -143,8 +143,9 @@ function EditeurQuestion({ q, numero, total, onChange, onSupprimer, onDupliquer,
         {q.type === "courte" && <>
           <input className="form-control form-control-sm se-ligne mb-2" disabled placeholder={t("Texte de réponse courte")} />
           <label className="small text-muted" htmlFor={`acc-${q.id}`}>{t("Corrigé : réponses acceptées, séparées par « ; » (casse et accents ignorés). Laissez vide pour apprécier vous-même ou par l'IA.")}</label>
-          <input id={`acc-${q.id}`} className="form-control form-control-sm" value={q.acceptees.join(" ; ")} placeholder={t("ex. Yaoundé ; Yaounde")}
-                 onChange={(e) => maj({ acceptees: e.target.value.split(";").map((x) => x.trim()) })} onBlur={() => maj({ acceptees: q.acceptees.filter(Boolean) })} />
+          <input id={`acc-${q.id}`} className="form-control form-control-sm" value={q.acceptees_texte ?? q.acceptees.join(" ; ")} maxLength={2000}
+                 placeholder={t("ex. Yaoundé ; la capitale est Yaoundé")}
+                 onChange={(e) => maj({ acceptees_texte: e.target.value, acceptees: e.target.value.split(";").map((x) => x.trim()).filter(Boolean) })} />
         </>}
         {q.type === "paragraphe" && <><textarea className="form-control form-control-sm" rows={2} disabled placeholder={t("Texte de réponse longue")} />
           <div className="small text-muted mt-1">{t("Réponse ouverte : appréciée par vous ou par l'IA lors de l'analyse.")}</div></>}
@@ -186,10 +187,20 @@ function EditeurQuestion({ q, numero, total, onChange, onSupprimer, onDupliquer,
   )
 }
 
+// Classes dont le membre du personnel a la charge (au moins une matière), puis matières qu'il y enseigne
+const ordreClasses = new Intl.Collator("fr", { numeric: true, sensitivity: "base" }).compare
+export function classesDe(ctx) {
+  const m = new Map()
+  for (const x of ctx.matieres || []) for (const c of x.classes || []) m.set(c.id, c)
+  return [...m.values()].sort((a, b) => ordreClasses(a.libelle, b.libelle))
+}
+export const matieresDe = (ctx, classeId) => (ctx.matieres || []).filter((x) => (x.classes || []).some((c) => c.id === classeId))
+  .sort((a, b) => ordreClasses(a.libelle, b.libelle))
+
 function controler(f) {
   if (!f.titre.trim()) return t("Donnez un titre à l'évaluation.")
+  if (!f.classes.length) return t("Choisissez la classe.")
   if (!f.matiere_id) return t("Choisissez la matière.")
-  if (!f.classes.length) return t("Choisissez au moins une classe.")
   if (!f.competence.trim()) return t("Indiquez la compétence visée.")
   if (!f.questions.length) return t("Ajoutez au moins une question.")
   for (const [k, q] of f.questions.entries()) {
@@ -213,11 +224,11 @@ export function EditeurEvaluation() {
     const { ctx, ev } = donnees
     if (ev) {
       if (ev.jeton) { naviguer(`/smarteval/${ev.id}`, { replace: true }); return }
-      setF({ titre: ev.titre, consignes: ev.consignes, competence: ev.competence, matiere_id: ev.matiere_id, classes: ev.classes.map((c) => c.id),
+      setF({ titre: ev.titre, consignes: ev.consignes, competence: ev.competence, matiere_id: ev.matiere_id, classes: ev.classes.slice(0, 1).map((c) => c.id),
              questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
     } else {
-      const m = ctx.matieres[0]
-      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: (m?.classes || []).map((c) => c.id), questions: [nouvelleQuestion()] })
+      const c = classesDe(ctx)[0], m = matieresDe(ctx, c?.id)[0]
+      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], questions: [nouvelleQuestion()] })
     }
   }, [donnees, f, naviguer])
   useEffect(() => { enteteEtablissement(etablissement, exercice, logoUrl).then(setEntete) }, [etablissement, exercice, logoUrl])
@@ -225,6 +236,11 @@ export function EditeurEvaluation() {
   if (!donnees || !f) return <><Alerte>{erreurChargement}</Alerte>{!erreurChargement && <Chargement />}</>
   const { ctx } = donnees
   const matiere = ctx.matieres.find((m) => m.matiere_id === f.matiere_id)
+  const mesClasses = classesDe(ctx), matieresClasse = matieresDe(ctx, f.classes[0])
+  const choisirClasse = (id) => {
+    const liste = matieresDe(ctx, id)
+    setF({ ...f, classes: [id], matiere_id: liste.some((m) => m.matiere_id === f.matiere_id) ? f.matiere_id : liste[0]?.matiere_id || "" })
+  }
   const majQ = (k, q) => setF({ ...f, questions: f.questions.map((x, i) => (i === k ? q : x)) })
   const deplacer = (k, sens) => { const qs = [...f.questions]; [qs[k], qs[k + sens]] = [qs[k + sens], qs[k]]; setF({ ...f, questions: qs }) }
 
@@ -251,7 +267,7 @@ export function EditeurEvaluation() {
 
   const apercuEvaluation = {
     titre: f.titre, consignes: f.consignes, competence: f.competence, matiere: matiere?.libelle, sequence: ctx.sequence?.numero, entete: entete || {},
-    classes: (matiere?.classes || []).filter((c) => f.classes.includes(c.id)),
+    classes: mesClasses.filter((c) => f.classes.includes(c.id)),
     questions: f.questions.map((q) => ({ ...q, options: q.options.filter((o) => o.trim()), points: q.type === "echelle" ? 0 : q.points })),
   }
 
@@ -315,27 +331,28 @@ export function EditeurEvaluation() {
       <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte>
 
       <div className="se-carte se-carte-titre">
-        <input className="form-control se-titre-saisie" placeholder={t("Titre de l'évaluation")} maxLength={150} value={f.titre} onChange={(e) => setF({ ...f, titre: e.target.value })} aria-label={t("Titre de l'évaluation")} />
+        <input className="form-control se-titre-saisie" placeholder={t("Titre de l'évaluation")} maxLength={150} value={f.titre} onChange={(e) => { setF({ ...f, titre: e.target.value }); if (erreur) setErreur("") }} aria-label={t("Titre de l'évaluation")} />
         <textarea className="form-control se-ligne mt-2" rows={2} placeholder={t("Consignes aux élèves (facultatif)")} maxLength={3000} value={f.consignes}
                   onChange={(e) => setF({ ...f, consignes: e.target.value })} aria-label={t("Consignes aux élèves (facultatif)")} />
       </div>
 
       <div className="se-carte">
         <div className="row g-3">
-          <div className="col-md-6"><label className="form-label small fw-semibold" htmlFor="se-matiere">{t("Matière")}</label>
-            <select id="se-matiere" className="form-select" value={f.matiere_id}
-                    onChange={(e) => { const m = ctx.matieres.find((x) => x.matiere_id === e.target.value); setF({ ...f, matiere_id: e.target.value, classes: (m?.classes || []).map((c) => c.id) }) }}>
-              {ctx.matieres.map((m) => <option key={m.matiere_id} value={m.matiere_id}>{m.libelle}</option>)}</select>
-            <div className="form-text">{t("Pré-remplie d'après les matières qui vous sont confiées.")}</div></div>
+          <div className="col-md-6"><label className="form-label small fw-semibold" htmlFor="se-classe-choix">{t("Classe")}</label>
+            {mesClasses.length > 1
+              ? <select id="se-classe-choix" className="form-select" value={f.classes[0] || ""} onChange={(e) => choisirClasse(e.target.value)}>
+                  {mesClasses.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select>
+              : <input id="se-classe-choix" className="form-control" readOnly value={mesClasses[0]?.libelle || "—"} />}
+            <div className="form-text">{mesClasses.length > 1 ? t("Les classes dont vous avez la charge.") : t("Votre classe, renseignée automatiquement.")}</div></div>
           <div className="col-md-6"><label className="form-label small fw-semibold" htmlFor="se-sequence">{t("Séquence")}</label>
             <input id="se-sequence" className="form-control" readOnly value={ctx.sequence ? t("Séquence {v0} (en cours)", { v0: ctx.sequence.numero }) : "—"} />
             <div className="form-text">🔒 {t("Séquence en cours, fixée par l'administration.")}</div></div>
-          <div className="col-12"><span className="form-label small fw-semibold d-block">{t("Classe(s) concernée(s)")}</span>
-            {(matiere?.classes || []).map((c) => (
-              <div className="form-check form-check-inline" key={c.id}>
-                <input className="form-check-input" type="checkbox" id={`cl-${c.id}`} checked={f.classes.includes(c.id)}
-                       onChange={(e) => setF({ ...f, classes: e.target.checked ? [...f.classes, c.id] : f.classes.filter((x) => x !== c.id) })} />
-                <label className="form-check-label" htmlFor={`cl-${c.id}`}>{c.libelle}</label></div>))}</div>
+          <div className="col-md-6"><label className="form-label small fw-semibold" htmlFor="se-matiere">{t("Matière")}</label>
+            {matieresClasse.length > 1
+              ? <select id="se-matiere" className="form-select" value={f.matiere_id} onChange={(e) => setF({ ...f, matiere_id: e.target.value })}>
+                  {matieresClasse.map((m) => <option key={m.matiere_id} value={m.matiere_id}>{m.libelle}</option>)}</select>
+              : <input id="se-matiere" className="form-control" readOnly value={matieresClasse[0]?.libelle || "—"} />}
+            <div className="form-text">{matieresClasse.length > 1 ? t("Les matières que vous enseignez dans cette classe.") : t("Votre matière dans cette classe, renseignée automatiquement.")}</div></div>
           <div className="col-12"><label className="form-label small fw-semibold" htmlFor="se-competence">{t("Compétence visée")} <span className="text-danger">*</span></label>
             <textarea id="se-competence" className="form-control" rows={2} maxLength={600} placeholder={t("ex. Résoudre des problèmes de proportionnalité dans des situations de vie courante")}
                       value={f.competence} onChange={(e) => setF({ ...f, competence: e.target.value })} />

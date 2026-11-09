@@ -1,6 +1,11 @@
 // Traductions anglaises. Clé = texte français exact (voir t() dans i18n.jsx). Un test vérifie que chaque texte de
 // l'interface a sa traduction.
 export const EN = {
+  "Les classes dont vous avez la charge.": "The classes you are in charge of.",
+  "Les matières que vous enseignez dans cette classe.": "The subjects you teach in this class.",
+  "Votre classe, renseignée automatiquement.": "Your class, filled in automatically.",
+  "Votre matière dans cette classe, renseignée automatiquement.": "Your subject in this class, filled in automatically.",
+  "ex. Yaoundé ; la capitale est Yaoundé": "e.g. Yaoundé ; the capital is Yaoundé",
   // Décisions de fin de période
   "Absences non justifiées < (h)": "Unexcused absences < (h)",
   "Absences non justifiées ≥ (h)": "Unexcused absences ≥ (h)",

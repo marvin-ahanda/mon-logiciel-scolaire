@@ -29,9 +29,9 @@ function Question({ q, numero, valeur, onChange, erreur, desactive }) {
         {Number(q.points) > 0 && <span className="se-points">{t("{v0} point(s)", { v0: Number(q.points) })}</span>}</div>
       {q.aide && <div className="se-aide">{q.aide}</div>}
       <div className="mt-3">
-        {q.type === "courte" && <input className="form-control se-ligne" aria-label={q.intitule} placeholder={t("Votre réponse")} maxLength={500}
+        {q.type === "courte" && <input className="form-control se-ligne" aria-label={q.intitule} placeholder={t("Votre réponse")} maxLength={1000}
                                        value={valeur ?? ""} disabled={desactive} onChange={(e) => choisir(e.target.value)} />}
-        {q.type === "paragraphe" && <textarea className="form-control" rows={4} aria-label={q.intitule} placeholder={t("Votre réponse")} maxLength={5000}
+        {q.type === "paragraphe" && <textarea className="form-control se-reponse-longue" rows={6} aria-label={q.intitule} placeholder={t("Votre réponse")} maxLength={20000}
                                               value={valeur ?? ""} disabled={desactive} onChange={(e) => choisir(e.target.value)} />}
         {q.type === "choix" && q.options.map((o, i) => (
           <div className="form-check se-option" key={i}>
