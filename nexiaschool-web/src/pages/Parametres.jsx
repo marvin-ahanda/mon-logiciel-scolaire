@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
+import ParametresDecisions from "./ParametresDecisions.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
 import { exerciceParDefaut, nomComplet, comparerNoms } from "../lib/format.js"
 import { ChoixLogo } from "../composants/Logo.jsx"
@@ -21,6 +22,7 @@ export default function Parametres() {
         <li className="nav-item"><NavLink className={onglet} to="/parametres/matieres">{t("Matières")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">{t("Matières par classe")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">{t("Discipline")}</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}</NavLink></li>
       </ul>
       <Routes>
         <Route index element={<Etablissement />} />
@@ -30,6 +32,7 @@ export default function Parametres() {
         <Route path="matieres" element={<Matieres />} />
         <Route path="coefficients" element={<Coefficients />} />
         <Route path="discipline" element={<ParametresDiscipline />} />
+        <Route path="decisions" element={<ParametresDecisions />} />
       </Routes>
     </>
   );

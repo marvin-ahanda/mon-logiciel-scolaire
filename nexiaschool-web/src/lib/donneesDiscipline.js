@@ -11,7 +11,7 @@ export async function chargerDiscipline(inscriptionIds, exercice) {
     toutCharger(() => supabase.from(table).select(colonnes).in("inscription_id", ids))))).flat()
   const [absences, retards, incidents, bareme] = await Promise.all([
     charger("absences", "*"), charger("retards", "*"),
-    charger("incidents", "*, infractions(libelle, sanctions(libelle, points_perdus))"),
+    charger("incidents", "*, infractions(libelle, sanction_id, sanctions(libelle, points_perdus))"),
     supabase.from("parametres_discipline").select("*").eq("exercice_id", exercice.id).maybeSingle().then(verifier),
   ])
   return { absences, retards, incidents, bareme: bareme || { note_max: 20, points_par_retard: 0.25, points_par_heure: 0.25 } }

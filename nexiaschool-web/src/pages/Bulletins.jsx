@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import ChoixClassePeriode from "../composants/ChoixClassePeriode.jsx"
-import { appreciation, competence, decision } from "../lib/calculs.js"
+import { appreciation, competence } from "../lib/calculs.js"
+import { decisionProposee, sanctionsParEleve } from "../lib/decisions.js"
+import { sequencesDePeriode } from "../lib/discipline.js"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
 import { bilansPeriode, chargerDiscipline } from "../lib/donneesDiscipline.js"
 import { date, nomComplet, note } from "../lib/format.js"
@@ -10,6 +12,7 @@ import { emettreBulletins, filigrane as faireFiligrane, matriceQr, sitePlateform
 import { siteAffiche } from "../lib/logo.js"
 import { adressesPhotos } from "../lib/photos.js"
 import { useSession } from "../Session.jsx"
+import { supabase, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
 
 const TITRES = { sequence: "BULLETIN DE NOTES SÉQUENTIEL", trimestre: "BULLETIN DE NOTES TRIMESTRIEL", annee: "BULLETIN DE NOTES ANNUEL" }
@@ -25,7 +28,7 @@ export function QrCode({ texte, className, titre }) {
     <title>{titre}</title><rect width="100%" height="100%" fill="#fff" /><path d={d} fill="#000" /></svg>
 }
 
-function Bulletin({ r, donnees, periode, stats, entetes, etablissement, logo, filigrane, exercice, photo, conduite, code, onPdf, enCours }) {
+function Bulletin({ r, donnees, periode, stats, entetes, etablissement, logo, filigrane, exercice, photo, conduite, decision, code, onPdf, enCours }) {
   const e = r.eleve, nd = entetes.length
   const moy = r.moyenne !== null ? `${note(r.moyenne)} / 20` : r.moyenneNonClassee !== null ? `${note(r.moyenneNonClassee)} / 20 (NC)` : "NC"
   return (
@@ -71,7 +74,8 @@ function Bulletin({ r, donnees, periode, stats, entetes, etablissement, logo, fi
             <td>{t("Plus forte : ")}{note(stats.max) || "—"}{t(" · plus faible : ")}{note(stats.min) || "—"}</td>
             <td>{t("Taux de réussite : ")}{stats.tauxReussite === null ? "—" : `${note(stats.tauxReussite)} %`}</td></tr>
           {periode.type === "annee" && <tr><td colSpan={2}>{t("Moyennes trimestrielles : ")}{(r.moyennesTrimestres || []).map((m, k) => <span key={k}>{k > 0 && " · "}T{k + 1} : <strong>{m === null ? "—" : note(m)}</strong></span>)}</td>
-            <td>{t("Décision proposée : ")}<strong>{t(decision(r.moyenne ?? r.moyenneNonClassee)) || "—"}</strong></td></tr>}
+            <td>{t("Décision proposée : ")}<strong className="decision-proposee">{decision ? t(decision.libelle) : "—"}</strong></td></tr>}
+          {periode.type === "trimestre" && decision && <tr><td colSpan={3}>{t("Décision proposée : ")}<strong className="decision-proposee">{t(decision.libelle)}</strong></td></tr>}
         </tbody></table>
         {conduite && <table className="table table-sm table-bordered mb-2 tableau-bulletin text-center"><tbody>
           <tr><th colSpan={4}>{t("Discipline")}</th><th colSpan={3}>{t("Points perdus")}</th><th rowSpan={2} className="align-middle">{t("Note de discipline")}</th></tr>
@@ -102,8 +106,9 @@ function Bulletins({ classe, periode }) {
   const { exercice, etablissement, logoUrl } = useSession()
   const [donnees, erreur] = useDonnees(async () => {
     const d = await chargerClasse(classe, exercice)
-    const [photos, discipline] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(d.eleves.map((x) => x.inscriptionId), exercice)])
-    return { ...d, photos, discipline }
+    const [photos, discipline, criteres] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(d.eleves.map((x) => x.inscriptionId), exercice),
+      supabase.from("criteres_decision").select("*").order("ordre").then(verifier).catch(() => [])])
+    return { ...d, photos, discipline, criteres }
   }, [classe.id])
   const [pdf, setPdf] = useState(null), [erreurPdf, setErreurPdf] = useState("")      // pdf : "classe" ou inscriptionId en cours
   const titre = t("Bulletins {v0} {v1} {v2}", { v0: classe.libelle, v1: periode.libelle, v2: exercice.libelle })
@@ -137,12 +142,16 @@ function Bulletins({ classe, periode }) {
   if (!donnees || !calcul) return <><Alerte>{erreur}</Alerte><Chargement /></>
   const { resultats, stats, entetes } = calcul
   const conduite = bilansPeriode(donnees.discipline, donnees.eleves.map((x) => x.inscriptionId), periode, donnees.sequences)
+  // Décision de fin de période d'après les critères fixés par l'administration (Paramètres → Décisions de fin de période)
+  const sanctions = sanctionsParEleve(donnees.discipline.incidents, sequencesDePeriode(periode, donnees.sequences))
+  const decisionDe = (r) => decisionProposee(donnees.criteres, periode.code, { moyenne: r.moyenne ?? r.moyenneNonClassee,
+    conduite: conduite.get(r.inscriptionId), sanctions: sanctions.get(r.inscriptionId) })
 
   async function exporter(liste, cle, nom) {
     setErreurPdf(""); setPdf(cle)
     try {
       await telechargerBulletinsPdf({ etablissement, logo: logoImage, filigrane: fond, exercice, periode, classe: donnees.classe, stats, entetes,
-        eleves: liste.map((r) => ({ r, photoUrl: donnees.photos[r.eleve.photo], conduite: conduite.get(r.inscriptionId), code: codes.get(r.inscriptionId) })) }, nom)
+        eleves: liste.map((r) => ({ r, photoUrl: donnees.photos[r.eleve.photo], conduite: conduite.get(r.inscriptionId), decision: decisionDe(r), code: codes.get(r.inscriptionId) })) }, nom)
     } catch (e) { setErreurPdf(t("Création du PDF impossible : {v0}", {
       v0: e.message
     })) } finally { setPdf(null) }
@@ -160,7 +169,7 @@ function Bulletins({ classe, periode }) {
       <Alerte onFermer={() => setErreurPdf("")}>{erreurPdf}</Alerte>
       {resultats.map((r) => <Bulletin key={r.inscriptionId} r={r} donnees={donnees} periode={periode} stats={stats} entetes={entetes}
                                       etablissement={etablissement} logo={logoUrl} filigrane={fond} exercice={exercice} photo={donnees.photos[r.eleve.photo]}
-                                      conduite={conduite.get(r.inscriptionId)} code={codes.get(r.inscriptionId)} enCours={pdf}
+                                      conduite={conduite.get(r.inscriptionId)} decision={decisionDe(r)} code={codes.get(r.inscriptionId)} enCours={pdf}
                                       onPdf={() => exporter([r], r.inscriptionId, nomDeFichier(t("bulletin"), nomComplet(r.eleve), classe.libelle, periode.libelle, exercice.libelle))} />)}
       {!resultats.length && <p className="text-muted">{t("Aucun élève inscrit.")}</p>}
     </>

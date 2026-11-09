@@ -1,6 +1,6 @@
 // Bulletins au format PDF (A4, texte vectoriel net, sans en-tête ni pied de page ajoutés par le navigateur).
 // La bibliothèque jsPDF n'est chargée qu'au moment de l'export, pour ne pas alourdir l'application.
-import { appreciation, competence, decision } from "./calculs.js"
+import { appreciation, competence } from "./calculs.js"
 import { matriceQr, sitePlateforme, urlVerification } from "./bulletinVerif.js"
 import { date, nomComplet, note } from "./format.js"
 import { siteAffiche } from "./logo.js"
@@ -33,7 +33,14 @@ const lv = (lib, val, extra = "", options = {}) => ({ content: pdf(lib + val + e
 
 function dessinerLv(doc, c) {
   const [lib, val, extra] = c.cell.raw.lv, x0 = c.cell.x + c.cell.padding("left"), y = c.cell.y + c.cell.height / 2
-  doc.setTextColor(...NOIR); doc.setFontSize(c.cell.styles.fontSize)
+  doc.setTextColor(...NOIR)
+  // texte trop long pour la case (ex. « À l'appréciation du conseil de classe ») : police réduite jusqu'à ce qu'il tienne
+  const place = c.cell.width - c.cell.padding("left") - c.cell.padding("right")
+  let taille = c.cell.styles.fontSize
+  const largeur = () => { doc.setFontSize(taille); doc.setFont("helvetica", "normal"); const l1 = doc.getTextWidth(lib + extra)
+    doc.setFont("helvetica", "bold"); return l1 + doc.getTextWidth(val) }
+  while (taille > 6 && largeur() > place) taille -= 0.25
+  doc.setFontSize(taille)
   doc.setFont("helvetica", "normal"); doc.text(lib, x0, y, { baseline: "middle" })
   let x = x0 + doc.getTextWidth(lib)
   doc.setFont("helvetica", "bold"); doc.text(val, x, y, { baseline: "middle" }); x += doc.getTextWidth(val)
@@ -59,7 +66,7 @@ function qr(doc, texte, x, y, taille) {
   m.forEach((ligne, l) => ligne.forEach((noir, c) => { if (noir) doc.rect(x + c * k, y + l * k, k + 0.02, k + 0.02, "F") }))
 }
 
-function bulletin(doc, autoTable, { etablissement, logo, filigrane, exercice, periode, classe, stats, entetes, r, photo, conduite, code }) {
+function bulletin(doc, autoTable, { etablissement, logo, filigrane, exercice, periode, classe, stats, entetes, r, photo, conduite, decision, code }) {
   let y = MARGE
   // --- En-tête : établissement à gauche, logo au centre, année et période à droite
   const colonne = 76
@@ -169,7 +176,8 @@ function bulletin(doc, autoTable, { etablissement, logo, filigrane, exercice, pe
   ]
   if (periode.type === "annee") synthese.push([
     { content: pdf(t("Moyennes trimestrielles : ") + (r.moyennesTrimestres || []).map((m, k) => `T${k + 1} : ${m === null ? "—" : note(m)}`).join(" · ")), colSpan: 2 },
-    lv(t("Décision proposée : "), t(decision(r.moyenne ?? r.moyenneNonClassee)) || "—")])
+    lv(t("Décision proposée : "), decision ? t(decision.libelle) : "—")])
+  else if (periode.type === "trimestre" && decision) synthese.push([lv(t("Décision proposée : "), t(decision.libelle), "", { colSpan: 3 })])
   y = tableau(doc, autoTable, y, { body: synthese, styles: { ...STYLES, fontSize: 8.5, valign: "middle" }, columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 62 } } }) + 2
 
   // --- Discipline
@@ -228,7 +236,7 @@ export async function telechargerBulletinsPdf(contexte, nomFichier) {
   const photos = await Promise.all(contexte.eleves.map((x) => image(x.photoUrl)))
   contexte.eleves.forEach((x, k) => {
     if (k) doc.addPage()
-    bulletin(doc, autoTable, { ...contexte, r: x.r, photo: photos[k], conduite: x.conduite, code: x.code })
+    bulletin(doc, autoTable, { ...contexte, r: x.r, photo: photos[k], conduite: x.conduite, decision: x.decision, code: x.code })
   })
   doc.save(`${nomFichier}.pdf`)
 }
