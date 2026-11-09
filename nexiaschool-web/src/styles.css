@@ -193,3 +193,30 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
   .entete-evaluation > .text-end { text-align: center !important; }
   .entete-evaluation .logo-bulletin { width: 64px; height: 64px; margin: 0 auto; }
 }
+
+/* Espace parents, choix du profil, lettres administratives, courrier */
+.choix-profil-carte { display: flex; align-items: center; gap: .9rem; padding: .9rem 1rem; white-space: normal; }
+.choix-profil-icone { font-size: 1.9rem; line-height: 1; }
+.espace-parent { min-height: 100vh; background: #f4f6fb; }
+.espace-parent-entete { background: linear-gradient(120deg, #0b46e5, #198754); color: #fff; }
+.onglets-parent .nav-link { border: 1px solid #dee2e6; background: #fff; }
+.onglets-parent .nav-link.active { border-color: #0d6efd; }
+.bilan-sequence { border-left: 4px solid #0b46e5; }
+.bulle-courrier { background: #198754; }
+.bulle-courrier:hover { background: #146c43; }
+.lettre { background: #fff; color: #212529; max-width: 210mm; margin: 0 auto; padding: 18mm 18mm 16mm; box-shadow: 0 1px 8px rgba(0, 0, 0, .15);
+  border-radius: 4px; font-family: "Times New Roman", Georgia, serif; font-size: 1.02rem; line-height: 1.55; }
+.lettre-haut { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; }
+.lettre-lieu { text-align: right; white-space: nowrap; }
+.lettre-destinataire { margin: 2rem 0 1.6rem auto; width: max-content; max-width: 60%; text-align: left; }
+.lettre-objet { margin-bottom: .2rem; }
+.lettre-reference { font-size: .9rem; color: #495057; margin-bottom: .2rem; }
+.lettre-appel { margin-top: 1.4rem; }
+.lettre-paragraphe { text-indent: 2.2em; text-align: justify; white-space: pre-line; }
+.lettre-signature { margin: 2.2rem 0 0 auto; width: max-content; max-width: 60%; text-align: center; }
+.reponse-courrier { border-left: 4px solid #198754; background: #f1f9f4; padding: .5rem .8rem; border-radius: 0 6px 6px 0; }
+.reponse-texte { white-space: pre-line; }
+.liste-courriers .list-group-item.active .text-muted { color: inherit !important; }
+@media (max-width: 575px) { .lettre { padding: 8mm 6mm; font-size: .95rem; } .lettre-haut { flex-direction: column; gap: .4rem; } .lettre-lieu { text-align: left; }
+  .lettre-destinataire, .lettre-signature { max-width: 100%; } }
+@media print { .lettre { box-shadow: none; max-width: none; padding: 15mm 18mm; } .espace-parent, .espace-parent main { background: #fff; } }

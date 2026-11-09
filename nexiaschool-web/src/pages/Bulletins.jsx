@@ -6,13 +6,14 @@ import { decisionProposee, sanctionsParEleve } from "../lib/decisions.js"
 import { sequencesDePeriode } from "../lib/discipline.js"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
 import { bilansPeriode, chargerDiscipline } from "../lib/donneesDiscipline.js"
-import { date, nomComplet, note } from "../lib/format.js"
+import { date, dateHeure, nomComplet, note } from "../lib/format.js"
 import { image, nomDeFichier, telechargerBulletinsPdf } from "../lib/bulletinPdf.js"
 import { emettreBulletins, filigrane as faireFiligrane, matriceQr, sitePlateforme, urlVerification } from "../lib/bulletinVerif.js"
 import { siteAffiche } from "../lib/logo.js"
 import { adressesPhotos } from "../lib/photos.js"
+import { notesManquantes, preparerPublication } from "../lib/publication.js"
 import { useSession } from "../Session.jsx"
-import { supabase, verifier } from "../supabase.js"
+import { rpc, supabase, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
 
 const TITRES = { sequence: "BULLETIN DE NOTES SÉQUENTIEL", trimestre: "BULLETIN DE NOTES TRIMESTRIEL", annee: "BULLETIN DE NOTES ANNUEL" }
@@ -28,7 +29,7 @@ export function QrCode({ texte, className, titre }) {
     <title>{titre}</title><rect width="100%" height="100%" fill="#fff" /><path d={d} fill="#000" /></svg>
 }
 
-function Bulletin({ r, donnees, periode, stats, entetes, etablissement, logo, filigrane, exercice, photo, conduite, decision, code, onPdf, enCours }) {
+export function Bulletin({ r, donnees, periode, stats, entetes, etablissement, logo, filigrane, exercice, photo, conduite, decision, code, onPdf, enCours }) {
   const e = r.eleve, nd = entetes.length
   const moy = r.moyenne !== null ? `${note(r.moyenne)} / 20` : r.moyenneNonClassee !== null ? `${note(r.moyenneNonClassee)} / 20 (NC)` : "NC"
   return (
@@ -166,6 +167,8 @@ function Bulletins({ classe, periode }) {
           <button className="btn btn-outline-primary btn-sm" onClick={() => window.print()}>{t("Imprimer")}</button>
         </div>}
       </div>
+      {resultats.length > 0 && <PublicationBulletins classe={donnees.classe} periode={periode} preparer={() => preparerPublication({ etablissement, logoImage, exercice,
+        periode, classe: donnees.classe, stats, entetes, resultats, photos: donnees.photos, conduite, decisionDe, codes })} manquantes={notesManquantes(resultats)} nombre={resultats.length} />}
       <Alerte onFermer={() => setErreurPdf("")}>{erreurPdf}</Alerte>
       {resultats.map((r) => <Bulletin key={r.inscriptionId} r={r} donnees={donnees} periode={periode} stats={stats} entetes={entetes}
                                       etablissement={etablissement} logo={logoUrl} filigrane={fond} exercice={exercice} photo={donnees.photos[r.eleve.photo]}
@@ -174,6 +177,40 @@ function Bulletins({ classe, periode }) {
       {!resultats.length && <p className="text-muted">{t("Aucun élève inscrit.")}</p>}
     </>
   );
+}
+
+/** Publication des bulletins pour les parents (administration uniquement) : publier, mettre à jour, retirer. */
+function PublicationBulletins({ classe, periode, preparer, manquantes, nombre }) {
+  const { estAdmin, exercice } = useSession()
+  const [etat, setEtat] = useState(undefined), [occupe, setOccupe] = useState(false), [msg, setMsg] = useState({})
+  const charger = () => supabase.from("publications_bulletins").select("publie_le, eleves").eq("exercice_id", exercice.id).eq("classe_id", classe.id)
+    .eq("periode", periode.code).maybeSingle().then(verifier).then(setEtat).catch(() => setEtat(null))
+  useEffect(() => { if (estAdmin) charger() }, [classe.id, periode.code, estAdmin])  // eslint-disable-line react-hooks/exhaustive-deps
+  if (!estAdmin || etat === undefined) return null
+  async function publier() {
+    const avertissement = manquantes ? t("Attention : {v0} note(s) manquent encore dans ces bulletins (matières non évaluées).", { v0: manquantes }) + "\n\n" : ""
+    if (!confirm(avertissement + t("Publier les {v0} bulletins de {v1} — {v2} ? Les parents pourront les consulter dans leur espace.", { v0: nombre, v1: classe.libelle, v2: periode.libelle }))) return
+    setMsg({}); setOccupe(true)
+    try { const r = await rpc("publier_bulletins", { p: await preparer() }); setMsg({ ok: t("{v0} bulletin(s) publié(s) : les parents peuvent les consulter.", { v0: r.eleves }) }); await charger() }
+    catch (e) { setMsg({ erreur: e.message }) } finally { setOccupe(false) }
+  }
+  async function retirer() {
+    if (!confirm(t("Retirer la publication ? Les parents ne verront plus ces bulletins."))) return
+    setMsg({}); setOccupe(true)
+    try { await rpc("retirer_publication", { p_classe: classe.id, p_periode: periode.code }); setMsg({ ok: t("Publication retirée.") }); await charger() }
+    catch (e) { setMsg({ erreur: e.message }) } finally { setOccupe(false) }
+  }
+  return (
+    <div className={`publication-bulletins card mb-3 no-print ${etat ? "border-success" : "border-primary"}`}><div className="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+      <div className="me-auto small">{etat
+        ? <><span className="badge text-bg-success me-1">{t("Publiés")}</span>{t("Visibles par les parents depuis le {v0} ({v1} bulletin(s)).", { v0: dateHeure(etat.publie_le), v1: etat.eleves })}</>
+        : <><span className="badge text-bg-secondary me-1">{t("Non publiés")}</span>{t("Les parents ne voient pas encore ces bulletins. Publiez-les quand toutes les notes sont saisies.")}</>}
+        {manquantes > 0 && <span className="text-danger ms-1">{t("({v0} note(s) manquante(s))", { v0: manquantes })}</span>}</div>
+      <button className="btn btn-sm btn-success" disabled={occupe} onClick={publier}>{occupe ? t("Publication…") : etat ? t("Mettre à jour la publication") : t("Publier pour les parents")}</button>
+      {etat && <button className="btn btn-sm btn-outline-danger" disabled={occupe} onClick={retirer}>{t("Retirer")}</button>}
+      {msg.ok && <div className="w-100 small text-success">{msg.ok}</div>}{msg.erreur && <div className="w-100 small text-danger">{msg.erreur}</div>}
+    </div></div>
+  )
 }
 
 export default function PageBulletins() {

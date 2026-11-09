@@ -252,8 +252,17 @@ function ligneEleve(e, k, insolvables) {
        }) : "—"];
 }
 
+/** Moratoire accordé par l'établissement (réponse à un courrier de parent) : rappelé à côté du nom. */
+function Moratoire({ m }) {
+  if (!m) return null
+  return <div className="small fw-normal"><span className="badge text-bg-info moratoire-accorde" title={t("Réf. {v0}", { v0: m.reference })}>
+    {t("Moratoire accordé jusqu'au {v0}", { v0: jour(m.jusqu_au) })}</span></div>
+}
+
 function TableauEleves({ eleves, titre, sousTitre, nomFichier, insolvables = false, onOuvrir, filtreInitial = "tous" }) {
   const { etablissement, logoUrl } = useSession()
+  const [listeMoratoires] = useDonnees(() => rpc("moratoires_actifs").catch(() => []), [])
+  const moratoires = useMemo(() => new Map((listeMoratoires || []).map((m) => [m.inscription_id, m])), [listeMoratoires])
   const [filtre, setFiltre] = useState(filtreInitial), [q, setQ] = useState(""), [erreur, setErreur] = useState(""), [pdf, setPdf] = useState("")
   const lignes = useMemo(() => eleves.filter((e) => (filtre === "tous" || (filtre === "en_regle" ? e.en_regle : !e.en_regle))
     && (!q.trim() || `${e.nom} ${e.prenom} ${e.matricule}`.toLowerCase().includes(q.trim().toLowerCase()))), [eleves, filtre, q])
@@ -296,11 +305,11 @@ function TableauEleves({ eleves, titre, sousTitre, nomFichier, insolvables = fal
         <tbody>{lignes.map((e, k) => (
           <tr key={e.inscription_id} role="button" onClick={() => onOuvrir(e)} title={t("Voir le détail et encaisser")}>
             {insolvables ? <>
-              <td>{k + 1}</td><td className="fw-semibold">{nomComplet(e)}</td><td className="small">{e.matricule}</td><td>{e.classe}</td><td className="text-end">{fcfa(e.paye)}</td>
+              <td>{k + 1}</td><td className="fw-semibold">{nomComplet(e)}<Moratoire m={moratoires.get(e.inscription_id)} /></td><td className="small">{e.matricule}</td><td>{e.classe}</td><td className="text-end">{fcfa(e.paye)}</td>
               <td className="small">{listePaiements(e)}</td><td>{trTranches(e.tranches_en_retard)}</td><td className="text-end text-danger fw-semibold">{fcfa(e.retard)}</td>
               <td className="small text-nowrap">{jour(e.premier_retard)}<div className="text-danger">{t("dépassé de ")}{e.jours_retard}{t(" j")}</div></td></>
             : <>
-              <td>{k + 1}</td><td className="fw-semibold">{nomComplet(e)}</td><td className="small">{e.matricule}</td><td className="small">{e.nouveau ? t("Nouveau") : t("Ancien")}</td>
+              <td>{k + 1}</td><td className="fw-semibold">{nomComplet(e)}<Moratoire m={moratoires.get(e.inscription_id)} /></td><td className="small">{e.matricule}</td><td className="small">{e.nouveau ? t("Nouveau") : t("Ancien")}</td>
               <td className="text-end">{fcfa(e.total_du)}</td><td className="text-end">{fcfa(e.paye)}</td><td className="text-end">{fcfa(e.reste)}</td>
               <td><Etat e={e} />{e.retard > 0 && <div className="small text-danger">{fcfa(e.retard)} · {trTranches(e.tranches_en_retard)} · {e.jours_retard}{t(" j")}</div>}</td>
               <td className="small">{e.prochaine ? <>{t(e.prochaine.libelle)} : {fcfa(e.prochaine.reste)}<div className="text-muted">{t("avant le ")}{jour(e.prochaine.date_limite)}</div></> : "—"}</td></>}

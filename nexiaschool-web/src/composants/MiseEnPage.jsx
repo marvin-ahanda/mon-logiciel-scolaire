@@ -8,6 +8,7 @@ import AlerteFinance from "./AlerteFinance.jsx"
 import AlerteDiscipline from "./AlerteDiscipline.jsx"
 import AlerteNotes from "./AlerteNotes.jsx"
 import AlerteSmartEval from "./AlerteSmartEval.jsx"
+import AlerteCourrier from "./AlerteCourrier.jsx"
 import EtatConnexion from "./EtatConnexion.jsx"
 import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
@@ -63,7 +64,7 @@ function Compte({ nom, role, onDeconnecter }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline, peutFinance, proprietaire } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -93,6 +94,7 @@ export default function MiseEnPage() {
               {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ["/notes/bulletins", t("Bulletins")], ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
+              {peutCourrier && <li className="nav-item"><NavLink className={lien} to="/courrier">{t("Courrier")}</NavLink></li>}
               {peutNoter && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
               <li className="nav-item"><NavLink className={lien} to="/smarteval">SmartEval <span className="badge se-badge-ia">IA</span></NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
@@ -119,6 +121,7 @@ export default function MiseEnPage() {
       {exercice && (
         <div className="bulles-alertes no-print">
           <AlerteSmartEval />
+          {peutCourrier && <AlerteCourrier />}
           {estAdmin && <AlerteNotes />}
           {peutDiscipline && <AlerteDiscipline />}
           {peutFinance && <AlerteFinance />}

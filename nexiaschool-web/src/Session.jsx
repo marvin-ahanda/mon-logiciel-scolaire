@@ -80,7 +80,8 @@ export function SessionProvider({ children }) {
                    peutDiscipline: role === "admin" || role === "surveillant",
                    // saisie des notes : l'administration, les enseignants, et toute personne à qui une matière est confiée cette année
                    peutNoter: role === "admin" || role === "enseignant" || (etat.mesMatieres || 0) > 0,
-                   estComptable: role === "comptable", peutFinance: role === "admin" || role === "comptable" }
+                   estComptable: role === "comptable", peutFinance: role === "admin" || role === "comptable",
+                   peutCourrier: ["admin", "surveillant", "comptable"].includes(role) }
   return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>
 }
 

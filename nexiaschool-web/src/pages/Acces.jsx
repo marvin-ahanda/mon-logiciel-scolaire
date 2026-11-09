@@ -44,7 +44,7 @@ export function Etablissement() {
       const r = await rpc("ouvrir_etablissement", { p_nom: nom, p_code: code })
       if (r.erreur) return setErreur(traduireErreur(r.erreur))
       enregistrerAppareil(r.etablissement, r.jeton)
-      naviguer("/connexion")
+      naviguer("/acces")
     } catch (err) { setErreur(err.message) } finally { setEnvoi(false) }
   }
 
@@ -53,7 +53,7 @@ export function Etablissement() {
       <Alerte>{erreur}</Alerte>
       {appareil && !erreur && (
         <div className="alert alert-light border small">{t("Établissement choisi sur cet appareil : ")}<strong>{appareil.etablissement}</strong>.{" "}
-          <Link to="/connexion">{t("Continuer vers la connexion")}</Link></div>
+          <Link to="/acces">{t("Continuer vers la connexion")}</Link></div>
       )}
       <form onSubmit={valider}>
         <div className="mb-3">
@@ -69,7 +69,7 @@ export function Etablissement() {
         <button className="btn btn-primary w-100" disabled={envoi}>{envoi ? t("Vérification…") : t("Entrer dans l'espace de l'établissement")}</button>
       </form>
       <p className="small text-muted mt-3">{t(
-        "Étape suivante : choisissez votre nom dans la liste du personnel, puis saisissez votre code personnel."
+        "Étape suivante : choisissez « Personnel » ou « Parent d'élève »."
       )}</p>
       <hr />
       <p className="small text-muted mb-2">{t("Fondateur de l'établissement ?")}</p>
@@ -275,6 +275,7 @@ export function Connexion() {
       <p className="small text-muted mt-3">{t("Code oublié ou perdu ? Demandez-en un nouveau à l'administration.")}</p>
       <hr />
       <BoutonGoogle chemin="/" texte={t("Fondateur : se connecter avec Google")} />
+          <p className="small text-muted mt-3 mb-0">{t("Parent d'élève ? ")}<Link to="/parent/connexion">{t("Accéder à l'espace parents")}</Link></p>
     </Carte>
   );
 }

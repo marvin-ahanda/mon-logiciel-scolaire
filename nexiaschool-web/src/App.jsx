@@ -12,6 +12,8 @@ import Developpeurs from "./pages/Developpeurs.jsx"
 import OAuthAutoriser from "./pages/OAuthAutoriser.jsx"
 import Verifier from "./pages/Verifier.jsx"
 import EvaluationEleve from "./pages/EvaluationEleve.jsx"
+import PortailParent, { ChoixProfil, ConnexionParent } from "./pages/Parent.jsx"
+import Courrier from "./pages/Courrier.jsx"
 import SmartEval, { EditeurEvaluation, JournalSmartEval, ResultatsEvaluation } from "./pages/SmartEval.jsx"
 import PageBulletins from "./pages/Bulletins.jsx"
 import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
@@ -91,6 +93,9 @@ export default function App() {
           <Route path="/oauth/autoriser" element={<OAuthAutoriser />} />
           <Route path="/verifier/:code" element={<Verifier />} />
           <Route path="/e/:jeton" element={<EvaluationEleve />} />
+          <Route path="/acces" element={<ChoixProfil />} />
+          <Route path="/parent/connexion" element={<ConnexionParent />} />
+          <Route path="/parent" element={<PortailParent />} />
           <Route path="/console/*" element={<Suspense fallback={<Chargement />}><Console /></Suspense>} />
           <Route path="/" element={<Racine />}>
             <Route index element={<Accueil />} />
@@ -114,6 +119,9 @@ export default function App() {
             <Route path="/discipline/infractions" element={<Infractions />} />
             <Route path="/discipline/suivi" element={<Suivi />} />
             <Route path="/discipline/alertes" element={<AlertesDiscipline />} />
+          </Route>
+          <Route element={<Protege droit="peutCourrier" />}>
+            <Route path="/courrier" element={<Courrier />} />
           </Route>
           <Route element={<Protege droit="peutFinance" />}>
             <Route path="/finance/*" element={<Finance />} />

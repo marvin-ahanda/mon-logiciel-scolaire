@@ -14,6 +14,13 @@ const pdf = (v) => String(v ?? "").replace(/[  ]/g, " ").replace(/ /g, " ")
 /** Image distante -> { donnees (data URL), format, largeur, hauteur } ; null si indisponible. */
 export async function image(url) {
   if (!url) return null
+  // image déjà en mémoire (data URL : copies publiées pour les parents) : lue sans requête réseau
+  if (String(url).startsWith("data:")) {
+    try {
+      const i = await new Promise((ok, ko) => { const x = new Image(); x.onload = () => ok(x); x.onerror = ko; x.src = url })
+      return { donnees: url, format: url.startsWith("data:image/png") ? "PNG" : "JPEG", largeur: i.naturalWidth, hauteur: i.naturalHeight }
+    } catch { return null }
+  }
   try {
     const blob = await (await fetch(url)).blob()
     const donnees = await new Promise((ok, ko) => { const l = new FileReader(); l.onload = () => ok(l.result); l.onerror = ko; l.readAsDataURL(blob) })
