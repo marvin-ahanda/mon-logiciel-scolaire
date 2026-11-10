@@ -64,7 +64,7 @@ function Compte({ nom, role, onDeconnecter }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -91,7 +91,7 @@ export default function MiseEnPage() {
             <ul className="navbar-nav me-auto">
               <li className="nav-item"><NavLink className={lien} to="/" end>{t("Accueil")}</NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/eleves">{t("Élèves")}</NavLink></li>}
-              {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ["/notes/bulletins", t("Bulletins")], ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
+              {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ...(peutBulletins ? [["/notes/bulletins", t("Bulletins")]] : []), ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
               {peutCourrier && <li className="nav-item"><NavLink className={lien} to="/courrier">{t("Courrier")}</NavLink></li>}

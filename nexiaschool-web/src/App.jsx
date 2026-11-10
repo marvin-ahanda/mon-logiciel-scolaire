@@ -111,8 +111,10 @@ export default function App() {
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />
             <Route path="/notes/resultats" element={<Resultats />} />
-            <Route path="/notes/bulletins" element={<PageBulletins />} />
             <Route path="/excel" element={<Excel />} />
+          </Route>
+          <Route element={<Protege droit="peutBulletins" />}>
+            <Route path="/notes/bulletins" element={<PageBulletins />} />
           </Route>
           <Route element={<Protege droit="peutDiscipline" />}>
             <Route path="/discipline/appel" element={<Appel />} />

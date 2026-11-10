@@ -176,6 +176,8 @@ async function executer(outil, a, cle) {
           ...(a.details ? { notes: Object.fromEntries(x.lignes.map((l) => [l.matiere, l.note])) } : {}) })) }
     }
     case "bulletin_eleve": {
+      if ((await rpc("api_contexte", { p_cle: cle }))?.utilisateur?.role === "enseignant")
+        throw new ErreurApi("Les bulletins sont réservés à l'administration, aux surveillants et au service financier. Utilisez resultats_classe pour les notes de vos classes.")
       const d = await donnees(a.classe), p = periodeDe(a.periode, d.sequences), r = resultats(d, p)
       const x = r.resultats.find((y) => y.eleve.matricule === String(a.matricule).trim())
       if (!x) throw new ErreurApi(`Aucun élève de matricule « ${a.matricule} » en ${d.classe.libelle}.`)

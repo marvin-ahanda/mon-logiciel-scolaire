@@ -13,7 +13,7 @@ async function compter(table, filtre) {
 }
 
 export default function Accueil() {
-  const { etablissement, exercice, estAdmin, profil, peutNoter, peutDiscipline, peutFinance } = useSession()
+  const { etablissement, exercice, estAdmin, profil, peutNoter, peutBulletins, peutDiscipline, peutFinance } = useSession()
   const [chiffres, erreur] = useDonnees(async () => ({
     eleves: exercice ? await compter("inscriptions", (q) => q.eq("exercice_id", exercice.id)) : 0,
     classes: await compter("classes"),
@@ -41,7 +41,7 @@ export default function Accueil() {
       <div className="list-group" style={{ maxWidth: 640 }}>
         {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/saisie">{t("Saisir des notes")}</Link>}
         {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/resultats">{t("Consulter les résultats et classements")}</Link>}
-        {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/bulletins">{t("Imprimer les bulletins")}</Link>}
+        {peutBulletins && <Link className="list-group-item list-group-item-action" to="/notes/bulletins">{t("Imprimer les bulletins")}</Link>}
         {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance">{t("Finances : encaissements et situation des élèves")}</Link>}
         {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/insolvables">{t("Élèves non en règle (frais de scolarité)")}</Link>}
         {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/frais">{t("Frais de scolarité et délais de paiement")}</Link>}

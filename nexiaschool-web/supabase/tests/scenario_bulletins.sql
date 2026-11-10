@@ -26,6 +26,12 @@ exception when insufficient_privilege then raise notice 'ok : aucun bulletin ém
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
 do $$ begin perform public.emettre_bulletins(jsonb_build_object('periode', 'x9', 'bulletins', '[]'::jsonb)); raise exception 'période invalide acceptée';
 exception when sqlstate '22023' then raise notice 'ok : période invalide refusée'; end $$;
+select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+do $$ begin perform public.emettre_bulletins(jsonb_build_object('periode', 't1', 'bulletins', '[]'::jsonb)); raise exception 'bulletins émis par un enseignant';
+exception when insufficient_privilege then raise notice 'ok : les enseignants n''éditent pas les bulletins'; end $$;
+select set_config('request.jwt.claim.sub', :'surv_a', false) \g /dev/null
+select pg_temp.verifier(public.emettre_bulletins(jsonb_build_object('periode', 't1', 'bulletins', '[]'::jsonb)) = '{}'::jsonb, 'le surveillant édite les bulletins');
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
 
 -- vérification publique (visiteur non connecté)
 reset role; set role anon;
