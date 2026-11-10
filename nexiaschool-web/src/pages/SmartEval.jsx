@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import FormulaireEvaluation, { EnteteEvaluation } from "../composants/FormulaireEvaluation.jsx"
+import { ACCEPTES, SUPPORTS_MAX, envoyerSupport, icone, retirerSupports, tailleLisible } from "../lib/supports.js"
 import { analyserEvaluation, attenduTexte, reponseTexte } from "../lib/smarteval.js"
 import { DUREE_MAX, STATUTS, TYPES, UNITES, demandeIA, enteteEtablissement, finDuree, lienEvaluation, nouvelId, nouvelleQuestion } from "../lib/smartevalOutils.js"
 import { dateHeure, note, pourcentage } from "../lib/format.js"
@@ -80,7 +81,7 @@ export default function SmartEval() {
             {e.jeton && <Copier texte={lienEvaluation(e.jeton)} libelle={t("Copier le lien")} className="btn btn-sm btn-outline-primary" />}
             {e.statut === "ouverte" && <button className="btn btn-sm btn-outline-secondary" onClick={() => confirm(t("Clore l'évaluation maintenant ? Les élèves ne pourront plus répondre.")) && action(() => rpc("smarteval_clore", { p_id: e.id }), t("Évaluation close."))}>{t("Clore")}</button>}
             <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => confirm(e.soumissions ? t("Supprimer cette évaluation et ses {v0} soumission(s) ? C'est définitif.", { v0: e.soumissions }) : t("Supprimer cette évaluation ?"))
-              && action(() => rpc("smarteval_supprimer", { p_id: e.id }), t("Évaluation supprimée."))}>{t("Supprimer")}</button>
+              && action(async () => { const sup = await rpc("smarteval_supprimer", { p_id: e.id }); await retirerSupports((sup || []).map((d) => d.chemin)).catch(() => {}) }, t("Évaluation supprimée."))}>{t("Supprimer")}</button>
           </div>
         </div></div></div>))}</div>
       <div className="text-center mb-4"><Link className="btn btn-outline-secondary" to="/smarteval/journal">{t("Journal des soumissions")}</Link></div>
@@ -205,10 +206,44 @@ function controler(f) {
   return ""
 }
 
+/** Documents supports (corpus, texte, carte…) joints à l'évaluation : les élèves les téléchargent pour répondre. */
+function DocumentsSupports({ supports, onChange, etablissementId, auteurId }) {
+  const [envoi, setEnvoi] = useState(false), [erreur, setErreur] = useState("")
+  const ajouter = async (e) => {
+    const fichiers = [...e.target.files]; e.target.value = ""
+    if (!fichiers.length) return
+    if (supports.length + fichiers.length > SUPPORTS_MAX) { setErreur(t("Trois documents supports au plus par évaluation.")); return }
+    setErreur(""); setEnvoi(true)
+    let liste = supports
+    try { for (const fi of fichiers) { liste = [...liste, await envoyerSupport(fi, etablissementId, auteurId)]; onChange(liste) } }
+    catch (x) { setErreur(x.message) } finally { setEnvoi(false) }
+  }
+  return (
+    <div className="se-carte se-supports">
+      <h2 className="h6 mb-1">{t("Documents supports (facultatif)")}</h2>
+      <p className="small text-muted mb-2">{t("Joignez le texte, le corpus, la carte ou le schéma sur lequel portent les questions : les élèves le téléchargeront depuis le lien de l'évaluation.")}</p>
+      <ul className="list-unstyled mb-2">{supports.map((d) => (
+        <li key={d.chemin} className="d-flex align-items-center gap-2 border rounded px-2 py-1 mb-1 se-support">
+          <span aria-hidden="true">{icone(d.type)}</span><span className="text-truncate flex-grow-1">{d.nom}</span>
+          <span className="small text-muted text-nowrap">{tailleLisible(d.taille)}</span>
+          <button type="button" className="btn btn-sm btn-link text-danger p-0" onClick={() => onChange(supports.filter((x) => x.chemin !== d.chemin))}>{t("Retirer")}</button>
+        </li>))}</ul>
+      {supports.length < SUPPORTS_MAX && (
+        <label className={`btn btn-outline-primary btn-sm ${envoi ? "disabled" : ""}`}>
+          {envoi ? t("Envoi en cours…") : "＋ " + t("Joindre un document")}
+          <input type="file" className="d-none se-support-fichier" accept={ACCEPTES} multiple disabled={envoi} onChange={ajouter} />
+        </label>)}
+      <div className="form-text se-supports-aide">{t("PDF, image (JPG, PNG) ou texte Word (.doc, .docx, .odt) · 3 documents au plus · 10 Mo au maximum par fichier. Pour que vos élèves le téléchargent vite sur téléphone, visez moins de 2 Mo : un PDF de quelques pages, ou une photo (les photos trop lourdes sont réduites automatiquement).")}</div>
+      {erreur && <div className="text-danger small mt-1">{erreur}</div>}
+    </div>
+  )
+}
+
 export function EditeurEvaluation() {
   const { id } = useParams()
   const naviguer = useNavigate()
-  const { etablissement, exercice, logoUrl } = useSession()
+  const { etablissement, exercice, logoUrl, profil } = useSession()
+  const [supportsEnregistres, setSupportsEnregistres] = useState([])
   const [donnees, erreurChargement] = useDonnees(() => Promise.all([rpc("smarteval_contexte"), id ? rpc("smarteval_detail", { p_id: id }) : null]).then(([ctx, ev]) => ({ ctx, ev })), [id])
   const [f, setF] = useState(null), [evId, setEvId] = useState(id || null)
   const [etape, setEtape] = useState("edition"), [erreur, setErreur] = useState(""), [occupe, setOccupe] = useState(false)
@@ -219,11 +254,12 @@ export function EditeurEvaluation() {
     const { ctx, ev } = donnees
     if (ev) {
       if (ev.jeton) { naviguer(`/smarteval/${ev.id}`, { replace: true }); return }
+      setSupportsEnregistres(ev.supports || [])
       setF({ titre: ev.titre, consignes: ev.consignes, competence: ev.competence, matiere_id: ev.matiere_id, classes: ev.classes.slice(0, 1).map((c) => c.id),
-             questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
+             supports: ev.supports || [], questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
     } else {
       const c = classesDe(ctx)[0], m = matieresDe(ctx, c?.id)[0]
-      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], questions: [nouvelleQuestion()] })
+      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], supports: [], questions: [nouvelleQuestion()] })
     }
   }, [donnees, f, naviguer])
   useEffect(() => { enteteEtablissement(etablissement, exercice, logoUrl).then(setEntete) }, [etablissement, exercice, logoUrl])
@@ -247,6 +283,9 @@ export function EditeurEvaluation() {
       const questions = f.questions.map((q) => ({ ...q, options: q.options.map((o) => o.trim()).filter(Boolean), acceptees: q.acceptees.filter(Boolean),
         points: q.type === "echelle" ? 0 : Number(q.points) || 0 }))
       const nouvelId_ = (await rpc("smarteval_enregistrer", { p: { id: evId, ...f, questions } })).id
+      const gardes = new Set(f.supports.map((d) => d.chemin))                       // documents retirés : supprimés du stockage
+      retirerSupports(supportsEnregistres.filter((d) => !gardes.has(d.chemin)).map((d) => d.chemin)).catch(() => {})
+      setSupportsEnregistres(f.supports)
       setEvId(nouvelId_); setEtape("apercu"); window.scrollTo({ top: 0 })
       if (!id) window.history.replaceState(null, "", `${import.meta.env.BASE_URL}smarteval/${nouvelId_}/modifier`)
     } catch (x) { setErreur(x.message); window.scrollTo({ top: 0, behavior: "smooth" }) } finally { setOccupe(false) }
@@ -261,7 +300,7 @@ export function EditeurEvaluation() {
   }
 
   const apercuEvaluation = {
-    titre: f.titre, consignes: f.consignes, competence: f.competence, matiere: matiere?.libelle, sequence: ctx.sequence?.numero, entete: entete || {},
+    titre: f.titre, consignes: f.consignes, supports: f.supports, competence: f.competence, matiere: matiere?.libelle, sequence: ctx.sequence?.numero, entete: entete || {},
     classes: mesClasses.filter((c) => f.classes.includes(c.id)),
     questions: f.questions.map((q) => ({ ...q, options: q.options.filter((o) => o.trim()), points: q.type === "echelle" ? 0 : q.points })),
   }
@@ -330,6 +369,7 @@ export function EditeurEvaluation() {
         <textarea className="form-control se-ligne mt-2" rows={2} placeholder={t("Consignes aux élèves (facultatif)")} maxLength={3000} value={f.consignes}
                   onChange={(e) => setF({ ...f, consignes: e.target.value })} aria-label={t("Consignes aux élèves (facultatif)")} />
       </div>
+      <DocumentsSupports supports={f.supports} onChange={(supports) => setF((x) => ({ ...x, supports }))} etablissementId={etablissement.id} auteurId={profil.id} />
 
       <div className="se-carte">
         <div className="row g-3">

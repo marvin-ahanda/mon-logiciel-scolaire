@@ -31,5 +31,6 @@ create or replace function storage.foldername(name text) returns text[] language
 alter table storage.objects enable row level security;
 grant usage on schema storage to anon, authenticated;
 grant select, insert, update, delete on storage.objects to authenticated;
+grant select on storage.objects to anon;
 grant select on storage.buckets to anon, authenticated;
 grant execute on function storage.foldername(text) to anon, authenticated;

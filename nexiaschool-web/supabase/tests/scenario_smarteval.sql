@@ -26,6 +26,34 @@ select public.smarteval_enregistrer(jsonb_build_object('titre', 'Par la directio
 select pg_temp.verifier(:'ev_dir' <> '', 'l''administration crée aussi une évaluation digitalisée, sur son espace');
 select public.smarteval_supprimer(:'ev_dir'::uuid) \g /dev/null
 select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+-- documents supports : déposés dans son dossier, joints à l'évaluation, lisibles par les élèves tant qu'elle est ouverte
+select public.etab_courant()::text || '/' || :'prof_a' || '/k1-texte.pdf' as doc_ok \gset
+insert into storage.objects (bucket_id, name) values ('smarteval', :'doc_ok');
+do $$ begin insert into storage.objects (bucket_id, name) values ('smarteval', public.etab_courant()::text || '/' || gen_random_uuid() || '/x.pdf');
+  raise exception 'dépôt dans le dossier d''un autre';
+exception when insufficient_privilege then raise notice 'ok : chacun ne dépose que dans son propre dossier'; end $$;
+select set_config('app.doc_ok', :'doc_ok', false) \g /dev/null
+do $$ begin perform public.smarteval_enregistrer(jsonb_build_object('titre', 'X', 'competence', 'C', 'matiere_id', current_setting('app.math_a'),
+    'classes', jsonb_build_array(current_setting('app.classe_a')), 'questions', '[{"type":"courte","intitule":"Q"}]'::jsonb,
+    'supports', jsonb_build_array(jsonb_build_object('chemin', replace(current_setting('app.doc_ok'), 'k1-texte', 'inexistant'), 'nom', 'x.pdf'))));
+  raise exception 'document inexistant accepté';
+exception when sqlstate 'P0001' then raise notice 'ok : un document non déposé est refusé'; end $$;
+select public.smarteval_enregistrer(jsonb_build_object('titre', 'Avec support', 'competence', 'Lire un texte', 'matiere_id', :'math_a',
+    'classes', jsonb_build_array(:'classe_a'), 'questions', '[{"type":"courte","intitule":"Q"}]'::jsonb,
+    'supports', jsonb_build_array(jsonb_build_object('chemin', :'doc_ok', 'nom', 'Texte à étudier.pdf', 'type', 'application/pdf', 'taille', 52000)))) ->> 'id' as ev_sup \gset
+select pg_temp.verifier((public.smarteval_detail(:'ev_sup'::uuid) #>> '{supports,0,nom}') = 'Texte à étudier.pdf', 'document support joint à l''évaluation');
+reset role; set role anon; select set_config('request.jwt.claim.sub', '', false) \g /dev/null
+select pg_temp.verifier((select count(*) from storage.objects where name = :'doc_ok') = 0, 'brouillon : le document n''est pas accessible aux élèves');
+reset role; set role authenticated; select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select public.smarteval_publier(:'ev_sup'::uuid, 1, 'heures', '{}'::jsonb) ->> 'jeton' as jeton_sup \gset
+reset role; set role anon; select set_config('request.jwt.claim.sub', '', false) \g /dev/null
+select pg_temp.verifier((public.smarteval_formulaire(:'jeton_sup') #>> '{supports,0,nom}') = 'Texte à étudier.pdf'
+  and (select count(*) from storage.objects where name = :'doc_ok') = 1, 'évaluation ouverte : l''élève voit et télécharge le document support');
+reset role; update public.evaluations set ferme_le = now() - interval '1 minute' where id = :'ev_sup';
+set role anon;
+select pg_temp.verifier((select count(*) from storage.objects where name = :'doc_ok') = 0, 'évaluation close : le document n''est plus téléchargeable');
+reset role; set role authenticated; select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select pg_temp.verifier((public.smarteval_supprimer(:'ev_sup'::uuid) #>> '{0,chemin}') = :'doc_ok', 'suppression : les documents à retirer du stockage sont renvoyés');
 select public.definir_ia_personnelle(true) \g /dev/null
 select public.creer_cle_api('Claude SmartEval', false, 30)->>'cle' as cle_se \gset
 select pg_temp.verifier((public.smarteval_contexte() ->> 'ia_connectee')::boolean, 'IA connectée (clé API active)');

@@ -4,6 +4,32 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { reponseTexte } from "../lib/smarteval.js"
 import { dateHeure } from "../lib/format.js"
 import { t } from "../i18n.jsx"
+import { icone, lienSupport, tailleLisible } from "../lib/supports.js"
+
+/** Documents supports de l'évaluation, à télécharger par l'élève avant de répondre. */
+function DocumentsAtelecharger({ supports }) {
+  const [enCours, setEnCours] = useState(""), [erreur, setErreur] = useState("")
+  if (!supports?.length) return null
+  const telecharger = async (d) => {
+    setErreur(""); setEnCours(d.chemin)
+    try { const url = await lienSupport(d); const a = document.createElement("a"); a.href = url; a.download = d.nom; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove() }
+    catch (x) { setErreur(x.message) } finally { setEnCours("") }
+  }
+  return (
+    <div className="se-carte se-documents">
+      <h2 className="h6 mb-1">{supports.length > 1 ? t("Documents supports") : t("Document support")}</h2>
+      <p className="small text-muted mb-2">{t("Téléchargez-le et servez-vous-en pour répondre aux questions.")}</p>
+      {supports.map((d) => (
+        <div key={d.chemin} className="d-flex align-items-center gap-2 border rounded px-2 py-2 mb-2 se-document">
+          <span aria-hidden="true" className="fs-5">{icone(d.type)}</span>
+          <span className="flex-grow-1 text-break">{d.nom}{d.taille ? <span className="small text-muted"> · {tailleLisible(d.taille)}</span> : null}</span>
+          <button type="button" className="btn btn-primary btn-sm text-nowrap" disabled={enCours === d.chemin} onClick={() => telecharger(d)}>
+            {enCours === d.chemin ? t("Ouverture…") : "⬇ " + t("Télécharger")}</button>
+        </div>))}
+      {erreur && <div className="text-danger small">{erreur}</div>}
+    </div>
+  )
+}
 
 /** En-tête de l'établissement (comme sur le bulletin) : coordonnées à gauche, logo au centre, année et séquence à droite. */
 export function EnteteEvaluation({ entete = {}, sequence }) {
@@ -122,6 +148,7 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
         {evaluation.consignes && <p className="mt-2 mb-0 se-consignes">{evaluation.consignes}</p>}
         {etape === "saisie" && <div className="small text-danger mt-3">{t("* Indique une question obligatoire")}</div>}
       </div>
+      {etape !== "envoye" && <DocumentsAtelecharger supports={evaluation.supports} />}
 
       {etape === "envoye" && recu && (
         <div className="se-carte se-confirmation" role="status">

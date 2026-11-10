@@ -1787,6 +1787,22 @@ export const EN = {
   "Activez d'abord la connexion IA et API de votre compte (rubrique « IA et API »).": "First turn on the AI & API connection of your account (“AI & API” section).",
   "L'accès IA se règle désormais par chaque personnel, pour son compte, dans la rubrique « IA et API ».": "AI access is now set by each staff member, for their own account, in the “AI & API” section.",
   "Choisissez une matière du programme de cette année.": "Choose a subject from this year's programme.",
+  "Documents supports": "Supporting documents",
+  "Document support": "Supporting document",
+  "Téléchargez-le et servez-vous-en pour répondre aux questions.": "Download it and use it to answer the questions.",
+  "Ouverture…": "Opening…",
+  "Télécharger": "Download",
+  "Format non accepté : PDF, image (JPG, PNG) ou texte Word (.doc, .docx, .odt).": "Format not accepted: PDF, image (JPG, PNG) or Word text (.doc, .docx, .odt).",
+  "Fichier trop lourd ({v0}) : 10 Mo au maximum. Réduisez-le (PDF compressé, photo moins grande) puis réessayez.": "File too large ({v0}): 10 MB maximum. Make it smaller (compressed PDF, smaller photo) and try again.",
+  "Envoi du document impossible : {v0}": "Could not upload the document: {v0}",
+  "Document indisponible : l'évaluation est peut-être close.": "Document unavailable: the assessment may be closed.",
+  "Trois documents supports au plus par évaluation.": "Three supporting documents at most per assessment.",
+  "Documents supports (facultatif)": "Supporting documents (optional)",
+  "Joignez le texte, le corpus, la carte ou le schéma sur lequel portent les questions : les élèves le téléchargeront depuis le lien de l'évaluation.": "Attach the text, corpus, map or diagram the questions are about: students will download it from the assessment link.",
+  "Envoi en cours…": "Uploading…",
+  "Joindre un document": "Attach a document",
+  "PDF, image (JPG, PNG) ou texte Word (.doc, .docx, .odt) · 3 documents au plus · 10 Mo au maximum par fichier. Pour que vos élèves le téléchargent vite sur téléphone, visez moins de 2 Mo : un PDF de quelques pages, ou une photo (les photos trop lourdes sont réduites automatiquement).": "PDF, image (JPG, PNG) or Word text (.doc, .docx, .odt) · 3 documents at most · 10 MB maximum per file. For quick download on students' phones, aim for less than 2 MB: a PDF of a few pages, or a photo (heavy photos are reduced automatically).",
+  "Document support introuvable : déposez-le de nouveau.": "Supporting document not found: upload it again.",
 }
 
 // Messages d'erreur de la base comportant une partie variable : [motif, remplacement]
