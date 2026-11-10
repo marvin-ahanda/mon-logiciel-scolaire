@@ -378,7 +378,7 @@ export function EditeurEvaluation() {
               ? <select id="se-classe-choix" className="form-select" value={f.classes[0] || ""} onChange={(e) => choisirClasse(e.target.value)}>
                   {mesClasses.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select>
               : <input id="se-classe-choix" className="form-control" readOnly value={mesClasses[0]?.libelle || "—"} />}
-            <div className="form-text">{mesClasses.length > 1 ? t("Les classes dont vous avez la charge.") : t("Votre classe, renseignée automatiquement.")}</div></div>
+            <div className="form-text">{ctx.libre ? t("Toutes les classes du programme de cette année.") : mesClasses.length > 1 ? t("Les classes dont vous avez la charge.") : t("Votre classe, renseignée automatiquement.")}</div></div>
           <div className="col-md-6"><label className="form-label small fw-semibold" htmlFor="se-sequence">{t("Séquence")}</label>
             <input id="se-sequence" className="form-control" readOnly value={ctx.sequence ? t("Séquence {v0} (en cours)", { v0: ctx.sequence.numero }) : "—"} />
             <div className="form-text">🔒 {t("Séquence en cours, fixée par l'administration.")}</div></div>
@@ -387,7 +387,7 @@ export function EditeurEvaluation() {
               ? <select id="se-matiere" className="form-select" value={f.matiere_id} onChange={(e) => setF({ ...f, matiere_id: e.target.value })}>
                   {matieresClasse.map((m) => <option key={m.matiere_id} value={m.matiere_id}>{m.libelle}</option>)}</select>
               : <input id="se-matiere" className="form-control" readOnly value={matieresClasse[0]?.libelle || "—"} />}
-            <div className="form-text">{matieresClasse.length > 1 ? t("Les matières que vous enseignez dans cette classe.") : t("Votre matière dans cette classe, renseignée automatiquement.")}</div></div>
+            <div className="form-text">{ctx.libre ? t("Les matières du programme de cette classe.") : matieresClasse.length > 1 ? t("Les matières que vous enseignez dans cette classe.") : t("Votre matière dans cette classe, renseignée automatiquement.")}</div></div>
           <div className="col-12"><label className="form-label small fw-semibold" htmlFor="se-competence">{t("Compétence visée")} <span className="text-danger">*</span></label>
             <textarea id="se-competence" className="form-control" rows={2} maxLength={600} placeholder={t("ex. Résoudre des problèmes de proportionnalité dans des situations de vie courante")}
                       value={f.competence} onChange={(e) => setF({ ...f, competence: e.target.value })} />

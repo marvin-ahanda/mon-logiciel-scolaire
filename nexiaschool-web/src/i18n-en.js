@@ -1803,6 +1803,8 @@ export const EN = {
   "Joindre un document": "Attach a document",
   "PDF, image (JPG, PNG) ou texte Word (.doc, .docx, .odt) · 3 documents au plus · 10 Mo au maximum par fichier. Pour que vos élèves le téléchargent vite sur téléphone, visez moins de 2 Mo : un PDF de quelques pages, ou une photo (les photos trop lourdes sont réduites automatiquement).": "PDF, image (JPG, PNG) or Word text (.doc, .docx, .odt) · 3 documents at most · 10 MB maximum per file. For quick download on students' phones, aim for less than 2 MB: a PDF of a few pages, or a photo (heavy photos are reduced automatically).",
   "Document support introuvable : déposez-le de nouveau.": "Supporting document not found: upload it again.",
+  "Toutes les classes du programme de cette année.": "All classes in this year's programme.",
+  "Les matières du programme de cette classe.": "The subjects in this class's programme.",
 }
 
 // Messages d'erreur de la base comportant une partie variable : [motif, remplacement]
