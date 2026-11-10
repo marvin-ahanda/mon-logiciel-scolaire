@@ -1770,6 +1770,23 @@ export const EN = {
   "classe(s) sans niveau, section ni cycle": "class(es) with no level, section or cycle",
   "matière(s) par classe sans enseignant": "subject(s) per class without a teacher",
   "Rien à importer : toutes les lignes du fichier ont été mises de côté (raisons ci-dessous).": "Nothing to import: every row of the file was set aside (reasons below).",
+  "Désactiver la connexion IA de votre compte ? Vos clés et vos applications autorisées seront révoquées.": "Turn off the AI connection of your account? Your keys and authorised applications will be revoked.",
+  "Connexion IA activée pour votre compte.": "AI connection turned on for your account.",
+  "Connexion IA désactivée : vos clés et applications sont révoquées.": "AI connection turned off: your keys and applications are revoked.",
+  "Connexion IA de mon compte :": "AI connection of my account:",
+  "activée": "on",
+  "désactivée": "off",
+  "Cette activation ne vaut que pour votre compte : l'IA que vous connecterez (Claude, Grok…) agira avec vos seuls droits. Les données qu'elle consulte (notes, noms d'élèves mineurs) sont transmises au fournisseur d'IA que vous choisissez. Chaque action d'écriture est inscrite au journal.": "This only applies to your account: the AI you connect (Claude, Grok…) acts with your own rights only. The data it reads (marks, names of minor students) is sent to the AI provider you choose. Every write action is logged.",
+  "Activer pour mon compte": "Turn on for my account",
+  "La connexion IA de votre compte n'est pas activée.": "The AI connection of your account is not turned on.",
+  "Activez-la dans la rubrique": "Turn it on in the",
+  "« IA et API »": "“AI & API” section",
+  "IA connectée à votre compte : vous pourrez faire analyser les réponses de vos élèves.": "AI connected to your account: you can have your students' answers analysed.",
+  "Facultatif : pour faire analyser les réponses par l'IA de votre choix (Claude, Grok…), activez la connexion IA de votre compte dans la rubrique « IA et API ». Vous pouvez créer et partager vos évaluations sans cela.": "Optional: to have the answers analysed by the AI of your choice (Claude, Grok…), turn on the AI connection of your account in the “AI & API” section. You can create and share your assessments without it.",
+  "Aucune matière n'est encore programmée cette année : l'administration doit d'abord renseigner les matières par classe (Paramètres → Matières par classe).": "No subject is scheduled yet this year: the administration must first fill in the subjects per class (Settings → Subjects per class).",
+  "Activez d'abord la connexion IA et API de votre compte (rubrique « IA et API »).": "First turn on the AI & API connection of your account (“AI & API” section).",
+  "L'accès IA se règle désormais par chaque personnel, pour son compte, dans la rubrique « IA et API ».": "AI access is now set by each staff member, for their own account, in the “AI & API” section.",
+  "Choisissez une matière du programme de cette année.": "Choose a subject from this year's programme.",
 }
 
 // Messages d'erreur de la base comportant une partie variable : [motif, remplacement]

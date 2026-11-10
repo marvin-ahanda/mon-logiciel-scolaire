@@ -4,7 +4,6 @@ update public.eleves set prenom = 'Grâce' where id = :'eleve_a';
 set role authenticated;
 select set_config('request.jwt.claims', '{"app_metadata": {"provider": "email"}}', false) \g /dev/null
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
-select public.definir_api_active(true) \g /dev/null
 
 -- préalable : une IA connectée au compte
 select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
@@ -15,10 +14,19 @@ select pg_temp.verifier((current_setting('app.ctx')::jsonb ->> 'ia_connectee')::
   and (current_setting('app.ctx')::jsonb #>> '{matieres,0,libelle}') = 'Mathématiques',
   'contexte : séquence en cours (1re non verrouillée), matière confiée pré-remplie, IA pas encore connectée');
 select set_config('app.math_a', :'math_a', false), set_config('app.classe_a', :'classe_a', false) \g /dev/null
-do $$ begin perform public.smarteval_enregistrer(jsonb_build_object('titre', 'Test', 'competence', 'C', 'matiere_id', current_setting('app.math_a'),
-    'classes', jsonb_build_array(current_setting('app.classe_a')), 'questions', '[{"type":"courte","intitule":"Q"}]'::jsonb));
-  raise exception 'évaluation créée sans IA connectée';
-exception when sqlstate 'P0001' then raise notice 'ok : préalable : sans IA connectée, aucune évaluation ne peut être créée'; end $$;
+select public.smarteval_enregistrer(jsonb_build_object('titre', 'Sans IA', 'competence', 'C', 'matiere_id', :'math_a',
+    'classes', jsonb_build_array(:'classe_a'), 'questions', '[{"type":"courte","intitule":"Q"}]'::jsonb)) ->> 'id' as ev_sans_ia \gset
+select pg_temp.verifier(:'ev_sans_ia' <> '', 'sans IA connectée, l''enseignant crée quand même une évaluation (SmartEval indépendant de l''IA)');
+select public.smarteval_supprimer(:'ev_sans_ia'::uuid) \g /dev/null
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+select pg_temp.verifier((public.smarteval_contexte() ->> 'libre')::boolean and jsonb_array_length(public.smarteval_contexte() -> 'matieres') >= 1,
+  'administration : choix parmi toutes les classes et matières du programme');
+select public.smarteval_enregistrer(jsonb_build_object('titre', 'Par la direction', 'competence', 'C', 'matiere_id', :'math_a',
+    'classes', jsonb_build_array(:'classe_a'), 'questions', '[{"type":"courte","intitule":"Q"}]'::jsonb)) ->> 'id' as ev_dir \gset
+select pg_temp.verifier(:'ev_dir' <> '', 'l''administration crée aussi une évaluation digitalisée, sur son espace');
+select public.smarteval_supprimer(:'ev_dir'::uuid) \g /dev/null
+select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select public.definir_ia_personnelle(true) \g /dev/null
 select public.creer_cle_api('Claude SmartEval', false, 30)->>'cle' as cle_se \gset
 select pg_temp.verifier((public.smarteval_contexte() ->> 'ia_connectee')::boolean, 'IA connectée (clé API active)');
 
@@ -114,6 +122,7 @@ select pg_temp.verifier((public.api_smarteval_resultats(:'cle_se', 'fractions') 
 select set_config('app.cle_se', :'cle_se', false) \g /dev/null
 reset role; set role authenticated;
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+select public.definir_ia_personnelle(true) \g /dev/null
 select public.creer_cle_api('Admin SmartEval', false, 30)->>'cle' as cle_adm \gset
 select set_config('app.cle_adm', :'cle_adm', false) \g /dev/null
 reset role; set role anon;

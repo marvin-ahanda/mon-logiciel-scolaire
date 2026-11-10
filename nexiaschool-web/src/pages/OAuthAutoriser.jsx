@@ -88,8 +88,8 @@ export default function OAuthAutoriser() {
       <p className="small text-muted">{t("Connecté en tant que ")}<strong>{nomComplet(profil)}</strong> ({t(LIBELLES_ROLES[profil.role])}) — {etablissement.nom}.{" "}
         <button className="btn btn-link btn-sm p-0 align-baseline" onClick={async () => { await supabase.auth.signOut() }}>{t("Changer de compte")}</button></p>
       <Alerte>{erreur}</Alerte>
-      {!etablissement.api_active ? (
-        <div className="alert alert-warning">{t("L'accès des agents IA n'est pas activé pour votre établissement.")}{profil.role === "admin" ? <>{t(" Activez-le dans l'")}<Link to="/developpeur">{t("Espace développeur")}</Link>{t(", puis revenez sur cette page.")}</> : t(" Demandez à l'administration de l'activer.")}</div>
+      {!profil.ia_active ? (
+        <div className="alert alert-warning">{t("La connexion IA de votre compte n'est pas activée.")}{t(" Activez-la dans la rubrique ")}<Link to="/developpeur">{t("« IA et API »")}</Link>{t(", puis revenez sur cette page.")}</div>
       ) : (
         <>
           <p className="mb-1">{t("Cette application pourra, avec ")}<strong>{t("vos droits")}</strong> :</p>

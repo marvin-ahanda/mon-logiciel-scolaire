@@ -209,16 +209,22 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
 do $$ begin perform public.creer_cle_api('Claude', false, 30); raise exception 'clé créée sans activation';
 exception when sqlstate 'P0001' then raise notice 'ok : API désactivée par défaut'; end $$;
-select public.definir_api_active(true) \g /dev/null
+do $$ begin perform public.definir_api_active(true); raise exception 'réglage d''établissement encore actif';
+exception when sqlstate 'P0001' then raise notice 'ok : plus de réglage IA pour tout l''établissement'; end $$;
+select pg_temp.verifier(public.definir_ia_personnelle(true), 'IA activée par l''administrateur pour son compte');
 select public.creer_cle_api('Lecture', false, 30)->>'cle' as cle_lect \gset
 select public.creer_cle_api('Admin écriture', true, 0)->>'cle' as cle_admin \gset
 select pg_temp.verifier(:'cle_lect' ~ '^nxs_[0-9a-f]{48}$', 'clé API au format nxs_…');
 select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+do $$ begin perform public.creer_cle_api('Prof', true, 30); raise exception 'clé créée par un enseignant sans activation personnelle';
+exception when sqlstate 'P0001' then raise notice 'ok : l''activation de l''administrateur ne vaut que pour son compte'; end $$;
+select public.definir_ia_personnelle(true) \g /dev/null
 select public.creer_cle_api('Prof', true, 30)->>'cle' as cle_prof \gset
 select set_config('request.jwt.claim.sub', :'surv_a', false) \g /dev/null
+select public.definir_ia_personnelle(true) \g /dev/null
 select public.creer_cle_api('Surveillant', true, 30)->>'cle' as cle_surv \gset
 select set_config('request.jwt.claim.sub', :'admin_b', false) \g /dev/null
-select public.definir_api_active(true) \g /dev/null
+select public.definir_ia_personnelle(true) \g /dev/null
 select public.creer_cle_api('B', true, 30)->>'cle' as cle_b \gset
 reset role;
 select pg_temp.verifier((select count(*) from public.cles_api where cle_hash like 'nxs%') = 0, 'clés stockées sous forme d''empreinte');
@@ -297,14 +303,15 @@ select pg_temp.verifier((:'jetons2'::json->>'access_token') like 'nxo_%', 'rafra
 do $$ begin perform public.api_contexte(current_setting('app.acces')); raise exception 'ancien jeton accepté';
 exception when sqlstate '28000' then raise notice 'ok : ancien jeton révoqué après rafraîchissement'; end $$;
 select pg_temp.verifier((public.oauth_rafraichir(:'jetons'::json->>'refresh_token', :'client')->>'error') = 'invalid_grant', 'ancien jeton de rafraîchissement refusé');
--- Désactivation de l'API par l'administration : tout est révoqué
+-- Désactivation par l'administrateur, pour son seul compte : ses clés et applications sont révoquées, pas celles des autres
 reset role; set role authenticated;
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
-select public.definir_api_active(false) \g /dev/null
+select public.definir_ia_personnelle(false) \g /dev/null
 reset role; set role anon;
 select set_config('app.acces2', :'jetons2'::json->>'access_token', false) \g /dev/null
 do $$ begin perform public.api_contexte(current_setting('app.acces2')); raise exception 'jeton accepté après désactivation';
-exception when sqlstate '28000' then raise notice 'ok : désactiver l''API révoque clés et applications'; end $$;
+exception when sqlstate '28000' then raise notice 'ok : désactiver son IA révoque ses clés et applications'; end $$;
+select pg_temp.verifier((public.api_contexte(:'cle_surv')->'etablissement'->>'nom') = 'Collège Saint-Joseph', 'la clé du surveillant fonctionne toujours (activation propre à chaque compte)');
 reset role;
 select set_config('app.surv', :'surv_a', false), set_config('app.attr', :'attr_a', false) \g /dev/null
 

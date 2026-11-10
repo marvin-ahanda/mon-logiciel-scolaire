@@ -28,19 +28,14 @@ function Statut({ e }) {
   return <span className={`badge ${classes[e.statut]}`}>{t(STATUTS[e.statut])}{e.statut === "ouverte" && e.ferme_le ? t(" jusqu'au {v0}", { v0: dateHeure(e.ferme_le) }) : ""}</span>
 }
 
-/** Préalable : une IA connectée au compte (rubrique IA et API). */
+/** IA facultative : la création est ouverte à tous ; l'IA connectée au compte sert à analyser les réponses. */
 function Prealable({ ctx }) {
-  const { estAdmin } = useSession()
-  if (ctx.ia_connectee) return <div className="alert alert-success py-2 small d-flex align-items-center gap-2 se-ia-ok">✓ {t("IA connectée à votre compte : vous pouvez créer des évaluations digitalisées et les faire analyser.")}</div>
+  if (ctx.ia_connectee) return <div className="alert alert-success py-2 small d-flex align-items-center gap-2 se-ia-ok">✓ {t("IA connectée à votre compte : vous pourrez faire analyser les réponses de vos élèves.")}</div>
   return (
-    <div className="card border-warning mb-3 se-prealable"><div className="card-body">
-      <h2 className="h6 mb-2">{t("Préalable : connectez une IA à votre compte")}</h2>
-      <p className="small mb-2">{t("SmartEval s'appuie sur l'IA de votre choix (Claude, Grok…) connectée à NexIA School par MCP ou par clé API : c'est elle qui analysera les réponses de vos élèves.")}</p>
-      {ctx.api_active || estAdmin
-        ? <ol className="small mb-2"><li>{t("Ouvrez la rubrique « IA et API ».")}</li><li>{t("Connectez Claude.ai (connecteur personnalisé) ou créez une clé API pour votre agent IA.")}</li><li>{t("Revenez ici : la création d'évaluations sera débloquée.")}</li></ol>
-        : <p className="small text-danger mb-2">{t("L'accès des agents IA n'est pas encore activé pour l'établissement : demandez à l'administration de l'activer dans la rubrique « IA et API ».")}</p>}
-      {(ctx.api_active || estAdmin) && <Link className="btn btn-warning btn-sm" to="/developpeur">{t("Aller à « IA et API »")}</Link>}
-    </div></div>
+    <div className="alert alert-light border small mb-3 se-ia-facultative">
+      {t("Facultatif : pour faire analyser les réponses par l'IA de votre choix (Claude, Grok…), activez la connexion IA de votre compte dans la rubrique « IA et API ». Vous pouvez créer et partager vos évaluations sans cela.")}{" "}
+      <Link to="/developpeur">{t("Aller à « IA et API »")}</Link>
+    </div>
   )
 }
 
@@ -54,15 +49,15 @@ export default function SmartEval() {
   useEffect(() => { const f = () => recharger(); window.addEventListener("smarteval:maj", f); return () => window.removeEventListener("smarteval:maj", f) }, [recharger])
   if (!donnees) return <><Entete /><Alerte>{erreur}</Alerte>{!erreur && <Chargement />}</>
   const { ctx, liste } = donnees
-  const peutCreer = ctx.ia_connectee && ctx.matieres.length > 0 && ctx.sequence
+  const peutCreer = ctx.matieres.length > 0 && ctx.sequence
   const action = async (f, ok) => { setMsg({}); try { await f(); setMsg({ ok }); recharger() } catch (e) { setMsg({ erreur: e.message }) } }
   return (
     <>
       <Entete />
       <Alerte onFermer={() => setMsg({})}>{msg.erreur}</Alerte><Alerte type="success" onFermer={() => setMsg({})}>{msg.ok}</Alerte>
       <Prealable ctx={ctx} />
-      {ctx.ia_connectee && !ctx.matieres.length && <div className="alert alert-info small">{t("Aucune matière ne vous est confiée cette année : demandez à l'administration de vous attribuer une matière (Paramètres → Matières par classe).")}</div>}
-      {ctx.ia_connectee && !ctx.sequence && <div className="alert alert-warning small">{t("Aucune séquence en cours : toutes les séquences sont verrouillées par l'administration.")}</div>}
+      {!ctx.matieres.length && <div className="alert alert-info small">{t("Aucune matière n'est encore programmée cette année : l'administration doit d'abord renseigner les matières par classe (Paramètres → Matières par classe).")}</div>}
+      {!ctx.sequence && <div className="alert alert-warning small">{t("Aucune séquence en cours : toutes les séquences sont verrouillées par l'administration.")}</div>}
       <div className="card se-creer mb-4"><div className="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div><h2 className="h5 mb-1">{t("Créer une évaluation digitalisée")}</h2>
           <p className="small text-muted mb-0">{t("Un formulaire en ligne pour vos élèves, corrigé automatiquement, puis analysé par votre IA pour cibler la remédiation avant l'évaluation sur papier.")}</p></div>

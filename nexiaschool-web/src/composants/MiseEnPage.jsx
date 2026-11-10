@@ -100,7 +100,7 @@ export default function MiseEnPage() {
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/personnel">{t("Personnel")}</NavLink></li>}
-              {(estAdmin || etablissement?.api_active) && <li className="nav-item"><NavLink className={lien} to="/developpeur">{t("IA et API")}</NavLink></li>}
+              <li className="nav-item"><NavLink className={lien} to="/developpeur">{t("IA et API")}</NavLink></li>
             </ul>
             <div className="navbar-text identite-etab text-white small me-3 py-2 py-xl-0" title={`${etablissement?.nom || ""} · ${exercice?.libelle || ""}`}>
               <BulleLogo url={logoUrl} nom={etablissement?.nom} taille={34} />

@@ -25,7 +25,7 @@ const configurations = (cle) => ({
 })
 
 export default function Developpeur() {
-  const { etablissement, estAdmin, profil, recharger } = useSession()
+  const { estAdmin, profil, recharger } = useSession()
   const [msg, setMsg] = useState({}), [nouvelle, setNouvelle] = useState(null)
   const [f, setF] = useState({ nom: "", ecriture: false, jours: 90 })
   const [d, erreur, rafraichir] = useDonnees(async () => ({
@@ -34,7 +34,7 @@ export default function Developpeur() {
       .is("revoque_le", null).gt("rafraichissement_expire_le", new Date().toISOString()).order("cree_le", { ascending: false })),
     journal: verifier(await supabase.from("journal_api").select("*").order("cree_le", { ascending: false }).limit(30)),
     noms: new Map(verifier(await supabase.from("personnels").select("id, nom, prenom")).map((p) => [p.id, nomComplet(p)])),
-  }), [etablissement?.api_active])
+  }), [profil?.ia_active])
 
   async function action(f, ok) {
     setMsg({})
@@ -42,9 +42,10 @@ export default function Developpeur() {
   }
   const activer = (v) => {
     if (!v && !confirm(t(
-      "Désactiver l'accès des agents IA ? Toutes les clés et applications autorisées seront révoquées."
+      "Désactiver la connexion IA de votre compte ? Vos clés et vos applications autorisées seront révoquées."
     ))) return
-    action(async () => { await rpc("definir_api_active", { p_active: v }); await recharger() }, v ? t("Accès des agents IA activé.") : t("Accès désactivé : clés et applications révoquées."))
+    action(async () => { await rpc("definir_ia_personnelle", { p_active: v }); await recharger() },
+      v ? t("Connexion IA activée pour votre compte.") : t("Connexion IA désactivée : vos clés et applications sont révoquées."))
   }
   const creer = (e) => { e.preventDefault(); action(async () => { setNouvelle({ ...(await rpc("creer_cle_api", { p_nom: f.nom, p_ecriture: f.ecriture, p_jours: Number(f.jours) })), nom: f.nom }); setF({ ...f, nom: "" }) }) }
   const revoquerCle = (k) => confirm(t(
@@ -56,7 +57,7 @@ export default function Developpeur() {
   const revoquerAppli = (j) => confirm(t("Retirer l'accès de cette application ?")) && action(() => rpc("revoquer_jeton_oauth", { p_id: j.id }), t("Accès retiré."))
 
   if (!d) return <><Alerte>{erreur}</Alerte><Chargement /></>
-  const actif = etablissement.api_active
+  const actif = !!profil?.ia_active
   return (
     <>
       <h1 className="h3 mb-1">{t("Espace développeur")}</h1>
@@ -64,23 +65,18 @@ export default function Developpeur() {
         "Connectez NexIA School à Claude ou à un autre agent IA (protocole MCP) pour consulter les résultats, préparer des analyses, saisir des notes ou faire l'appel en langage naturel."
       )}</p>
       <Alerte>{msg.erreur}</Alerte><Alerte type="success">{msg.ok}</Alerte>
-      {estAdmin && (
-        <div className={`card mb-3 ${actif ? "border-success" : "border-warning"}`}><div className="card-body">
-          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div><h2 className="h6 mb-1">{t("Accès des agents IA : ")}{actif ? <span className="text-success">{t("activé")}</span> : <span className="text-warning">{t("désactivé")}</span>}</h2>
-              <p className="small text-muted mb-0">{t(
-                "Les données consultées par un agent IA (notes, noms d'élèves mineurs) sont transmises au fournisseur d'IA choisi par l'utilisateur. Activez cet accès seulement si votre établissement l'accepte. Chaque action d'écriture est inscrite au journal."
-              )}</p></div>
-            <button className={`btn ${actif ? "btn-outline-danger" : "btn-success"}`} onClick={() => activer(!actif)}>{actif ? t("Désactiver") : t("Activer l'accès")}</button>
-          </div>
-        </div></div>
-      )}
-      {!actif && !estAdmin && <div className="alert alert-warning">{t(
-        "L'administration de l'établissement n'a pas activé l'accès des agents IA."
-      )}</div>}
-      {actif && (
+      <div className={`card mb-3 connexion-ia ${actif ? "border-success" : "border-warning"}`}><div className="card-body">
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div><h2 className="h6 mb-1">{t("Connexion IA de mon compte : ")}{actif ? <span className="text-success">{t("activée")}</span> : <span className="text-warning">{t("désactivée")}</span>}</h2>
+            <p className="small text-muted mb-0">{t(
+              "Cette activation ne vaut que pour votre compte : l'IA que vous connecterez (Claude, Grok…) agira avec vos seuls droits. Les données qu'elle consulte (notes, noms d'élèves mineurs) sont transmises au fournisseur d'IA que vous choisissez. Chaque action d'écriture est inscrite au journal."
+            )}</p></div>
+          <button className={`btn ${actif ? "btn-outline-danger" : "btn-success"}`} onClick={() => activer(!actif)}>{actif ? t("Désactiver") : t("Activer pour mon compte")}</button>
+        </div>
+      </div></div>
+      {(actif || estAdmin) && (
         <>
-          <div className="row g-3 mb-3">
+          {actif && <div className="row g-3 mb-3">
             <div className="col-lg-6"><div className="card h-100"><div className="card-body">
               <h2 className="h6">{t("Connecter Claude.ai (sans clé)")}</h2>
               <ol className="small mb-2">
@@ -108,7 +104,7 @@ export default function Developpeur() {
                 <div className="col-12"><button className="btn btn-primary">{t("Créer la clé")}</button></div>
               </form>
             </div></div></div>
-          </div>
+          </div>}
 
           {nouvelle && (
             <div className="card border-warning mb-3"><div className="card-body">
