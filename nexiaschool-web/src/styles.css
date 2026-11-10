@@ -123,6 +123,14 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
   font-size: .7rem; font-weight: 700; }
 .compte .btn { padding-top: .2rem; padding-bottom: .2rem; }
 @media (min-width: 1200px) and (max-width: 1599.98px) { .compte .compte-nom { display: none; } }
+/* Menu du compte : ancré au bord droit du bouton, il s'ouvre vers la gauche et reste entièrement visible (sans le JS de Bootstrap) */
+.compte { position: relative; }
+.compte .compte-menu { position: absolute; top: calc(100% + 6px); right: 0; left: auto; min-width: 220px; max-width: calc(100vw - 16px); z-index: 1060; }
+.compte .compte-menu .fw-semibold { overflow-wrap: anywhere; }
+@media (max-width: 1199.98px) { .navbar-collapse, .navbar-collapse > .d-flex { min-width: 0; max-width: 100%; }
+  .compte { flex: 1 1 100%; width: 100%; min-width: 0; max-width: 100%; } .compte > .btn { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+  .compte .compte-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; text-align: left; }
+  .compte .compte-menu { position: static; width: 100%; min-width: 0; max-width: none; margin-top: .5rem; transform: none !important; } }
 @media (max-width: 1199.98px) { .navbar-collapse .d-flex.align-items-center.gap-2 { flex-wrap: wrap; padding-bottom: .5rem; } }
 @media (min-width: 1200px) and (max-width: 1299.98px) { .navbar .marque-texte { display: none; } }
 

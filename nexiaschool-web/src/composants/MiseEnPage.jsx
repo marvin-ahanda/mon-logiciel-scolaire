@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { useSession } from "../Session.jsx"
 import { supabase } from "../supabase.js"
@@ -47,6 +47,14 @@ function Compte({ nom, role, onDeconnecter }) {
     document.addEventListener("click", fermer); document.addEventListener("keydown", echap)
     return () => { document.removeEventListener("click", fermer); document.removeEventListener("keydown", echap) }
   }, [])
+  // à l'ouverture : si le menu dépasse un bord de l'écran (téléphone, barre repliée), on le décale pour qu'il se voie en entier
+  const menu = useRef(null), [decalage, setDecalage] = useState(0)
+  useLayoutEffect(() => {
+    if (!ouvert || !menu.current) { setDecalage(0); return }
+    menu.current.scrollIntoView({ block: "nearest" })                                     // barre repliée (téléphone) : on fait défiler jusqu'au menu
+    const r = menu.current.getBoundingClientRect(), marge = 8, l = document.documentElement.clientWidth
+    setDecalage((d) => r.left - d < marge ? marge - (r.left - d) : r.right - d > l - marge ? l - marge - (r.right - d) : 0)
+  }, [ouvert])
   const initiales = nom.split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase()
   return (
     <div className="dropdown compte" ref={ref}>
@@ -54,7 +62,7 @@ function Compte({ nom, role, onDeconnecter }) {
               aria-label={t("Mon compte : {v0}", { v0: nom })} onClick={() => setOuvert(!ouvert)}>
         <span className="compte-initiales" aria-hidden="true">{initiales || "?"}</span><span className="compte-nom">{nom}</span>
       </button>
-      <div className={"dropdown-menu dropdown-menu-end shadow" + (ouvert ? " show" : "")} style={{ minWidth: 220 }}>
+      <div ref={menu} className={"dropdown-menu dropdown-menu-end shadow compte-menu" + (ouvert ? " show" : "")} style={decalage ? { transform: `translateX(${decalage}px)` } : undefined}>
         <div className="px-3 py-2"><div className="fw-semibold">{nom}</div><span className="badge text-bg-primary">{role}</span></div>
         <div className="dropdown-divider" />
         <button type="button" className="dropdown-item" onClick={onDeconnecter}>{t("Se déconnecter")}</button>
