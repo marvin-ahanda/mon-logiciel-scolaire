@@ -13,7 +13,7 @@ async function compter(table, filtre) {
 }
 
 export default function Accueil() {
-  const { etablissement, exercice, estAdmin, profil, peutNoter, peutBulletins, peutDiscipline, peutFinance } = useSession()
+  const { etablissement, exercice, estAdmin, profil, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance } = useSession()
   const [chiffres, erreur] = useDonnees(async () => ({
     eleves: exercice ? await compter("inscriptions", (q) => q.eq("exercice_id", exercice.id)) : 0,
     classes: await compter("classes"),
@@ -47,7 +47,7 @@ export default function Accueil() {
         {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/frais">{t("Frais de scolarité et délais de paiement")}</Link>}
         {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/appel">{t("Faire l'appel du jour (absences, retards)")}</Link>}
         {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/suivi">{t("Suivi disciplinaire")}</Link>}
-        {peutNoter && <Link className="list-group-item list-group-item-action" to="/excel">{t("Import et export Excel")}</Link>}
+        {peutExcel && <Link className="list-group-item list-group-item-action" to="/excel">{t("Import et export Excel")}</Link>}
         {estAdmin && <Link className="list-group-item list-group-item-action" to="/statistiques">{t("Statistiques avancées")}</Link>}
         {estAdmin && <Link className="list-group-item list-group-item-action" to="/eleves">{t("Gérer les élèves")}</Link>}
         {estAdmin && <Link className="list-group-item list-group-item-action" to="/parametres">{t("Paramètres : exercices, classes, matières, coefficients")}</Link>}

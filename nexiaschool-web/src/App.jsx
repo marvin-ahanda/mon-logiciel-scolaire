@@ -111,6 +111,8 @@ export default function App() {
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />
             <Route path="/notes/resultats" element={<Resultats />} />
+          </Route>
+          <Route element={<Protege droit="peutExcel" />}>
             <Route path="/excel" element={<Excel />} />
           </Route>
           <Route element={<Protege droit="peutBulletins" />}>

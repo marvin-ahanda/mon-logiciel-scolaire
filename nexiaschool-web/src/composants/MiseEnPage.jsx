@@ -64,7 +64,7 @@ function Compte({ nom, role, onDeconnecter }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -95,7 +95,7 @@ export default function MiseEnPage() {
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
               {peutCourrier && <li className="nav-item"><NavLink className={lien} to="/courrier">{t("Courrier")}</NavLink></li>}
-              {peutNoter && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
+              {peutExcel && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
               <li className="nav-item"><NavLink className={lien} to="/smarteval">SmartEval <span className="badge se-badge-ia">IA</span></NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}

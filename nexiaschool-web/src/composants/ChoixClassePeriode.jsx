@@ -7,11 +7,11 @@ import { t } from "../i18n.jsx"
 
 /** Choix de la classe et de la période (gardés dans l'adresse) ; rend children(classe, periode). */
 export default function ChoixClassePeriode({ children }) {
-  const { exercice, estAdmin, estSurveillant, profil } = useSession()
+  const { exercice, estEnseignant, profil } = useSession()
   const [params, setParams] = useSearchParams()
   const [ref] = useDonnees(async () => {
     let classes = verifier(await supabase.from("classes").select("*").order("ordre").order("libelle"))
-    if (!estAdmin && !estSurveillant) {   // un enseignant ne voit que les classes où il intervient
+    if (estEnseignant) {   // un enseignant ne voit que les classes où il intervient ; administration, surveillants et service financier : toutes
       const a = verifier(await supabase.from("attributions").select("classe_id").eq("exercice_id", exercice.id).eq("enseignant_id", profil.id))
       const siennes = new Set(a.map((x) => x.classe_id))
       classes = classes.filter((c) => siennes.has(c.id))

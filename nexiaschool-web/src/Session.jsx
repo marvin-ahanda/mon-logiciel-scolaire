@@ -78,8 +78,10 @@ export function SessionProvider({ children }) {
   const role = etat.profil?.role
   const valeur = { ...etat, recharger, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
                    peutDiscipline: role === "admin" || role === "surveillant",
-                   // saisie des notes : l'administration, les enseignants, et toute personne à qui une matière est confiée cette année
-                   peutNoter: role === "admin" || role === "enseignant" || (etat.mesMatieres || 0) > 0,
+                   // rubrique Notes (saisie, résultats, bulletins selon le rôle) : tout le personnel ; chacun ne saisit que les matières qui lui sont confiées
+                   peutNoter: ["admin", "enseignant", "surveillant", "comptable"].includes(role),
+                   // Excel (import / export des notes) : l'administration, les enseignants, et toute personne à qui une matière est confiée
+                   peutExcel: role === "admin" || role === "enseignant" || (etat.mesMatieres || 0) > 0,
                    estComptable: role === "comptable", peutFinance: role === "admin" || role === "comptable",
                    peutCourrier: ["admin", "surveillant", "comptable"].includes(role),
                    peutBulletins: ["admin", "surveillant", "comptable"].includes(role) }
