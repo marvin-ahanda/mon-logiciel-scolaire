@@ -6,7 +6,7 @@ import { comparerNoms, date, nomComplet, note } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
-import { enAttente, envoyer } from "../lib/horsLigne.js"
+import { enAttente, envoyer, nouvelIdentifiant } from "../lib/horsLigne.js"
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10)
 /** Prévient la bulle d'alerte de discipline qu'il faut recalculer les alertes. */
@@ -187,10 +187,10 @@ export function Infractions() {
   async function ajouter(e) {
     e.preventDefault(); setMessage({})
     try {
-      verifier(await supabase.from("incidents").insert({ ...f, sequence_id: sequenceId, observation: f.observation.trim().slice(0, 300) }))
-      setMessage({ ok: t("Infraction enregistrée pour {v0}.", {
-        v0: donnees.noms.get(f.inscription_id)
-      }) })
+      const r = await envoyer("incident", { ligne: { id: nouvelIdentifiant(), ...f, sequence_id: sequenceId, observation: f.observation.trim().slice(0, 300) } },
+        t("Infraction de {v0} du {v1}", { v0: donnees.noms.get(f.inscription_id), v1: date(f.date) }))
+      setMessage(r.enAttente ? { info: t("Pas de connexion : l'infraction de {v0} est gardée sur cet appareil et sera envoyée automatiquement au retour de la connexion.", { v0: donnees.noms.get(f.inscription_id) }) }
+        : { ok: t("Infraction enregistrée pour {v0}.", { v0: donnees.noms.get(f.inscription_id) }) })
       setF({ ...f, inscription_id: "", observation: "" }); rafraichir(); signalerMajDiscipline()
     } catch (x) { setMessage({ erreur: x.message }) }
   }
@@ -208,7 +208,7 @@ export function Infractions() {
         "Aucun type d'infraction défini : l'administration les crée dans Paramètres → Discipline."
       )}</div>}
       <Selecteurs ref_={ref_} {...{ classeId, setClasseId, sequenceId, setSequenceId }} />
-      <Alerte>{message.erreur || erreurDonnees}</Alerte><Alerte type="success">{message.ok}</Alerte>
+      <Alerte>{message.erreur || erreurDonnees}</Alerte><Alerte type="success">{message.ok}</Alerte><Alerte type="info">{message.info}</Alerte>
       {classeId && sequenceId && !donnees && <Chargement />}
       {donnees && (
         <>

@@ -2233,6 +2233,34 @@ Object.assign(EN, {
   "La version officielle ne peut pas être supprimée : rendez d'abord une autre version officielle.": "The official version cannot be deleted: first make another version official.",
 })
 
+// Hors ligne, synchronisation et conflits (PWA)
+Object.assign(EN, {
+  "Page indisponible hors ligne": "Page unavailable offline",
+  "Une erreur est survenue": "An error occurred",
+  "Cette page n'a pas encore été ouverte sur cet appareil. Elle s'affichera dès le retour de la connexion ; les pages déjà consultées restent accessibles.": "This page has not been opened on this device yet. It will appear as soon as the connection is back; pages already visited remain available.",
+  "(vide)": "(empty)",
+  "Les pages et données déjà consultées restent disponibles. Notes, appel, élèves et infractions saisis maintenant sont gardés sur cet appareil et seront envoyés automatiquement au retour de la connexion.": "Pages and data already viewed remain available. Grades, roll call, students and offences entered now are kept on this device and will be sent automatically when the connection is back.",
+  "Connexion lente : les dernières données connues s'affichent d'abord, puis se mettent à jour dès que possible.": "Slow connection: the latest known data is shown first, then updated as soon as possible.",
+  "Synchronisation des saisies faites hors ligne…": "Syncing entries made offline…",
+  "Conflits : ces données ont été modifiées par quelqu'un d'autre pendant que vous étiez hors ligne.": "Conflicts: this data was changed by someone else while you were offline.",
+  "votre valeur {v0}, sur le serveur {v1}": "your value {v0}, on the server {v1}",
+  "Garder ma version": "Keep my version",
+  "Garder celle du serveur": "Keep the server's version",
+  "Infraction de {v0} du {v1}": "Offence of {v0} on {v1}",
+  "Pas de connexion : l'infraction de {v0} est gardée sur cet appareil et sera envoyée automatiquement au retour de la connexion.": "No connection: the offence of {v0} is kept on this device and will be sent automatically when the connection is back.",
+  "Ajout de l'élève {v0}": "New student {v0}",
+  "Modification de l'élève {v0}": "Changes to student {v0}",
+  "La photo n'a pas pu être envoyée sans connexion : ajoutez-la de nouveau une fois en ligne.": "The photo could not be sent without a connection: add it again once online.",
+  "Pas de connexion : {v0} est gardé sur cet appareil et sera envoyé automatiquement au retour de la connexion.": "No connection: {v0} is kept on this device and will be sent automatically when the connection is back.",
+  "En attente d'envoi (saisi hors ligne) :": "Waiting to be sent (entered offline):",
+  "En ligne": "Online",
+  "Connexion lente": "Slow connection",
+  "Hors ligne": "Offline",
+  "Synchronisation…": "Syncing…",
+  "Conflit à résoudre": "Conflict to resolve",
+  "Échec d'envoi": "Sending failed",
+})
+
 EN.__modeles = [
   [/^Classe « (.+) » : section « (.+) » inconnue\.$/, "Class “$1”: unknown section “$2”."],
   [/^Élève « (.+) » : classe « (.+) » inconnue\.$/, "Student “$1”: unknown class “$2”."],

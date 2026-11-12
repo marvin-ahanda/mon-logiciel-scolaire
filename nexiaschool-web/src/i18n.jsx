@@ -1,7 +1,6 @@
 // Bilinguisme français / anglais. Le texte français sert de clé : t("Élèves") -> « Students » en anglais.
 // La langue choisie (sur la page d'accueil ou dans l'application) est mémorisée sur l'appareil et s'applique partout.
 import { createContext, Fragment, useCallback, useContext, useEffect, useState } from "react"
-import { EN } from "./i18n-en.js"
 
 const CLE = "nexiaschool.langue"
 export const LANGUES = [["fr", "Français", "FR"], ["en", "English", "EN"]]
@@ -14,6 +13,15 @@ function langueInitiale() {
 }
 
 let langue = langueInitiale()
+// Dictionnaire anglais chargé à la demande : les utilisateurs francophones ne le téléchargent pas (connexions lentes)
+let EN = {}
+let chargement = null
+export function chargerAnglais() {
+  chargement ||= import("./i18n-en.js").then((m) => { EN = m.EN }).catch((e) => { chargement = null; throw e })
+  return chargement
+}
+/** À appeler avant le premier affichage : charge le dictionnaire si l'anglais est la langue choisie. */
+export const preparerLangue = () => (langue === "en" ? chargerAnglais().catch(() => { langue = "fr" }) : Promise.resolve())
 export const langueCourante = () => langue
 /** Locale pour Intl : dates, nombres. */
 export const locale = () => (langue === "en" ? "en-GB" : "fr-FR")
@@ -44,8 +52,9 @@ const Contexte = createContext({ langue, setLangue: () => {} })
 
 export function LangueProvider({ children }) {
   const [courante, setCourante] = useState(langue)
-  const setLangue = useCallback((l) => {
+  const setLangue = useCallback(async (l) => {
     if (l !== "fr" && l !== "en") return
+    if (l === "en") { try { await chargerAnglais() } catch { return } }      // hors ligne et jamais chargé : on reste en français
     langue = l
     try { localStorage.setItem(CLE, l) } catch { /* stockage indisponible */ }
     setCourante(l)

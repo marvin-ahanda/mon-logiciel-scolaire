@@ -8,7 +8,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:cloudflare": "vite build && node scripts/cloudflare.mjs",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy dist --project-name nexiaschool --branch main",
+    "deploy:maintien": "wrangler deploy --config workers/maintien/wrangler.toml",
+    "dev:cloudflare": "npm run build:cloudflare && wrangler pages dev dist --port 8788"
   },
   "dependencies": {
     "@fontsource/poppins": "5.2.7",
@@ -26,7 +30,8 @@
   "devDependencies": {
     "@vitejs/plugin-react": "5.2.0",
     "vite": "7.3.7",
-    "vitest": "3.2.7"
+    "vitest": "3.2.7",
+    "wrangler": "4.156.2"
   },
   "engines": {
     "node": ">=20"

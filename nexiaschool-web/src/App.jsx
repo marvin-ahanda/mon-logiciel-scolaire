@@ -1,36 +1,47 @@
 import { lazy, Suspense } from "react"
 import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom"
-import { Chargement } from "./composants/Communs.jsx"
+import { Chargement, LimiteChargement } from "./composants/Communs.jsx"
 import MiseEnPage from "./composants/MiseEnPage.jsx"
 import { lireAppareil } from "./lib/appareil.js"
 import { Connexion, Etablissement, Inscription } from "./pages/Acces.jsx"
 import Accueil from "./pages/Accueil.jsx"
 import Landing from "./pages/Landing.jsx"
-import { Conditions, Confidentialite } from "./pages/Legal.jsx"
-import Developpeur from "./pages/Developpeur.jsx"
-import Developpeurs from "./pages/Developpeurs.jsx"
-import OAuthAutoriser from "./pages/OAuthAutoriser.jsx"
-import Verifier from "./pages/Verifier.jsx"
-import EvaluationEleve from "./pages/EvaluationEleve.jsx"
-import PortailParent, { ChoixProfil, ConnexionParent } from "./pages/Parent.jsx"
-import Courrier from "./pages/Courrier.jsx"
-import SmartEval, { EditeurEvaluation, JournalSmartEval, ResultatsEvaluation } from "./pages/SmartEval.jsx"
-import PageBulletins from "./pages/Bulletins.jsx"
-import { Appel, Infractions, Suivi } from "./pages/Discipline.jsx"
-import Eleves from "./pages/Eleves.jsx"
-import Excel from "./pages/Excel.jsx"
-import Finance from "./pages/Finance.jsx"
-import Statistiques from "./pages/Statistiques.jsx"
-import Parametres from "./pages/Parametres.jsx"
-import Personnel from "./pages/Personnel.jsx"
-import Resultats from "./pages/Resultats.jsx"
-import Saisie from "./pages/Saisie.jsx"
 import { SessionProvider, useSession } from "./Session.jsx"
 import { supabase } from "./supabase.js"
 import { ChoixLangue, t } from "./i18n.jsx"
-import AlertesDiscipline from "./pages/AlertesDiscipline.jsx"
-import RetardsNotes from "./pages/RetardsNotes.jsx"
 
+// Pages chargées à la demande : le démarrage ne télécharge que l'essentiel (connexions lentes) ;
+// le service worker précharge ensuite les autres pages en arrière-plan quand la connexion le permet.
+const page = (charger, nom = "default") => lazy(() => charger().then((m) => ({ default: m[nom] })))
+const Developpeur = page(() => import("./pages/Developpeur.jsx"))
+const Developpeurs = page(() => import("./pages/Developpeurs.jsx"))
+const OAuthAutoriser = page(() => import("./pages/OAuthAutoriser.jsx"))
+const Verifier = page(() => import("./pages/Verifier.jsx"))
+const EvaluationEleve = page(() => import("./pages/EvaluationEleve.jsx"))
+const Courrier = page(() => import("./pages/Courrier.jsx"))
+const PageBulletins = page(() => import("./pages/Bulletins.jsx"))
+const Eleves = page(() => import("./pages/Eleves.jsx"))
+const Excel = page(() => import("./pages/Excel.jsx"))
+const Finance = page(() => import("./pages/Finance.jsx"))
+const Statistiques = page(() => import("./pages/Statistiques.jsx"))
+const Parametres = page(() => import("./pages/Parametres.jsx"))
+const Personnel = page(() => import("./pages/Personnel.jsx"))
+const Resultats = page(() => import("./pages/Resultats.jsx"))
+const Saisie = page(() => import("./pages/Saisie.jsx"))
+const AlertesDiscipline = page(() => import("./pages/AlertesDiscipline.jsx"))
+const RetardsNotes = page(() => import("./pages/RetardsNotes.jsx"))
+const Conditions = page(() => import("./pages/Legal.jsx"), "Conditions")
+const Confidentialite = page(() => import("./pages/Legal.jsx"), "Confidentialite")
+const PortailParent = page(() => import("./pages/Parent.jsx"))
+const ChoixProfil = page(() => import("./pages/Parent.jsx"), "ChoixProfil")
+const ConnexionParent = page(() => import("./pages/Parent.jsx"), "ConnexionParent")
+const SmartEval = page(() => import("./pages/SmartEval.jsx"))
+const EditeurEvaluation = page(() => import("./pages/SmartEval.jsx"), "EditeurEvaluation")
+const JournalSmartEval = page(() => import("./pages/SmartEval.jsx"), "JournalSmartEval")
+const ResultatsEvaluation = page(() => import("./pages/SmartEval.jsx"), "ResultatsEvaluation")
+const Appel = page(() => import("./pages/Discipline.jsx"), "Appel")
+const Infractions = page(() => import("./pages/Discipline.jsx"), "Infractions")
+const Suivi = page(() => import("./pages/Discipline.jsx"), "Suivi")
 const Console = lazy(() => import("./pages/Console.jsx"))      // chargée seulement par le propriétaire
 const ConsultationEdt = lazy(() => import("./pages/edt/Consultation.jsx"))   // emplois du temps publiés
 
@@ -84,6 +95,7 @@ export default function App() {
   return (
     <SessionProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+        <LimiteChargement><Suspense fallback={<Chargement />}>
         <Routes>
           <Route path="/etablissement" element={<Etablissement />} />
           <Route path="/inscription" element={<Inscription />} />
@@ -141,6 +153,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense></LimiteChargement>
       </BrowserRouter>
     </SessionProvider>
   )

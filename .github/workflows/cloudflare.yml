@@ -1,0 +1,62 @@
+# Publication sur Cloudflare (plan Free) : à chaque envoi sur la branche déployée (la même que Netlify et GitHub Pages),
+# l'application est testée, construite, puis publiée sur Cloudflare Pages (projet « nexiaschool ») avec ses Functions
+# (relais MCP/OAuth) ; le Worker planifié « nexiaschool-maintien » (ping quotidien de Supabase) est mis à jour.
+#
+# Secrets à créer une fois dans GitHub (Settings > Secrets and variables > Actions) :
+#   CLOUDFLARE_API_TOKEN  : jeton d'API Cloudflare avec les droits « Cloudflare Pages : Edit » et « Workers Scripts : Edit »
+#   CLOUDFLARE_ACCOUNT_ID : identifiant du compte Cloudflare
+# Variable facultative (même page, onglet « Variables ») :
+#   VITE_IMAGES_CLOUDFLARE = 1 : photos et logos compressés par Cloudflare Images (domaine propre avec « Image Transformations » activé)
+name: Cloudflare
+
+on:
+  push:
+    branches: [netlify-supabase]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    if: ${{ vars.CLOUDFLARE_ACTIF != 'non' }}
+    defaults:
+      run:
+        working-directory: nexiaschool-web
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: nexiaschool-web/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Vérification des secrets Cloudflare
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID absents : publication Cloudflare ignorée."
+            echo "PUBLIER=non" >> "$GITHUB_ENV"
+          fi
+      - name: Construction pour Cloudflare Pages
+        if: env.PUBLIER != 'non'
+        run: npm run build:cloudflare
+        env:
+          # Valeurs publiques (déjà présentes dans le code envoyé au navigateur), les mêmes que sur Netlify
+          VITE_SUPABASE_URL: https://woxdqzocwqnrpfmxlsbq.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_wfw2lxWPuDSEYWDvIh2BPg_BhO55ZfX
+          VITE_IMAGES_CLOUDFLARE: ${{ vars.VITE_IMAGES_CLOUDFLARE }}
+      - name: Publication sur Cloudflare Pages (site + Functions)
+        if: env.PUBLIER != 'non'
+        run: npx wrangler pages deploy dist --project-name nexiaschool --branch main --commit-hash "$GITHUB_SHA"
+      - name: Worker planifié (maintien de Supabase)
+        if: env.PUBLIER != 'non'
+        run: npx wrangler deploy --config workers/maintien/wrangler.toml

@@ -1,0 +1,15 @@
+# Worker planifié « nexiaschool-maintien » : ping quotidien du projet Supabase (plan Free), pour éviter sa mise en pause.
+# Déploiement : « npx wrangler deploy --config workers/maintien/wrangler.toml » (ou le workflow GitHub cloudflare.yml).
+name = "nexiaschool-maintien"
+main = "index.js"
+compatibility_date = "2025-09-01"
+workers_dev = false
+
+[triggers]
+# Tous les jours à 05:17 UTC (06:17 à Douala, UTC+1)
+crons = ["17 5 * * *"]
+
+# Valeurs publiques (déjà présentes dans le code envoyé au navigateur)
+[vars]
+SUPABASE_URL = "https://woxdqzocwqnrpfmxlsbq.supabase.co"
+SUPABASE_CLE_PUBLIQUE = "sb_publishable_wfw2lxWPuDSEYWDvIh2BPg_BhO55ZfX"

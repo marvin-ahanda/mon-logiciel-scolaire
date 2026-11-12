@@ -1,0 +1,26 @@
+# En-têtes HTTP du site sur Cloudflare Pages : sécurité, et cache long pour les fichiers immuables.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Fichiers de l'application (leur nom change à chaque version) : gardés un an par le navigateur et le CDN
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Service worker et page « hors ligne » : toujours revérifiés, pour que les mises à jour arrivent vite
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+/hors-ligne/*
+  Cache-Control: no-cache
+
+# Icônes et manifeste : une semaine
+/manifest.webmanifest
+  Cache-Control: public, max-age=86400
+  Content-Type: application/manifest+json
+/*.png
+  Cache-Control: public, max-age=604800

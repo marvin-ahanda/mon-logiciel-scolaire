@@ -1,0 +1,17 @@
+# NexIA School sur Cloudflare Pages (plan Free).
+# Fichier de configuration Cloudflare (« Cloudflare.toml ») lu par l'outil wrangler.
+#
+#  * site statique : dossier dist/ produit par « npm run build:cloudflare » (Vite + _headers + _routes.json) ;
+#  * Pages Functions (dossier functions/) : relais du serveur MCP et de l'OAuth (Supabase Edge Function « mcp »),
+#    invoquées seulement pour /mcp, /.well-known/*, /oauth/register et /oauth/token (voir cloudflare/_routes.json) ;
+#  * base de données, authentification et stockage : Supabase (plan Free), inchangés ;
+#  * maintien du projet Supabase (ping quotidien) : Worker planifié séparé, workers/maintien/wrangler.toml.
+#
+# Déploiement : « npm run deploy:cloudflare » (ou le workflow GitHub .github/workflows/cloudflare.yml).
+name = "nexiaschool"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-09-01"
+
+# Variables des Pages Functions (publiques : aucune donnée secrète ici)
+[vars]
+MCP_ORIGINE = "https://woxdqzocwqnrpfmxlsbq.supabase.co/functions/v1/mcp"

@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { comparerNoms, date, nomComplet } from "../lib/format.js"
 import { adressesPhotos, envoyerPhoto } from "../lib/photos.js"
+import { differee, imageOptimisee } from "../lib/images.js"
 import { useSession } from "../Session.jsx"
 import { supabase, toutCharger, verifier } from "../supabase.js"
+import { enAttente, envoyer, EVENEMENT_HORS_LIGNE, nouvelIdentifiant } from "../lib/horsLigne.js"
 import { t } from "../i18n.jsx"
 
 /** Élève dont une information est à compléter (souvent après un import incomplet). */
@@ -17,7 +19,9 @@ export default function Eleves() {
   const [parametres] = useSearchParams()
   const [filtre, setFiltre] = useState(() => parametres.get("filtre") || ""), [recherche, setRecherche] = useState("")
   const [edition, setEdition] = useState(null), [photo, setPhoto] = useState(null)
-  const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false), [info, setInfo] = useState("")
+  const [, setVersionFile] = useState(0)
+  useEffect(() => { const f = () => setVersionFile((v) => v + 1); window.addEventListener(EVENEMENT_HORS_LIGNE, f); return () => window.removeEventListener(EVENEMENT_HORS_LIGNE, f) }, [])
 
   const [donnees, erreurChargement, rafraichir] = useDonnees(async () => {
     const classes = verifier(await supabase.from("classes").select("id, libelle").order("ordre").order("libelle"))
@@ -45,27 +49,28 @@ export default function Eleves() {
   const champ = (k) => ({ value: edition[k] ?? "", onChange: (ev) => setEdition({ ...edition, [k]: ev.target.value }) })
 
   async function enregistrer(ev) {
-    ev.preventDefault(); setErreur(""); setEnvoi(true)
+    ev.preventDefault(); setErreur(""); setInfo(""); setEnvoi(true)
     try {
       const valeurs = { matricule: edition.matricule.trim(), nom: edition.nom.trim().toUpperCase(), prenom: edition.prenom.trim(), sexe: edition.sexe || null,
         date_naissance: edition.date_naissance || null, lieu_naissance: edition.lieu_naissance.trim(), telephone_parent: edition.telephone_parent.trim() }
-      const eleve = edition.id
-        ? verifier(await supabase.from("eleves").update(valeurs).eq("id", edition.id).select().single())
-        : verifier(await supabase.from("eleves").insert(valeurs).select().single())
-      if (exercice) {
-        const actuelle = edition.inscription
-        if (edition.classe_id && actuelle) {
-          verifier(await supabase.from("inscriptions").update({ classe_id: edition.classe_id, redoublant: edition.redoublant, nouveau: edition.nouveau }).eq("id", actuelle.id))
-        } else if (edition.classe_id) {
-          verifier(await supabase.from("inscriptions").insert({ exercice_id: exercice.id, eleve_id: eleve.id, classe_id: edition.classe_id, redoublant: edition.redoublant, nouveau: edition.nouveau }))
-        } else if (actuelle) {
-          verifier(await supabase.from("inscriptions").delete().eq("id", actuelle.id))
+      const nouveau = !edition.id, id = edition.id || nouvelIdentifiant()
+      // modification : seuls les champs changés partent, avec leur valeur de départ (conflits détectés à l'envoi différé)
+      const avant = donnees.eleves.find((x) => x.id === id)
+      const changes = nouveau ? valeurs : Object.fromEntries(Object.entries(valeurs).filter(([k, v]) => (avant?.[k] ?? null) !== (v === "" && avant?.[k] === null ? null : v)))
+      const base = nouveau ? null : Object.fromEntries(Object.keys(changes).map((k) => [k, avant?.[k] ?? null]))
+      const actuelle = edition.inscription
+      const inscription = !exercice || !edition.classe_id ? null
+        : { id: actuelle?.id, exercice_id: exercice.id, classe_id: edition.classe_id, redoublant: edition.redoublant, nouveau: edition.nouveau }
+      const r = await envoyer("eleve", { id, nouveau, valeurs: changes, base, inscription, retirerInscription: exercice && !edition.classe_id && actuelle ? actuelle.id : null },
+        nouveau ? t("Ajout de l'élève {v0}", { v0: nomComplet(valeurs) }) : t("Modification de l'élève {v0}", { v0: nomComplet(valeurs) }))
+      if (photo) {
+        if (r.enAttente) setInfo(t("La photo n'a pas pu être envoyée sans connexion : ajoutez-la de nouveau une fois en ligne."))
+        else {
+          const chemin = await envoyerPhoto(etablissement.id, id, photo)
+          verifier(await supabase.from("eleves").update({ photo: chemin }).eq("id", id))
         }
       }
-      if (photo) {
-        const chemin = await envoyerPhoto(etablissement.id, eleve.id, photo)
-        verifier(await supabase.from("eleves").update({ photo: chemin }).eq("id", eleve.id))
-      }
+      if (r.enAttente && !photo) setInfo(t("Pas de connexion : {v0} est gardé sur cet appareil et sera envoyé automatiquement au retour de la connexion.", { v0: nomComplet(valeurs) }))
       setEdition(null); rafraichir()
     } catch (err) { setErreur(err.message) } finally { setEnvoi(false) }
   }
@@ -87,7 +92,9 @@ export default function Eleves() {
         <h1 className="h3 m-0">{t("Élèves")}</h1>
         {!edition && <button className="btn btn-primary" onClick={() => ouvrir(null)}>{t("+ Nouvel élève")}</button>}
       </div>
-      <Alerte>{erreur}</Alerte>
+      <Alerte>{erreur}</Alerte><Alerte type="info" onFermer={() => setInfo("")}>{info}</Alerte>
+      {(() => { const att = enAttente(null, (x) => x.type === "eleve" && !x.erreur && !x.conflits); return att.length > 0 && (
+        <div className="alert alert-warning small">{t("En attente d'envoi (saisi hors ligne) :")} {att.map((x) => x.description).join(" ; ")}</div>) })()}
       {!exercice && <div className="alert alert-warning">{t(
         "Aucun exercice actif : les élèves ne peuvent pas être inscrits dans une classe."
       )}</div>}
@@ -132,7 +139,7 @@ export default function Eleves() {
       <div className="card"><div className="table-responsive"><table className="table table-hover align-middle mb-0">
         <thead className="table-light"><tr><th /><th>{t("Matricule")}</th><th>{t("Nom")}</th><th>{t("Sexe")}</th><th>{t("Naissance")}</th><th>{t("Classe")}</th><th /></tr></thead>
         <tbody>{lignes.map((e) => (
-          <tr key={e.id}><td style={{ width: 48 }}>{donnees.photos[e.photo] ? <img src={donnees.photos[e.photo]} alt="" className="vignette" /> : <span className="vignette vide" />}</td>
+          <tr key={e.id}><td style={{ width: 48 }}>{donnees.photos[e.photo] ? <img src={imageOptimisee(donnees.photos[e.photo], 36)} alt="" className="vignette" width="36" height="36" {...differee} /> : <span className="vignette vide" />}</td>
             <td>{e.matricule}{aCompleter(e, exercice) && <span className="badge text-bg-warning ms-1">{t("À compléter")}</span>}</td>
             <td>{nomComplet(e)}</td><td>{e.sexe || <span className="text-danger">?</span>}</td><td>{date(e.date_naissance)}</td>
             <td>{e.classe || <span className="text-muted">—</span>}{e.inscription?.redoublant && <span className="badge text-bg-light ms-1">{t("R")}</span>}</td>

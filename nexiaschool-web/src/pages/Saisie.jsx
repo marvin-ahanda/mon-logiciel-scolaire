@@ -98,7 +98,11 @@ function Grille({ attribution, sequence, exercice, onModifie }) {
     if (!aEcrire.length && !aSupprimer.length) return setMessage({ info: t("Aucune modification à enregistrer.") });
     setEnvoi(true)
     try {
-      const r = await envoyer("notes", { attribution_id: attribution.id, sequence_id: sequence.id, ecrire: aEcrire, effacer: aSupprimer },
+      // valeur de départ de chaque note modifiée : si quelqu'un d'autre la change avant l'envoi (hors ligne), le conflit est signalé
+      const touches = [...aEcrire.map((l) => l.inscription_id), ...aSupprimer]
+      const base = Object.fromEntries(touches.map((id) => [id, grille.notes.has(id) ? Number(grille.notes.get(id).valeur) : null]))
+      const noms = Object.fromEntries(grille.eleves.filter((i) => touches.includes(i.id)).map((i) => [i.id, nomComplet(i.eleves)]))
+      const r = await envoyer("notes", { attribution_id: attribution.id, sequence_id: sequence.id, ecrire: aEcrire, effacer: aSupprimer, base, noms },
         t("Notes de {v0} — {v1}, séquence {v2}", { v0: attribution.classes.libelle, v1: attribution.matieres.libelle, v2: sequence.numero }))
       if (r.enAttente) setMessage({ info: t("Pas de connexion : {v0} note(s) gardée(s) sur cet appareil. Elles seront envoyées automatiquement dès le retour de la connexion.",
         { v0: aEcrire.length + aSupprimer.length }) })

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { initiales, preparerLogo } from "../lib/logo.js"
+import { imageOptimisee } from "../lib/images.js"
 import { t } from "../i18n.jsx"
 
 /** Logo de l'établissement dans une bulle ronde (initiales si aucun logo). taille en pixels. */
@@ -7,7 +8,7 @@ export function BulleLogo({ url, nom, taille = 34, className = "" }) {
   return (
     <span className={`bulle-logo ${className}`} style={{ width: taille, height: taille, fontSize: Math.round(taille * 0.38) }}
           title={nom} aria-hidden={url ? undefined : true}>
-      {url ? <img src={url} alt={`Logo ${nom || ""}`.trim()} /> : initiales(nom)}
+      {url ? <img src={imageOptimisee(url, taille || 40)} alt={`Logo ${nom || ""}`.trim()} decoding="async" /> : initiales(nom)}
     </span>
   )
 }

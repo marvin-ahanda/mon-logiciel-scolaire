@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { useSession } from "../Session.jsx"
 import { supabase } from "../supabase.js"
@@ -9,7 +9,8 @@ import AlerteDiscipline from "./AlerteDiscipline.jsx"
 import AlerteNotes from "./AlerteNotes.jsx"
 import AlerteSmartEval from "./AlerteSmartEval.jsx"
 import AlerteCourrier from "./AlerteCourrier.jsx"
-import EtatConnexion from "./EtatConnexion.jsx"
+import { Chargement, LimiteChargement } from "./Communs.jsx"
+import EtatConnexion, { PastilleConnexion, useEtatConnexion } from "./EtatConnexion.jsx"
 import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
 
@@ -73,6 +74,7 @@ function Compte({ nom, role, onDeconnecter }) {
 
 export default function MiseEnPage() {
   const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
+  const etatConnexion = useEtatConnexion()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
@@ -92,6 +94,7 @@ export default function MiseEnPage() {
       <nav className="navbar navbar-expand-xl navbar-dark bg-primary no-print">
         <div className="container-fluid">
           <Link className="navbar-brand fw-semibold d-flex align-items-center gap-2" to="/"><img src={`${import.meta.env.BASE_URL}logo-nexia-192.png`} alt="" width="30" height="30" className="rounded-2 bg-white" /><span className="marque-texte">NexIA School</span></Link>
+          <PastilleConnexion etatConnexion={etatConnexion} />
           <button className="navbar-toggler" type="button" aria-label={t("Menu")} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
             <span className="navbar-toggler-icon" />
           </button>
@@ -123,9 +126,9 @@ export default function MiseEnPage() {
           </div>
         </div>
       </nav>
-      <EtatConnexion />
+      <EtatConnexion etatConnexion={etatConnexion} />
       <main className="container-fluid py-3 px-3 px-lg-4">
-        <Outlet />
+        <LimiteChargement key={pathname}><Suspense fallback={<Chargement />}><Outlet /></Suspense></LimiteChargement>
       </main>
       {exercice && (
         <div className="bulles-alertes no-print">

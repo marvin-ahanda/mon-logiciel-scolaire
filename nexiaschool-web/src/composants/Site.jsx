@@ -2,10 +2,10 @@
 import { memo } from "react"
 import { Link } from "react-router-dom"
 import { ChoixLangue, t } from "../i18n.jsx"
-import "@fontsource/poppins/300.css"
-import "@fontsource/poppins/400.css"
-import "@fontsource/poppins/500.css"
-import "@fontsource/poppins/600.css"
+import "@fontsource/poppins/latin-300.css"
+import "@fontsource/poppins/latin-400.css"
+import "@fontsource/poppins/latin-500.css"
+import "@fontsource/poppins/latin-600.css"
 import "../landing.css"
 
 export function Marque({ clair = false, taille }) {

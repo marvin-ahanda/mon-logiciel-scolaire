@@ -245,3 +245,19 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 @media (max-width: 575px) { .lettre { padding: 8mm 6mm; font-size: .95rem; } .lettre-haut { flex-direction: column; gap: .4rem; } .lettre-lieu { text-align: left; }
   .lettre-destinataire, .lettre-signature { max-width: 100%; } }
 @media print { .lettre { box-shadow: none; max-width: none; padding: 15mm 18mm; } .espace-parent, .espace-parent main { background: #fff; } }
+
+/* Pastille d'état de la connexion (barre de menu) : point coloré + texte (texte masqué sur grand écran, visible au survol) */
+.pastille-connexion { display: inline-flex; align-items: center; gap: .35rem; margin-left: auto; margin-right: .5rem; padding: .15rem .55rem; border-radius: 999px;
+  background: rgba(255, 255, 255, .14); color: #fff; font-size: .75rem; white-space: nowrap; order: 1; }
+.pastille-connexion .point { width: .55rem; height: .55rem; border-radius: 50%; background: #75e0a7; flex: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, .35); }
+.pastille-connexion.lente .point { background: #ffd43b; }
+.pastille-connexion.hors .point { background: #adb5bd; }
+.pastille-connexion.attente .point, .pastille-connexion.synchro .point { background: #ffd43b; animation: pastille-pulse 1.2s ease-in-out infinite; }
+.pastille-connexion.echec .point { background: #ff6b6b; }
+.navbar .navbar-toggler { order: 2; }
+@keyframes pastille-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .pastille-connexion .point { animation: none !important; } }
+@media (min-width: 1200px) {
+  .pastille-connexion { order: 3; margin: 0 0 0 .5rem; padding: .3rem; background: transparent; }
+  .pastille-connexion .texte { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}

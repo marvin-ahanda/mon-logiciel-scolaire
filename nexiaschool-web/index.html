@@ -10,10 +10,16 @@
     <link rel="icon" href="/favicon-64.png" type="image/png" />
     <link rel="apple-touch-icon" href="/logo-nexia-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="NexIA School" />
+    <!-- connexion au serveur de données ouverte dès le début (gain sensible sur les réseaux mobiles lents) -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
     <title>NexIA School — Gestion des notes scolaires en ligne</title>
   </head>
   <body>
-    <div id="racine"></div>
+    <div id="racine"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font:15px system-ui,sans-serif;color:#6c757d">Chargement de NexIA School…</div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

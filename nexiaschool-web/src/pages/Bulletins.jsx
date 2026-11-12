@@ -15,6 +15,7 @@ import { notesManquantes, preparerPublication } from "../lib/publication.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
+import { differee, imageOptimisee } from "../lib/images.js"
 
 const TITRES = { sequence: "BULLETIN DE NOTES SÉQUENTIEL", trimestre: "BULLETIN DE NOTES TRIMESTRIEL", annee: "BULLETIN DE NOTES ANNUEL" }
 const COLONNE_NOTE = { sequence: "Note /20", trimestre: "Note trim.", annee: "Note ann." }
@@ -47,7 +48,7 @@ export function Bulletin({ r, donnees, periode, stats, entetes, etablissement, l
         </header>
         <h2 className="titre-bulletin">{t(TITRES[periode.type])}</h2>
         <table className="table table-sm table-bordered mb-2 tableau-bulletin identite-bulletin"><tbody>
-          <tr><td rowSpan={2} className="cellule-photo">{photo ? <img src={photo} alt="" className="photo-bulletin" /> : <div className="photo-bulletin vide" />}</td>
+          <tr><td rowSpan={2} className="cellule-photo">{photo ? <img src={imageOptimisee(photo, 72)} alt="" className="photo-bulletin" {...differee} /> : <div className="photo-bulletin vide" />}</td>
             <td>{t("Nom et prénom : ")}<strong>{nomComplet(e)}</strong></td><td>{t("Matricule : ")}<strong>{e.matricule}</strong></td><td>{t("Sexe : ")}{e.sexe || "—"}</td></tr>
           <tr><td>{t("Né(e) le : ")}{date(e.date_naissance) || "—"}{e.lieu_naissance && t(" à {v0}", { v0: e.lieu_naissance })}</td>
             <td>{t("Classe : ")}<strong>{donnees.classe.libelle}</strong></td><td>{t("Effectif : ")}{stats.effectif}</td></tr>
