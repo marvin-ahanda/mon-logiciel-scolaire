@@ -348,4 +348,5 @@ reset role;
 \ir scenario_smarteval.sql
 \ir scenario_decisions.sql
 \ir scenario_parents.sql
+\ir scenario_edt.sql
 \echo SCÉNARIO TERMINÉ

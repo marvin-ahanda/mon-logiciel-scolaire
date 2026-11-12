@@ -118,6 +118,23 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
   .identite-etab .texte { display: none; }
   .navbar-expand-xl .navbar-nav .nav-link { padding-left: .45rem; padding-right: .45rem; }
 }
+/* Barre sur une ligne, sans débordement, quelle que soit la longueur des noms (établissement, compte) et le nombre de menus :
+   les liens gardent leur taille, le nom de l'établissement et celui du compte se raccourcissent (…) quand la place manque */
+@media (min-width: 1200px) {
+  .navbar-expand-xl .navbar-collapse { min-width: 0; }
+  .navbar-expand-xl .navbar-collapse > .navbar-nav { flex-shrink: 0; }
+  .navbar-expand-xl .navbar-collapse > .d-flex { flex: none; }
+  .navbar-expand-xl .identite-etab { flex: 1 1 auto; overflow: hidden; min-width: 34px; }
+  .navbar-expand-xl .identite-etab .bulle-logo { flex: none; }
+  .navbar-expand-xl .identite-etab .texte { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .compte .compte-nom { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (min-width: 1200px) and (max-width: 1439.98px) {
+  .navbar-expand-xl .navbar-nav .nav-link { padding-left: .3rem; padding-right: .3rem; font-size: .92rem; }
+}
+@media (min-width: 1440px) and (max-width: 1699.98px) {
+  .navbar-expand-xl .navbar-nav .nav-link { padding-left: .32rem; padding-right: .32rem; }
+}
 .navbar .btn, .navbar .identite-nom { white-space: nowrap; }
 .compte .compte-initiales { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #fff; color: #0d6efd;
   font-size: .7rem; font-weight: 700; }

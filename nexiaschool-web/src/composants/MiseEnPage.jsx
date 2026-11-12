@@ -104,6 +104,7 @@ export default function MiseEnPage() {
               {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
               {peutCourrier && <li className="nav-item"><NavLink className={lien} to="/courrier">{t("Courrier")}</NavLink></li>}
               {peutExcel && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
+              {!estAdmin && <li className="nav-item"><NavLink className={lien} to="/emploi-du-temps">{t("Emploi du temps")}</NavLink></li>}
               <li className="nav-item"><NavLink className={lien} to="/smarteval">SmartEval <span className="badge se-badge-ia">IA</span></NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}

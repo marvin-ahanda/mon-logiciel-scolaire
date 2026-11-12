@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
 import ParametresDecisions from "./ParametresDecisions.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
@@ -8,6 +8,8 @@ import { envoyerLogo, retirerLogo, siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
+
+const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
 
 export default function Parametres() {
   const onglet = ({ isActive }) => "nav-link" + (isActive ? " active" : "")
@@ -23,6 +25,7 @@ export default function Parametres() {
         <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">{t("Matières par classe")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">{t("Discipline")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/emploi-du-temps">{t("Emploi du temps")}</NavLink></li>
       </ul>
       <Routes>
         <Route index element={<Etablissement />} />
@@ -33,6 +36,7 @@ export default function Parametres() {
         <Route path="coefficients" element={<Coefficients />} />
         <Route path="discipline" element={<ParametresDiscipline />} />
         <Route path="decisions" element={<ParametresDecisions />} />
+        <Route path="emploi-du-temps" element={<Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense>} />
       </Routes>
     </>
   );

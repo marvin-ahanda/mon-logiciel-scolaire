@@ -32,6 +32,7 @@ import AlertesDiscipline from "./pages/AlertesDiscipline.jsx"
 import RetardsNotes from "./pages/RetardsNotes.jsx"
 
 const Console = lazy(() => import("./pages/Console.jsx"))      // chargée seulement par le propriétaire
+const ConsultationEdt = lazy(() => import("./pages/edt/Consultation.jsx"))   // emplois du temps publiés
 
 /** Établissement suspendu par la plateforme : aucun accès aux données, message et contact. */
 function Suspendu() {
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="/smarteval/journal" element={<JournalSmartEval />} />
             <Route path="/smarteval/:id/modifier" element={<EditeurEvaluation />} />
             <Route path="/smarteval/:id" element={<ResultatsEvaluation />} />
+            <Route path="/emploi-du-temps" element={<Suspense fallback={<Chargement />}><ConsultationEdt /></Suspense>} />
           </Route>
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />

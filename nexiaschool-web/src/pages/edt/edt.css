@@ -1,0 +1,74 @@
+/* Emploi du temps : indicateur d'étapes, grilles, impression. */
+.edt-etapes { display: flex; gap: .25rem; list-style: none; padding: 0; margin: 0 0 1rem; overflow-x: auto; counter-reset: etape; }
+.edt-etape { flex: 1 1 0; min-width: 0; }
+.edt-etape button { width: 100%; display: flex; align-items: center; gap: .45rem; border: 1px solid #dee2e6; background: #fff; border-radius: .5rem;
+  padding: .45rem .55rem; font-size: .82rem; color: #495057; text-align: left; white-space: nowrap; }
+.edt-etape button:disabled { color: #adb5bd; background: #f8f9fa; cursor: not-allowed; }
+.edt-num { flex: none; width: 1.55rem; height: 1.55rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: #e9ecef; font-weight: 600; font-size: .78rem; }
+.edt-lib { overflow: hidden; text-overflow: ellipsis; }
+.edt-etape.faite .edt-num { background: #d1e7dd; color: #0f5132; }
+.edt-etape.courante button { border-color: #0d6efd; box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .15); color: #0d6efd; font-weight: 600; }
+.edt-etape.courante .edt-num { background: #0d6efd; color: #fff; }
+@media (max-width: 991.98px) { .edt-etape { flex: none; } .edt-etape:not(.courante) .edt-lib { display: none; } }
+
+.edt-jours { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
+.edt-jour { border: 1px solid #ced4da; border-radius: 1rem; padding: .15rem .6rem; font-size: .8rem; cursor: pointer; background: #fff; user-select: none; }
+.edt-jour.actif { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+.edt-jour:focus-within { outline: 2px solid #86b7fe; outline-offset: 1px; }
+.edt-recherche { max-width: 220px; }
+.edt-choix { max-width: 340px; }
+.edt-apercu-jour li { display: flex; gap: .6rem; padding: .15rem 0; border-bottom: 1px dashed #e9ecef; }
+.edt-apercu-jour li span { width: 7.5rem; color: #6c757d; }
+.edt-apercu-jour li.pause { color: #6c757d; font-style: italic; }
+.edt-tableau-saisie input { min-width: 7rem; }
+.edt-tableau-saisie td:nth-child(7) input, .edt-tableau-saisie td:nth-child(8) input, .edt-tableau-saisie td:nth-child(9) input { min-width: 10rem; }
+.edt-etat-ligne { min-width: 14rem; font-size: .76rem; }
+.edt-question { background: #fff8e1; border: 1px solid #ffe69c; border-radius: .4rem; padding: .5rem .6rem; margin-top: .4rem; }
+.edt-liste-ens { max-height: 32rem; overflow-y: auto; }
+.edt-interdits td, .edt-interdits th { padding: .2rem; }
+
+/* Grille de la semaine */
+.edt-conteneur { border-radius: .4rem; background: #fff; }
+.edt-table { table-layout: fixed; min-width: 640px; font-size: .82rem; margin: 0; }
+.edt-table th, .edt-table td { vertical-align: middle; text-align: center; padding: .3rem .35rem; }
+.edt-table thead th { background: #e9ecef; font-weight: 600; }
+.edt-table .edt-heure { width: 7.2rem; background: #f8f9fa; font-weight: 600; font-size: .76rem; white-space: nowrap; position: sticky; left: 0; z-index: 1; }
+.edt-cours { line-height: 1.2; height: 3.6rem; }
+.edt-matiere { display: block; font-weight: 600; color: #212529; overflow-wrap: anywhere; }
+.edt-sous, .edt-lien { display: block; font-size: .75rem; color: #495057; overflow-wrap: anywhere; }
+.edt-lien { background: none; border: 0; padding: 0; width: 100%; text-decoration: underline dotted; cursor: pointer; }
+.edt-lien:hover, .edt-lien:focus-visible { color: #0d6efd; }
+.edt-lien-titre { display: inline; width: auto; font-size: inherit; font-weight: 600; color: inherit; }
+.edt-salle { display: inline-block; margin-top: .15rem; font-size: .68rem; padding: 0 .35rem; border-radius: .3rem; background: rgba(255, 255, 255, .7); color: #495057; }
+.edt-perm { background: repeating-linear-gradient(135deg, #f8f9fa 0 6px, #f1f3f5 6px 12px); color: #6c757d; font-style: italic; }
+.edt-perm .edt-matiere { color: #6c757d; font-weight: 500; }
+.edt-ferme { background: repeating-linear-gradient(45deg, #e9ecef 0 5px, #dee2e6 5px 10px); color: #6c757d; font-style: italic; font-size: .74rem; }
+.edt-pause-case { background: #f1f3f5; color: #6c757d; font-style: italic; font-size: .74rem; }
+.edt-ligne-pause th, .edt-ligne-pause td { background: #f1f3f5 !important; color: #6c757d; font-style: italic; font-size: .74rem; padding: .15rem !important; }
+.edt-change { outline: 3px solid #fd7e14; outline-offset: -3px; }
+.edt-compacte .edt-cours { height: auto; }
+.edt-compacte .edt-table { font-size: .74rem; }
+@media (max-width: 575.98px) {
+  .edt-table { font-size: .74rem; min-width: 560px; }
+  .edt-table .edt-heure { width: 4.6rem; font-size: .66rem; white-space: normal; }
+  .edt-recherche, .edt-choix { max-width: none; flex: 1 1 100%; }
+}
+
+/* Impression : feuilles hors de l'application, une page par classe ou par enseignant */
+.edt-impression { display: none; }
+@media print {
+  body.edt-imprime > #root { display: none !important; }
+  body.edt-imprime .edt-impression { display: block; }
+  .edt-page { break-after: page; break-inside: avoid; font-family: Poppins, system-ui, sans-serif; }
+  .edt-page:last-child { break-after: auto; }
+  .edt-page-entete { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 3mm; font-size: 9pt; color: #495057; }
+  .edt-page-entete strong { font-size: 12pt; color: #212529; }
+  .edt-page-titre { font-size: 16pt; font-weight: 700; color: #212529; }
+  .edt-page-pied { margin-top: 2mm; font-size: 7.5pt; color: #6c757d; }
+  .edt-impression .table-responsive { overflow: visible !important; }
+  .edt-impression .edt-table { min-width: 0; width: 100%; font-size: 8pt; }
+  .edt-impression .edt-table .edt-heure { position: static; }
+  .edt-impression .edt-cours, .edt-impression .edt-perm, .edt-impression .edt-ferme, .edt-impression .edt-ligne-pause td, .edt-impression .edt-ligne-pause th,
+  .edt-impression thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
