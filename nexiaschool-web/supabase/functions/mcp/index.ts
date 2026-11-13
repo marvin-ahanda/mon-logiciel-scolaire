@@ -9,7 +9,7 @@ import { statistiquesClasse } from "./statistiques.js"
 import { analyserEvaluation, attenduTexte, copiesEleves, estCorrigible } from "./smarteval.js"
 
 const env = (k) => (globalThis.Deno ? globalThis.Deno.env.get(k) : globalThis.process?.env?.[k])
-const BASE = env("NEXIA_BASE_URL") || "https://nexiaschool.netlify.app"
+const BASE = env("NEXIA_BASE_URL") || "https://nexiaschool.pages.dev"
 const SUPABASE_URL = env("SUPABASE_URL") || "https://woxdqzocwqnrpfmxlsbq.supabase.co"
 const CLE_PUBLIQUE = env("SUPABASE_ANON_KEY") || "sb_publishable_wfw2lxWPuDSEYWDvIh2BPg_BhO55ZfX"
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]

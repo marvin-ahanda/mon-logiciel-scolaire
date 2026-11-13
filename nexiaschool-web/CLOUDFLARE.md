@@ -31,9 +31,10 @@ Commandes : `npm run build:cloudflare` (construction), `npm run dev:cloudflare` 
 
 ## À garder en tête
 
-- Le site Netlify reste en ligne : les QR codes anti-fraude des bulletins déjà imprimés et l'adresse du serveur MCP
-  (`nexiaschool.netlify.app/mcp`, identité OAuth de la fonction Supabase) pointent dessus. Le jour où un domaine propre
-  devient l'adresse officielle : changer `VITE_SITE_PLATEFORME`, `URL_MCP` (src/lib/retour.js), `ISSUER`
-  (src/pages/OAuthAutoriser.jsx) et la variable `NEXIA_BASE_URL` de la fonction Supabase `mcp`, en gardant l'ancien site actif.
+- **Adresse principale : `https://nexiaschool.pages.dev`** (site, QR codes des nouveaux bulletins, serveur MCP
+  `nexiaschool.pages.dev/mcp`, identité OAuth de la fonction Supabase `mcp`). L'ancien site Netlify reste en ligne pour les
+  QR codes des bulletins déjà imprimés. Le jour où un domaine propre devient l'adresse officielle : changer l'adresse par défaut
+  dans `src/lib/editeur.js` (ou `VITE_SITE_PLATEFORME`), `URL_MCP` (src/lib/retour.js), `ISSUER` (src/pages/OAuthAutoriser.jsx)
+  et `BASE` / `NEXIA_BASE_URL` de la fonction Supabase `mcp`, en gardant l'ancienne adresse active.
 - Plan Free Cloudflare : 500 constructions/mois (non utilisées : la construction se fait dans GitHub), Functions 100 000 requêtes/jour
   (seulement MCP/OAuth), bande passante du site illimitée.

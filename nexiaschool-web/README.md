@@ -55,8 +55,8 @@ Tests SQL (PostgreSQL 15+ local) : `PGHOST=… PGPORT=… PGUSER=postgres sh sup
      *Authorized redirect URI* : `https://<ref-projet>.supabase.co/auth/v1/callback`.
    - Supabase → Authentication → Sign In / Providers → **Google** : activer, coller *Client ID* et *Client Secret*.
 3. **Adresses** : Supabase → Authentication → URL Configuration
-   - *Site URL* : `https://nexiaschool.netlify.app`
-   - *Redirect URLs* : `https://nexiaschool.netlify.app/**` (et `http://localhost:5173/**` pour le développement).
+   - *Site URL* : `https://nexiaschool.pages.dev`
+   - *Redirect URLs* : `https://nexiaschool.pages.dev/**` (et `http://localhost:5173/**` pour le développement).
 4. **Email** : laisser le fournisseur *Email* activé (le personnel s'y connecte par code, sans e-mail réel)
    et laisser « Allow new users to sign up » activé (indispensable à la connexion Google).
 

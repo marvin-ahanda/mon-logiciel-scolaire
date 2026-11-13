@@ -7,4 +7,4 @@ export function consommerRetour() {
     return c && c.startsWith("/") && !c.startsWith("//") ? c : null
   } catch { return null }
 }
-export const URL_MCP = "https://nexiaschool.netlify.app/mcp"
+export const URL_MCP = "https://nexiaschool.pages.dev/mcp"

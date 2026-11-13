@@ -188,7 +188,7 @@ export default function Landing() {
         <section id="demo" className="lp-section lp-apercu" aria-label={t("Démonstration de l'application")}>
           <div className="lp-conteneur">
             <div className="lp-navigateur">
-              <div className="lp-navigateur-barre" aria-hidden="true"><i /><i /><i /><span>nexiaschool.netlify.app</span></div>
+              <div className="lp-navigateur-barre" aria-hidden="true"><i /><i /><i /><span>nexiaschool.pages.dev</span></div>
               <div className="lp-ecran-dalle lp-demo"><Demo /></div>
             </div>
           </div>
