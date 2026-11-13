@@ -175,3 +175,94 @@
 .lp-app-pied { margin-top: auto; padding-top: .5em; display: flex; justify-content: space-between; font-size: .78em; color: #6c757d; }
 .lp-app-pied b { color: #198754; }
 .lp-code { background: #0f1729; color: #e2e8f0; padding: 14px 18px; border-radius: 12px; font-size: .95rem; white-space: pre-wrap; word-break: break-all; margin: 0; }
+
+/* --- Landing « qui convertit » : proposition de valeur, démo, fonctionnement, offres, témoignages ------------------- */
+.lp-hero h1 { font-size: calc(70 * var(--px)); line-height: 1.08; }
+.lp-hero h1 strong { font-weight: 600; }
+.lp-badge { display: inline-block; margin: 0 0 calc(22 * var(--px)); padding: 6px 14px; border-radius: 999px; background: #e8efff; color: var(--lp-bleu) !important;
+  font-size: calc(15 * var(--px) + 2px); font-weight: 500; }
+.lp-hero-note { margin: calc(22 * var(--px)) 0 0; font-size: calc(15 * var(--px) + 2px); color: var(--lp-doux) !important; }
+.lp-bouton-contour { border: 1px solid var(--lp-bord) !important; }
+.lp-cta-nav { min-width: 0; }
+.lp-intro-centre { max-width: 760px; margin: -24px 0 36px; }
+
+/* Démo (vidéo à venir) */
+.lp-demo { position: relative; }
+.lp-demo-bientot { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); background: rgba(11, 13, 18, .78); color: #fff; font-size: .85rem;
+  padding: 8px 16px; border-radius: 999px; white-space: nowrap; }
+.lp-demo video { width: 100%; height: 100%; display: block; object-fit: cover; background: #0b0d12; }
+
+/* Comment ça marche : un cadre par fonctionnalité */
+.lp-fonctionnement { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; counter-reset: none; }
+.lp-fonction { background: #fff; border: 1px solid var(--lp-bord); border-radius: var(--lp-rayon); padding: 24px 26px; position: relative; }
+.lp-fonction:first-child { grid-column: 1 / -1; border-color: #b9ccff; box-shadow: 0 14px 36px rgba(11, 70, 229, .08); }
+.lp-fonction-tete { display: grid; grid-template-columns: auto auto 1fr; gap: 14px; align-items: start; margin-bottom: 14px; }
+.lp-fonction-tete .lp-icone { margin: 0; }
+.lp-fonction-numero { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--lp-bleu); color: #fff; font-weight: 600;
+  font-size: .9rem; margin-top: 8px; }
+.lp-fonction h3 { margin: 4px 0 4px; }
+.lp-fonction-resume { margin: 0; font-size: .93rem; color: var(--lp-doux) !important; }
+.lp-fonction-etapes { margin: 0; padding: 0; list-style: none; counter-reset: etape; display: grid; gap: 8px; }
+.lp-fonction-etapes li { counter-increment: etape; position: relative; padding: 10px 12px 10px 44px; background: var(--lp-fond); border-radius: 10px;
+  color: var(--lp-texte); font-size: .93rem; line-height: 1.5; }
+.lp-fonction-etapes li::before { content: counter(etape); position: absolute; left: 12px; top: 10px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; background: #dce6ff; color: var(--lp-bleu); font-weight: 600; font-size: .78rem; }
+
+/* Tarifs */
+.lp-offres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; align-items: stretch; }
+.lp-offre { position: relative; display: flex; flex-direction: column; padding: 26px 22px; border: 1px solid var(--lp-bord); border-radius: var(--lp-rayon); background: #fff; }
+.lp-offre-recommandee { border: 2px solid var(--lp-bleu); box-shadow: 0 20px 44px rgba(11, 70, 229, .14); }
+.lp-offre-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--lp-bleu); color: #fff; font-size: .78rem; font-weight: 600;
+  padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+.lp-offre h3 { font-size: 1.15rem; }
+.lp-offre-prix { font-size: 1.6rem; font-weight: 600; color: var(--lp-encre) !important; margin: 4px 0 0; line-height: 1.2; }
+.lp-offre-sous { margin: 0 0 16px; font-size: .88rem; color: var(--lp-doux) !important; }
+.lp-offre-liste { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; font-size: .9rem; color: var(--lp-texte); }
+.lp-offre-liste li { position: relative; padding-left: 24px; line-height: 1.45; }
+.lp-offre-liste li::before { content: "✓"; position: absolute; left: 0; color: var(--lp-bleu); font-weight: 700; }
+.lp-offre-exclus li { color: var(--lp-doux); }
+.lp-offre-exclus li::before { content: "✕"; color: #b0b7c3; }
+.lp-offre-bouton { margin-top: auto; width: 100%; }
+
+/* Témoignages */
+.lp-temoignages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.lp-temoignage { margin: 0; display: flex; flex-direction: column; padding: 24px; background: #fff; border: 1px solid var(--lp-bord); border-radius: var(--lp-rayon); }
+.lp-etoiles { color: #f5b301; letter-spacing: 2px; margin-bottom: 10px; }
+.lp-temoignage blockquote { margin: 0 0 16px; }
+.lp-temoignage blockquote p { margin: 0; font-size: .93rem; }
+.lp-temoignage figcaption { margin-top: auto; display: flex; flex-direction: column; font-size: .9rem; }
+.lp-temoignage figcaption span { color: var(--lp-doux); }
+
+/* Pied de page */
+.lp-pied-legal { width: 100%; margin-left: 0 !important; font-size: .85rem !important; opacity: .8; }
+
+@media (max-width: 1100px) { .lp-offres, .lp-temoignages { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) {
+  .lp-hero h1 { font-size: clamp(1.9rem, 6.6vw, 3rem); }
+  .lp-badge, .lp-hero-note { font-size: .85rem; }
+  .lp-fonctionnement { grid-template-columns: 1fr; }
+  .lp-intro-centre { margin-top: -20px; }
+}
+@media (max-width: 600px) {
+  .lp-cta-nav { display: none; }
+  .lp-offres, .lp-temoignages { grid-template-columns: 1fr; }
+  .lp-offre-recommandee { order: -1; }
+  .lp-fonction { padding: 20px 18px; }
+  .lp-fonction-tete { grid-template-columns: auto 1fr; }
+  .lp-fonction-tete .lp-icone { display: none; }
+  .lp-demo-bientot { font-size: .75rem; bottom: 10px; }
+}
+.lp-fonction:last-child:nth-child(even) { grid-column: 1 / -1; }
+.lp-section-fin { padding-top: clamp(48px, 6vw, 80px); }
+@media (max-width: 600px) {
+  .lp-hero-contenu { max-width: 100%; }
+  .lp-hero-actions .lp-bouton-grand, .lp-appel .lp-bouton-grand { white-space: normal; height: auto; min-height: 54px; padding: 12px 18px; min-width: 0; text-align: center; }
+  .lp-appel .lp-bouton-grand { width: 100%; }
+}
+@media (max-width: 380px) {
+  .lp-nav-hero { padding: 12px 10px 0; gap: 8px; }
+  .lp-nav-hero .lp-marque { --marque: 28px; }
+  .lp-nav-droite { gap: 6px; }
+  .lp-nav-droite .choix-langue button { padding: 4px 6px; font-size: .72rem; }
+  .lp-burger { width: 36px; height: 36px; padding: 0 9px; }
+}
