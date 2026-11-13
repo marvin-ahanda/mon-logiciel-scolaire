@@ -4,6 +4,9 @@
 create or replace function pg_temp.verifier(cond boolean, message text) returns void language plpgsql as $$
 begin if not coalesce(cond, false) then raise exception 'ÉCHEC : %', message; end if; raise notice 'ok : %', message; end $$;
 
+-- Les scénarios fonctionnels tournent en offre Premium (toutes les fonctions) ; scenario_offres.sql teste les autres offres
+alter table public.etablissements alter column offre set default 'premium';
+
 -- Deux fondateurs connectés avec Google créent leur établissement
 insert into auth.users (id, email) values ('11111111-1111-1111-1111-111111111111', 'fondateur.a@gmail.com'),
                                           ('22222222-2222-2222-2222-222222222222', 'fondateur.b@gmail.com'),
@@ -349,4 +352,5 @@ reset role;
 \ir scenario_decisions.sql
 \ir scenario_parents.sql
 \ir scenario_edt.sql
+\ir scenario_offres.sql
 \echo SCÉNARIO TERMINÉ

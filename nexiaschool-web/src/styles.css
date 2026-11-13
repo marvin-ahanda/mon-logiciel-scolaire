@@ -261,3 +261,26 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
   .pastille-connexion { order: 3; margin: 0 0 0 .5rem; padding: .3rem; background: transparent; }
   .pastille-connexion .texte { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 }
+
+/* Offres : fonctions avancées montrées floutées aux offres inférieures */
+.cadenas-offre { font-size: .8em; filter: grayscale(1); opacity: .85; }
+.hors-offre { cursor: pointer; }
+.hors-offre .flou-offre { filter: blur(.6px); opacity: .7; }
+.navbar .hors-offre { color: rgba(255, 255, 255, .7); }
+.dropdown-item.hors-offre { color: var(--bs-secondary-color); }
+.verrou-offre { position: relative; min-height: 12rem; }
+.verrou-offre.compact { min-height: 0; height: 100%; }
+.verrou-offre > .verrou-contenu { filter: blur(3px); opacity: .55; pointer-events: none; user-select: none; height: 100%; overflow: hidden; max-height: 80vh; }
+.verrou-offre > .verrou-voile { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 3rem;
+  border: 0; background: rgba(255, 255, 255, .25); cursor: pointer; width: 100%; z-index: 2; }
+.verrou-offre .verrou-carte { position: sticky; top: 5rem; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .4rem; max-width: 26rem;
+  padding: .75rem 1rem; text-align: center; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: .5rem; box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .12); }
+.verrou-offre .verrou-carte .small { flex-basis: 100%; }
+.verrou-offre > .verrou-voile:focus-visible .verrou-carte { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
+.fenetre-offre .modal-content { border-top: 4px solid var(--bs-primary); }
+@media print { .verrou-offre { display: none; } }
+.navbar-nav > .nav-item > .hors-offre .cadenas-offre { font-size: .62em; vertical-align: super; margin-left: 1px; }
+@media (min-width: 1200px) and (max-width: 1279.98px) {
+  .navbar-expand-xl .navbar-nav .nav-link { padding-left: .22rem; padding-right: .22rem; font-size: .88rem; }
+  .navbar-expand-xl .navbar-brand { margin-right: .5rem; }
+}

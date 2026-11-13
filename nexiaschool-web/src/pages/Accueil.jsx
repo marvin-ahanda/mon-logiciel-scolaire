@@ -3,6 +3,8 @@ import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { useSession } from "../Session.jsx"
 import { supabase } from "../supabase.js"
 import { t } from "../i18n.jsx"
+import { Cadenas, demanderOffre } from "../composants/Offre.jsx"
+import { fonctionDuChemin } from "../lib/offres.js"
 
 async function compter(table, filtre) {
   let q = supabase.from(table).select("id", { count: "exact", head: true })
@@ -13,7 +15,14 @@ async function compter(table, filtre) {
 }
 
 export default function Accueil() {
-  const { etablissement, exercice, estAdmin, profil, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance } = useSession()
+  const { etablissement, exercice, estAdmin, profil, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, aOffre } = useSession()
+  // raccourci vers une rubrique : hors offre, il reste visible (flouté, cadenas) et ouvre l'invitation à changer d'offre
+  const raccourci = (to, libelle) => {
+    const f = fonctionDuChemin(to)
+    if (f && !aOffre(f)) return <button type="button" key={to} className="list-group-item list-group-item-action hors-offre" onClick={() => demanderOffre(f)}>
+      <span className="flou-offre">{libelle}</span> <Cadenas /></button>
+    return <Link key={to} className="list-group-item list-group-item-action" to={to}>{libelle}</Link>
+  }
   const [chiffres, erreur] = useDonnees(async () => ({
     eleves: exercice ? await compter("inscriptions", (q) => q.eq("exercice_id", exercice.id)) : 0,
     classes: await compter("classes"),
@@ -39,19 +48,19 @@ export default function Accueil() {
         </div>
       )}
       <div className="list-group" style={{ maxWidth: 640 }}>
-        {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/saisie">{t("Saisir des notes")}</Link>}
-        {peutNoter && <Link className="list-group-item list-group-item-action" to="/notes/resultats">{t("Consulter les résultats et classements")}</Link>}
-        {peutBulletins && <Link className="list-group-item list-group-item-action" to="/notes/bulletins">{t("Imprimer les bulletins")}</Link>}
-        {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance">{t("Finances : encaissements et situation des élèves")}</Link>}
-        {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/insolvables">{t("Élèves non en règle (frais de scolarité)")}</Link>}
-        {peutFinance && <Link className="list-group-item list-group-item-action" to="/finance/frais">{t("Frais de scolarité et délais de paiement")}</Link>}
-        {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/appel">{t("Faire l'appel du jour (absences, retards)")}</Link>}
-        {peutDiscipline && <Link className="list-group-item list-group-item-action" to="/discipline/suivi">{t("Suivi disciplinaire")}</Link>}
-        {peutExcel && <Link className="list-group-item list-group-item-action" to="/excel">{t("Import et export Excel")}</Link>}
-        {estAdmin && <Link className="list-group-item list-group-item-action" to="/statistiques">{t("Statistiques avancées")}</Link>}
-        {estAdmin && <Link className="list-group-item list-group-item-action" to="/eleves">{t("Gérer les élèves")}</Link>}
-        {estAdmin && <Link className="list-group-item list-group-item-action" to="/parametres">{t("Paramètres : exercices, classes, matières, coefficients")}</Link>}
-        {estAdmin && <Link className="list-group-item list-group-item-action" to="/personnel">{t("Personnel et codes d'accès")}</Link>}
+        {peutNoter && raccourci("/notes/saisie", t("Saisir des notes"))}
+        {peutNoter && raccourci("/notes/resultats", t("Consulter les résultats et classements"))}
+        {peutBulletins && raccourci("/notes/bulletins", t("Imprimer les bulletins"))}
+        {peutFinance && raccourci("/finance", t("Finances : encaissements et situation des élèves"))}
+        {peutFinance && raccourci("/finance/insolvables", t("Élèves non en règle (frais de scolarité)"))}
+        {peutFinance && raccourci("/finance/frais", t("Frais de scolarité et délais de paiement"))}
+        {peutDiscipline && raccourci("/discipline/appel", t("Faire l'appel du jour (absences, retards)"))}
+        {peutDiscipline && raccourci("/discipline/suivi", t("Suivi disciplinaire"))}
+        {peutExcel && raccourci("/excel", t("Import et export Excel"))}
+        {estAdmin && raccourci("/statistiques", t("Statistiques avancées"))}
+        {estAdmin && raccourci("/eleves", t("Gérer les élèves"))}
+        {estAdmin && raccourci("/parametres", t("Paramètres : exercices, classes, matières, coefficients"))}
+        {estAdmin && raccourci("/personnel", t("Personnel et codes d'accès"))}
       </div>
       {estAdmin && (
         <div className="card mt-4" style={{ maxWidth: 640 }}><div className="card-body small">

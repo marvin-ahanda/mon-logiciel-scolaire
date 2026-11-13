@@ -13,6 +13,7 @@ import { siteAffiche } from "../lib/logo.js"
 import { adressesPhotos } from "../lib/photos.js"
 import { notesManquantes, preparerPublication } from "../lib/publication.js"
 import { useSession } from "../Session.jsx"
+import { Cadenas, demanderOffre } from "../composants/Offre.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
 import { differee, imageOptimisee } from "../lib/images.js"
@@ -105,7 +106,7 @@ export function Bulletin({ r, donnees, periode, stats, entetes, etablissement, l
 const perdus = (v) => (v ? `−${note(v)}` : "0")
 
 function Bulletins({ classe, periode }) {
-  const { exercice, etablissement, logoUrl } = useSession()
+  const { exercice, etablissement, logoUrl, aOffre } = useSession()
   const [donnees, erreur] = useDonnees(async () => {
     const d = await chargerClasse(classe, exercice)
     const [photos, discipline, criteres] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(d.eleves.map((x) => x.inscriptionId), exercice),
@@ -135,7 +136,7 @@ function Bulletins({ classe, periode }) {
     return () => { actif = false }
   }, [logoUrl])
   useEffect(() => {          // un code anti-fraude par bulletin affiché (QR code)
-    if (!calcul) return
+    if (!calcul || !aOffre("qr")) return          // QR code anti-fraude : à partir de l'offre Essentiel
     let actif = true
     emettreBulletins(periode, calcul.resultats, calcul.stats).then((c) => { if (actif) setCodes(c) })
     return () => { actif = false }
@@ -146,7 +147,7 @@ function Bulletins({ classe, periode }) {
   const conduite = bilansPeriode(donnees.discipline, donnees.eleves.map((x) => x.inscriptionId), periode, donnees.sequences)
   // Décision de fin de période d'après les critères fixés par l'administration (Paramètres → Décisions de fin de période)
   const sanctions = sanctionsParEleve(donnees.discipline.incidents, sequencesDePeriode(periode, donnees.sequences))
-  const decisionDe = (r) => decisionProposee(donnees.criteres, periode.code, { moyenne: r.moyenne ?? r.moyenneNonClassee,
+  const decisionDe = (r) => !aOffre("decisions") ? null : decisionProposee(donnees.criteres, periode.code, { moyenne: r.moyenne ?? r.moyenneNonClassee,
     conduite: conduite.get(r.inscriptionId), sanctions: sanctions.get(r.inscriptionId) })
 
   async function exporter(liste, cle, nom) {
@@ -182,11 +183,18 @@ function Bulletins({ classe, periode }) {
 
 /** Publication des bulletins pour les parents (administration uniquement) : publier, mettre à jour, retirer. */
 function PublicationBulletins({ classe, periode, preparer, manquantes, nombre }) {
-  const { estAdmin, exercice } = useSession()
+  const { estAdmin, exercice, aOffre } = useSession()
+  const parents = aOffre("parents")
   const [etat, setEtat] = useState(undefined), [occupe, setOccupe] = useState(false), [msg, setMsg] = useState({})
   const charger = () => supabase.from("publications_bulletins").select("publie_le, eleves").eq("exercice_id", exercice.id).eq("classe_id", classe.id)
     .eq("periode", periode.code).maybeSingle().then(verifier).then(setEtat).catch(() => setEtat(null))
-  useEffect(() => { if (estAdmin) charger() }, [classe.id, periode.code, estAdmin])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (estAdmin && parents) charger() }, [classe.id, periode.code, estAdmin])  // eslint-disable-line react-hooks/exhaustive-deps
+  if (estAdmin && !parents) return (                 // espace parents : à partir de l'offre Pro
+    <div className="publication-bulletins card mb-3 no-print"><div className="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+      <div className="me-auto small text-muted">{t("Publication des bulletins dans l'espace parents.")}</div>
+      <button type="button" className="btn btn-sm btn-outline-secondary hors-offre" onClick={() => demanderOffre("parents")}>
+        <span className="flou-offre">{t("Publier pour les parents")}</span> <Cadenas /></button>
+    </div></div>)
   if (!estAdmin || etat === undefined) return null
   async function publier() {
     const avertissement = manquantes ? t("Attention : {v0} note(s) manquent encore dans ces bulletins (matières non évaluées).", { v0: manquantes }) + "\n\n" : ""

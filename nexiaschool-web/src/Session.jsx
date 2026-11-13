@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
 import { adresseLogo } from "./lib/logo.js"
+import { offreEffective, offreInclut } from "./lib/offres.js"
 import { sessionLocale, supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
@@ -76,7 +77,9 @@ export function SessionProvider({ children }) {
   }, [charger])
 
   const role = etat.profil?.role
-  const valeur = { ...etat, recharger, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
+  const offre = offreEffective(etat.etablissement)
+  const aOffre = (fonction) => offreInclut(offre, fonction)
+  const valeur = { ...etat, recharger, offre, aOffre, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
                    peutDiscipline: role === "admin" || role === "surveillant",
                    // rubrique Notes (saisie, résultats, bulletins selon le rôle) : tout le personnel ; chacun ne saisit que les matières qui lui sont confiées
                    peutNoter: ["admin", "enseignant", "surveillant", "comptable"].includes(role),

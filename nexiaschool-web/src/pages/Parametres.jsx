@@ -2,17 +2,21 @@ import { lazy, Suspense, useState } from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
 import ParametresDecisions from "./ParametresDecisions.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
-import { exerciceParDefaut, nomComplet, comparerNoms } from "../lib/format.js"
+import { date as formatDate, exerciceParDefaut, nomComplet, comparerNoms } from "../lib/format.js"
 import { ChoixLogo } from "../composants/Logo.jsx"
 import { envoyerLogo, retirerLogo, siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
+import { Cadenas, Verrou } from "../composants/Offre.jsx"
+import { NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
 
 const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
 
 export default function Parametres() {
+  const { aOffre } = useSession()
   const onglet = ({ isActive }) => "nav-link" + (isActive ? " active" : "")
+  const cadenas = (f) => !aOffre(f) && <> <Cadenas /></>
   return (
     <>
       <h1 className="h3 mb-3">{t("Paramètres")}</h1>
@@ -24,8 +28,8 @@ export default function Parametres() {
         <li className="nav-item"><NavLink className={onglet} to="/parametres/matieres">{t("Matières")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">{t("Matières par classe")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">{t("Discipline")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/emploi-du-temps">{t("Emploi du temps")}</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}{cadenas("decisions")}</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/emploi-du-temps">{t("Emploi du temps")}{cadenas("edt")}</NavLink></li>
       </ul>
       <Routes>
         <Route index element={<Etablissement />} />
@@ -35,14 +39,34 @@ export default function Parametres() {
         <Route path="matieres" element={<Matieres />} />
         <Route path="coefficients" element={<Coefficients />} />
         <Route path="discipline" element={<ParametresDiscipline />} />
-        <Route path="decisions" element={<ParametresDecisions />} />
-        <Route path="emploi-du-temps" element={<Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense>} />
+        <Route path="decisions" element={<Verrou fonction="decisions"><ParametresDecisions /></Verrou>} />
+        <Route path="emploi-du-temps" element={<Verrou fonction="edt"><Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense></Verrou>} />
       </Routes>
     </>
   );
 }
 
 // --- Établissement ------------------------------------------------------------------------------------------
+/** Offre souscrite par l'établissement (attribuée par NexIA après paiement). */
+function OffreActuelle() {
+  const { etablissement, offre } = useSession()
+  const echue = offre !== etablissement.offre
+  const plafond = PLAFONDS[offre]
+  return (
+    <div className={"card mb-3 carte-offre" + (echue ? " border-warning" : "")} data-offre={offre}><div className="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+      <span>{t("Offre actuelle :")}</span><span className="badge text-bg-primary fs-6">{t(NOMS_OFFRES[offre])}</span>
+      {etablissement.offre !== "decouverte" && !echue && <span className="small text-muted">
+        {t(etablissement.offre_periodicite === "annuel" ? "paiement annuel" : "paiement mensuel")}
+        {etablissement.offre_expire_le && <> · {t("jusqu'au {v0}", { v0: formatDate(etablissement.offre_expire_le) })}</>}</span>}
+      {echue && <span className="small text-warning-emphasis">{t("Votre offre {v0} est arrivée à échéance : les fonctions avancées sont en lecture seule.", { v0: t(NOMS_OFFRES[etablissement.offre]) })}</span>}
+      {plafond && <span className="small text-muted">{plafond.personnels
+        ? t("Jusqu'à {v0} élèves et {v1} comptes du personnel.", { v0: plafond.eleves, v1: plafond.personnels })
+        : t("Jusqu'à {v0} élèves.", { v0: plafond.eleves })}</span>}
+      <span className="small text-muted ms-auto">{t("Les rubriques marquées d'un cadenas sont comprises dans les offres supérieures.")}</span>
+    </div></div>
+  )
+}
+
 function Etablissement() {
   const { etablissement, logoUrl, recharger } = useSession()
   const [f, setF] = useState(() => ({ ville: etablissement.ville, adresse: etablissement.adresse, telephone: etablissement.telephone,
@@ -81,6 +105,7 @@ function Etablissement() {
   return (
     <>
       <Alerte>{msg.erreur}</Alerte><Alerte type="success">{msg.ok}</Alerte>
+      <OffreActuelle />
       {code && <FicheCode titre={t("Nouveau code de l'établissement — {v0}", {
         v0: etablissement.nom
       })} code={code} onTerminer={() => setCode(null)}

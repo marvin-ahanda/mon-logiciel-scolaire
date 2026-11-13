@@ -7,6 +7,7 @@ import { telechargerClasseur } from "../lib/excel.js"
 import { comparerNoms, nomComplet } from "../lib/format.js"
 import { periodes } from "../lib/periodes.js"
 import { useSession } from "../Session.jsx"
+import { Verrou } from "../composants/Offre.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
 
@@ -158,8 +159,12 @@ function Bilan({ cle, r, onFermer }) {
 }
 
 /** Une liste : import (contrôle, résumé, enregistrement par lots) et export au même format. */
+// Listes ouvertes à toutes les offres ; les autres (personnel, programme, notes) : import / export complet, offre Essentiel
+const LISTES_LIBRES = ["eleves", "classes", "matieres"]
+
 function CarteListe({ cle, ref_, annee, onMaj }) {
-  const { exercice, estAdmin, profil, recharger } = useSession()
+  const { exercice, estAdmin, profil, recharger, aOffre } = useSession()
+  const verrou = !LISTES_LIBRES.includes(cle) && !aOffre("excel")
   const [analyse, setAnalyse] = useState(null), [bilan, setBilan] = useState(null), [msg, setMsg] = useState({})
   const [occupe, setOccupe] = useState(""), [progression, setProgression] = useState(0)
   const [classeId, setClasseId] = useState(""), [code, setCode] = useState(""), [sequence, setSequence] = useState("")
@@ -206,8 +211,7 @@ function CarteListe({ cle, ref_, annee, onMaj }) {
   }
 
   const besoinAnnee = ["programme", "notes"].includes(cle) && !exercice
-  return (
-    <div className="col-xl-6">
+  const carte = (
       <div className="card h-100 carte-liste" data-liste={cle}>
         <div className="card-header fw-semibold">{t(LISTES[cle].titre)}</div>
         <div className="card-body">
@@ -239,6 +243,10 @@ function CarteListe({ cle, ref_, annee, onMaj }) {
           {bilan && <Bilan cle={cle} r={bilan} onFermer={() => setBilan(null)} />}
         </div>
       </div>
+  )
+  return (
+    <div className="col-xl-6">
+      {verrou ? <Verrou fonction="excel">{carte}</Verrou> : carte}
       {analyse && <Validation cle={cle} analyse={analyse} envoi={occupe === "envoi"} progression={progression} onValider={valider} onFermer={() => setAnalyse(null)} />}
     </div>
   )

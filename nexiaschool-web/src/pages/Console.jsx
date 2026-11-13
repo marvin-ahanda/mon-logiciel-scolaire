@@ -9,6 +9,7 @@ import { comparerNoms, date, dateHeure } from "../lib/format.js"
 import { siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase } from "../supabase.js"
+import { NOMS_OFFRES, ORDRE_OFFRES } from "../lib/offres.js"
 
 const LIMITE_STOCKAGE = 1024 ** 3, LIMITE_BASE = 500 * 1024 ** 2     // plan Free de Supabase
 const entier = new Intl.NumberFormat("fr-FR")
@@ -107,7 +108,8 @@ async function exporter(feuille, nom) {
 }
 
 function Etablissements() {
-  const [liste, erreur] = useDonnees(() => rpc("console_etablissements"), [])
+  const [liste, erreur] = useDonnees(() => Promise.all([rpc("console_etablissements"), rpc("console_offres")])
+    .then(([l, o]) => { const m = new Map(o.map((x) => [x.id, x])); return l.map((e) => ({ ...e, offre: m.get(e.id)?.effective || "decouverte" })) }), [])
   const [q, setQ] = useState(""), [filtre, setFiltre] = useState("tous"), [tri, setTri] = useState({ cle: "cree_le", sens: -1 })
   const lignes = useMemo(() => {
     if (!liste) return []
@@ -133,10 +135,10 @@ function Etablissements() {
           <option value="tous">Tous les statuts</option><option value="actifs">Actifs (30 j)</option><option value="inactifs">Inactifs</option><option value="suspendus">Suspendus</option></select>
         <span className="text-muted small">{lignes.length} / {liste.length}</span>
         <button className="btn btn-outline-secondary btn-sm ms-auto" onClick={() => exporter({ titre: "Établissements",
-          entetes: ["Établissement", "Ville", "Téléphone", "Site web", "Fondateur", "E-mail du fondateur", "Créé le", "Dernière activité", "Personnel", "Élèves", "Classes", "Notes", "Stockage (octets)", "Statut"],
+          entetes: ["Établissement", "Ville", "Téléphone", "Site web", "Fondateur", "E-mail du fondateur", "Créé le", "Dernière activité", "Personnel", "Élèves", "Classes", "Notes", "Stockage (octets)", "Statut", "Offre"],
           lignes: lignes.map((e) => [e.nom, e.ville, e.telephone, siteAffiche(e.site_web), e.fondateur?.nom, e.fondateur?.email, new Date(e.cree_le),
             e.derniere_activite ? new Date(e.derniere_activite) : "", e.personnels, e.eleves, e.classes, e.notes, Number(e.stockage_octets),
-            e.suspendu_le ? "Suspendu" : actifRecent(e.derniere_activite, 30) ? "Actif" : "Inactif"]) }, "etablissements-nexiaschool")}>Exporter (Excel)</button>
+            e.suspendu_le ? "Suspendu" : actifRecent(e.derniere_activite, 30) ? "Actif" : "Inactif", NOMS_OFFRES[e.offre]]) }, "etablissements-nexiaschool")}>Exporter (Excel)</button>
       </div>
       <div className="card shadow-sm"><div className="table-responsive"><table className="table table-hover align-middle mb-0 tableau-console">
         <thead className="table-light"><tr>{entete("nom", "Établissement")}<th>Fondateur</th>{entete("cree_le", "Créé le")}{entete("derniere_activite", "Dernière activité")}
@@ -144,7 +146,8 @@ function Etablissements() {
         <tbody>{lignes.map((e) => (
           <tr key={e.id}>
             <td><Link to={`/console/etablissements/${e.id}`} className="fw-semibold">{e.nom}</Link>
-              {e.contient_proprietaire && <span className="badge text-bg-light border ms-1">vous</span>}<div className="small text-muted">{e.ville || "—"}</div></td>
+              {e.contient_proprietaire && <span className="badge text-bg-light border ms-1">vous</span>}
+              <span className="badge text-bg-primary ms-1" data-offre={e.offre}>{NOMS_OFFRES[e.offre]}</span><div className="small text-muted">{e.ville || "—"}</div></td>
             <td className="small">{e.fondateur?.nom || "—"}<div className="text-muted">{e.fondateur?.email}</div></td>
             <td className="small text-nowrap">{date(e.cree_le)}</td><td className="small text-nowrap">{depuis(e.derniere_activite)}</td>
             <td className="text-end">{e.personnels}</td><td className="text-end">{entier.format(e.eleves)}</td><td className="text-end">{entier.format(e.notes)}</td>
@@ -238,6 +241,8 @@ function FicheEtablissement() {
         </div></div>
       </div>
 
+      <OffreEtablissement id={e.id} nom={e.nom} onMessage={setMsg} />
+
       <div className="card shadow-sm mb-3"><div className="card-body">
         <h3 className="h6">Personnel</h3>
         <div className="table-responsive"><table className="table table-sm align-middle mb-0">
@@ -289,6 +294,44 @@ function FicheEtablissement() {
           </div>)}
       </div></div>
     </>
+  )
+}
+
+/** Offre de l'établissement : attribuée ici après paiement (mensuel ou annuel), jusqu'à une date d'échéance. */
+function OffreEtablissement({ id, nom, onMessage }) {
+  const [o, erreur, rafraichir] = useDonnees(() => rpc("console_offres").then((l) => l.find((x) => x.id === id) || null), [id])
+  const [f, setF] = useState(null), [envoi, setEnvoi] = useState(false)
+  const echeance = (periodicite) => { const d = new Date(); d.setMonth(d.getMonth() + (periodicite === "annuel" ? 12 : 1)); return d.toISOString().slice(0, 10) }
+  if (!o) return <Alerte>{erreur}</Alerte>
+  const v = f || { offre: o.offre, periodicite: o.periodicite, expire: o.expire_le ? o.expire_le.slice(0, 10) : "" }
+  async function enregistrer(ev) {
+    ev.preventDefault(); setEnvoi(true); onMessage({})
+    try {
+      await rpc("console_definir_offre", { p_id: id, p_offre: v.offre, p_periodicite: v.periodicite,
+        p_expire_le: v.offre === "decouverte" || !v.expire ? null : new Date(v.expire + "T23:59:59").toISOString() })
+      onMessage({ ok: `Offre ${NOMS_OFFRES[v.offre]} attribuée à « ${nom} ».` }); setF(null); rafraichir()
+    } catch (x) { onMessage({ erreur: x.message }) } finally { setEnvoi(false) }
+  }
+  return (
+    <div className="card shadow-sm mb-3 carte-offre-console"><div className="card-body">
+      <h3 className="h6">Offre <span className="badge text-bg-primary ms-1">{NOMS_OFFRES[o.effective]}</span>
+        {o.effective !== o.offre && <span className="badge text-bg-warning ms-1">{NOMS_OFFRES[o.offre]} échue le {date(o.expire_le)}</span>}</h3>
+      <form className="row g-2 align-items-end" onSubmit={enregistrer}>
+        <div className="col-sm-3"><label className="form-label small" htmlFor="offre">Offre</label>
+          <select id="offre" className="form-select form-select-sm" value={v.offre} onChange={(x) => setF({ ...v, offre: x.target.value,
+            expire: x.target.value === "decouverte" ? "" : v.expire || echeance(v.periodicite) })}>
+            {ORDRE_OFFRES.map((k) => <option key={k} value={k}>{NOMS_OFFRES[k]}</option>)}</select></div>
+        <div className="col-sm-3"><label className="form-label small" htmlFor="periodicite">Paiement</label>
+          <select id="periodicite" className="form-select form-select-sm" value={v.periodicite} disabled={v.offre === "decouverte"}
+                  onChange={(x) => setF({ ...v, periodicite: x.target.value, expire: echeance(x.target.value) })}>
+            <option value="mensuel">Mensuel</option><option value="annuel">Annuel (2 mois offerts)</option></select></div>
+        <div className="col-sm-3"><label className="form-label small" htmlFor="expire">Payée jusqu'au</label>
+          <input id="expire" type="date" className="form-control form-control-sm" value={v.expire} disabled={v.offre === "decouverte"}
+                 onChange={(x) => setF({ ...v, expire: x.target.value })} /></div>
+        <div className="col-sm-3"><button className="btn btn-primary btn-sm w-100" disabled={envoi || !f}>{envoi ? "Enregistrement…" : "Attribuer l'offre"}</button></div>
+      </form>
+      <p className="small text-muted mb-0 mt-2">Sans date, l'offre n'expire pas. À l'échéance, l'établissement repasse en Découverte : ses données sont conservées, les fonctions avancées passent en lecture seule.</p>
+    </div></div>
   )
 }
 

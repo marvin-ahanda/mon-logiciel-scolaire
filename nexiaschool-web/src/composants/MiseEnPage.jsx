@@ -13,10 +13,13 @@ import { Chargement, LimiteChargement } from "./Communs.jsx"
 import EtatConnexion, { PastilleConnexion, useEtatConnexion } from "./EtatConnexion.jsx"
 import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
+import { Cadenas, demanderOffre, FenetreOffre, Verrou } from "./Offre.jsx"
+import { fonctionDuChemin } from "../lib/offres.js"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
 
 function Menu({ titre, liens }) {
+  const { aOffre } = useSession()
   const [ouvert, setOuvert] = useState(false)
   const ref = useRef(null)
   const { pathname } = useLocation()
@@ -32,7 +35,10 @@ function Menu({ titre, liens }) {
       <button className={"nav-link dropdown-toggle btn btn-link" + (actif ? " active fw-semibold" : "")} aria-expanded={ouvert}
               onClick={() => setOuvert(!ouvert)}>{titre}</button>
       <ul className={"dropdown-menu" + (ouvert ? " show" : "")}>
-        {liens.map(([chemin, libelle]) => <li key={chemin}><Link className="dropdown-item" to={chemin}>{libelle}</Link></li>)}
+        {liens.map(([chemin, libelle]) => { const f = fonctionDuChemin(chemin); return (
+          <li key={chemin}>{f && !aOffre(f)
+            ? <button type="button" className="dropdown-item hors-offre" onClick={() => { setOuvert(false); demanderOffre(f) }}><span className="flou-offre">{libelle}</span> <Cadenas /></button>
+            : <Link className="dropdown-item" to={chemin}>{libelle}</Link>}</li>) })}
       </ul>
     </li>
   )
@@ -73,13 +79,22 @@ function Compte({ nom, role, onDeconnecter }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire, aOffre } = useSession()
   const etatConnexion = useEtatConnexion()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
   const naviguer = useNavigate()
   useEffect(() => setOuvert(false), [pathname])
   const lien = ({ isActive }) => "nav-link" + (isActive ? " active fw-semibold" : "")
+  // rubrique de premier niveau : hors offre, elle reste visible (floutée, cadenas) et ouvre l'invitation à changer d'offre
+  const rubrique = (to, children) => {
+    const f = fonctionDuChemin(to)
+    if (f && !aOffre(f)) return (
+      <li className="nav-item"><button type="button" className="nav-link btn btn-link hors-offre" onClick={() => demanderOffre(f)}>
+        <span className="flou-offre">{children}</span><Cadenas /></button></li>)
+    return <li className="nav-item"><NavLink className={lien} to={to}>{children}</NavLink></li>
+  }
+  const fonctionPage = fonctionDuChemin(pathname)
 
   async function deconnecter() {
     const n = enAttente(profil?.id, (x) => !x.erreur).length
@@ -104,15 +119,15 @@ export default function MiseEnPage() {
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/eleves">{t("Élèves")}</NavLink></li>}
               {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ...(peutBulletins ? [["/notes/bulletins", t("Bulletins")]] : []), ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
-              {peutFinance && <li className="nav-item"><NavLink className={lien} to="/finance">{t("Finances")}</NavLink></li>}
-              {peutCourrier && <li className="nav-item"><NavLink className={lien} to="/courrier">{t("Courrier")}</NavLink></li>}
+              {peutFinance && rubrique("/finance", t("Finances"))}
+              {peutCourrier && rubrique("/courrier", t("Courrier"))}
               {peutExcel && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
-              {!estAdmin && <li className="nav-item"><NavLink className={lien} to="/emploi-du-temps">{t("Emploi du temps")}</NavLink></li>}
-              <li className="nav-item"><NavLink className={lien} to="/smarteval">SmartEval <span className="badge se-badge-ia">IA</span></NavLink></li>
-              {estAdmin && <li className="nav-item"><NavLink className={lien} to="/statistiques">{t("Statistiques")}</NavLink></li>}
+              {!estAdmin && rubrique("/emploi-du-temps", t("Emploi du temps"))}
+              {rubrique("/smarteval", <>SmartEval <span className="badge se-badge-ia">IA</span></>)}
+              {estAdmin && rubrique("/statistiques", t("Statistiques"))}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/personnel">{t("Personnel")}</NavLink></li>}
-              <li className="nav-item"><NavLink className={lien} to="/developpeur">{t("IA et API")}</NavLink></li>
+              {rubrique("/developpeur", t("IA et API"))}
             </ul>
             <div className="navbar-text identite-etab text-white small me-3 py-2 py-xl-0" title={`${etablissement?.nom || ""} · ${exercice?.libelle || ""}`}>
               <BulleLogo url={logoUrl} nom={etablissement?.nom} taille={34} />
@@ -128,8 +143,9 @@ export default function MiseEnPage() {
       </nav>
       <EtatConnexion etatConnexion={etatConnexion} />
       <main className="container-fluid py-3 px-3 px-lg-4">
-        <LimiteChargement key={pathname}><Suspense fallback={<Chargement />}><Outlet /></Suspense></LimiteChargement>
+        <LimiteChargement key={pathname}><Suspense fallback={<Chargement />}>{fonctionPage && !aOffre(fonctionPage) ? <Verrou fonction={fonctionPage}><Outlet /></Verrou> : <Outlet />}</Suspense></LimiteChargement>
       </main>
+      <FenetreOffre />
       {exercice && (
         <div className="bulles-alertes no-print">
           <AlerteSmartEval />
