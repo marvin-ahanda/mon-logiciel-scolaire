@@ -1,0 +1,1 @@
+import{t as r}from"./index-BwCPcRlQ.js";function l(t){return[...t.map(e=>({code:`s${e.numero}`,type:"sequence",sequenceId:e.id,libelle:r("Séquence {v0}",{v0:e.numero})})),...[1,2,3].map(e=>({code:`t${e}`,type:"trimestre",trimestre:e,libelle:r("Trimestre {v0}",{v0:e})})),{code:"a",type:"annee",libelle:r("Bilan annuel")}]}export{l as p};

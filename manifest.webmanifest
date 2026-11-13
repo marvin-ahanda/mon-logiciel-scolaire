@@ -1,0 +1,28 @@
+{
+  "id": "./",
+  "name": "NexIA School",
+  "short_name": "NexIA School",
+  "description": "Gestion scolaire hors ligne : notes, bulletins, discipline, finances et emploi du temps.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f4f6fa",
+  "theme_color": "#0b46e5",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["education", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "favicon-64.png", "sizes": "64x64", "type": "image/png", "purpose": "any" },
+    { "src": "logo-nexia-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "logo-nexia-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "logo-nexia-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Saisie des notes", "short_name": "Notes", "url": "./notes/saisie", "icons": [{ "src": "logo-nexia-192.png", "sizes": "192x192" }] },
+    { "name": "Appel du jour", "short_name": "Appel", "url": "./discipline/appel", "icons": [{ "src": "logo-nexia-192.png", "sizes": "192x192" }] },
+    { "name": "Emploi du temps", "short_name": "Emploi du temps", "url": "./emploi-du-temps", "icons": [{ "src": "logo-nexia-192.png", "sizes": "192x192" }] }
+  ]
+}
