@@ -146,6 +146,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(r.url)
   if (url.origin === self.location.origin) {
     if (r.method !== "GET") return
+    // vidéos (lecture par morceaux) : laissées au navigateur, jamais mises en cache par le service worker
+    if (r.headers.has("range") || r.destination === "video" || /\.(mp4|webm)$/.test(url.pathname)) return
     // serveur MCP, OAuth et services Cloudflare : jamais mis en cache
     if (/^\/(mcp|\.well-known|oauth\/(register|token)|cdn-cgi|\.netlify)/.test(url.pathname.slice(BASE.length - 1))) return
     if (r.mode === "navigate") { e.respondWith(page(e)); return }

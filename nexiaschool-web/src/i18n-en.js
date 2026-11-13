@@ -2421,6 +2421,30 @@ Object.assign(EN, {
   "Fait au Cameroun": "Made in Cameroon",
 })
 
+// Page d'accueil : vidéo, tarifs mensuels / annuels, développeur
+Object.assign(EN, {
+  "1 établissement, jusqu'à 50 élèves": "1 school, up to 50 students",
+  "L'offre Découverte est gratuite (jusqu'à 50 élèves). Essentiel coûte 30 000 FCFA par mois, Pro 55 000 FCFA et Premium 80 000 FCFA. En payant à l'année, deux mois sont offerts. Rien ne vous est facturé sans votre accord.": "The Discovery plan is free (up to 50 students). Essential costs 30,000 FCFA per month, Pro 55,000 FCFA and Premium 80,000 FCFA. Pay yearly and get two months free. Nothing is charged without your agreement.",
+  "Puis-je changer d'offre ?": "Can I change plans?",
+  "Oui, à tout moment. Toutes les données de l'établissement sont conservées. Dans une offre inférieure, les fonctionnalités avancées restent visibles en aperçu : vous savez exactement ce que vous gagnez en changeant d'offre.": "Yes, at any time. All of the school's data is kept. On a lower plan, advanced features remain visible as a preview: you know exactly what you gain by upgrading.",
+  "Vidéo de démonstration de NexIA School (2 minutes)": "NexIA School demo video (2 minutes)",
+  "Votre navigateur ne peut pas lire cette vidéo.": "Your browser cannot play this video.",
+  "Période de paiement": "Billing period",
+  "Mensuel": "Monthly",
+  "Annuel": "Yearly",
+  "2 mois offerts": "2 months free",
+  "par an, soit {v0} d'économie": "per year, saving {v0}",
+  "par mois": "per month",
+  "Prix en francs CFA. Changez d'offre à tout moment ; les données de l'établissement sont conservées.": "Prices in CFA francs. Change plans at any time; the school's data is kept.",
+  "Ingénieur en systèmes multi-agents et automatisation IA · Fondateur de NexIA School": "Engineer in multi-agent systems and AI automation · Founder of NexIA School",
+  "Je suis Marvin Ahanda, ingénieur spécialisé dans la conception et le déploiement de systèmes multi-agents et d'automatisation IA. Fondateur de NexIA Automatisation et de NexIA Academy, j'accompagne les entreprises dans l'automatisation durable de leurs processus critiques. Également directeur technique de l'IA Challenge Inter-School 2026, j'œuvre activement pour faire évoluer l'écosystème éducatif et technologique africain de la simple consommation à la conception d'outils intelligents.": "I am Marvin Ahanda, an engineer specialising in designing and deploying multi-agent systems and AI automation. Founder of NexIA Automatisation and NexIA Academy, I help businesses automate their critical processes sustainably. Also technical director of the IA Challenge Inter-School 2026, I work actively to move Africa's educational and technology ecosystem from simply consuming tools to designing intelligent ones.",
+})
+
+Object.assign(EN, {
+  "Lire la vidéo de démonstration": "Play the demo video",
+  "Voir la démo · 2 min": "Watch the demo · 2 min",
+})
+
 EN.__modeles = [
   [/^Classe « (.+) » : section « (.+) » inconnue\.$/, "Class “$1”: unknown section “$2”."],
   [/^Élève « (.+) » : classe « (.+) » inconnue\.$/, "Student “$1”: unknown class “$2”."],

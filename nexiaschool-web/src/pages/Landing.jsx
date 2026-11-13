@@ -1,6 +1,6 @@
 // Page d'accueil publique de NexIA School, construite selon l'anatomie d'une landing page qui convertit :
 // menu + CTA → proposition de valeur → démo → bénéfices → fonctionnement → tarifs → témoignages → FAQ → développeur → dernier appel → pied de page.
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { FondLignes, Marque } from "../composants/Site.jsx"
 import { ChoixLangue, t } from "../i18n.jsx"
@@ -18,40 +18,24 @@ function Commencer({ className = "lp-bouton lp-bouton-grand", libelle = "Créer 
   )
 }
 
-/** Aperçu du tableau de bord (dessiné en HTML/CSS, aucune image) : affiché en attendant la vidéo de démonstration. */
-function EcranApplication() {
-  const barres = [62, 74, 55, 81, 68, 88]
+const MEDIA = `${import.meta.env.BASE_URL}media/`
+
+/** Vidéo de démonstration : rien n'est téléchargé avant le clic (seule l'image d'aperçu, 50 ko, s'affiche). */
+function Demo() {
+  const ref = useRef(null)
+  const [lancee, setLancee] = useState(false)
   return (
-    <div className="lp-app" aria-hidden="true">
-      <div className="lp-app-nav">
-        <span className="lp-app-marque">NexIA School</span>
-        <span>{t("Accueil")}</span><span>{t("Élèves")}</span><span>{t("Notes")}</span><span>{t("Discipline")}</span><span>{t("Finances")}</span>
-        <span className="lp-app-profil">MBALLA Paul · {t("Administration")}</span>
-      </div>
-      <div className="lp-app-corps">
-        <div className="lp-app-titre">Collège Saint-Joseph de Yaoundé <em>{t("Exercice")} 2026-2027</em></div>
-        <div className="lp-app-tuiles">
-          {[["Élèves inscrits", "642"], ["Classes", "18"], ["Personnel actif", "47"], ["Taux de réussite", "71 %"]].map(([l, v]) => (
-            <div className="lp-app-tuile" key={l}><span>{t(l)}</span><b>{v}</b></div>))}
-        </div>
-        <div className="lp-app-grille">
-          <div className="lp-app-carte">
-            <div className="lp-app-carte-titre">{t("Moyenne générale par classe")}</div>
-            <div className="lp-app-barres">
-              {barres.map((h, k) => <div key={k} className="lp-app-barre"><i style={{ height: `${h}%` }} /><span>{["6e", "5e", "4e", "3e", "2nde", "1re"][k]}</span></div>)}
-            </div>
-          </div>
-          <div className="lp-app-carte">
-            <div className="lp-app-carte-titre">{t("Résultats — 6e A · Trimestre 1")}</div>
-            {[["1", "ABENA Lucie", "16,42", "Très bien"], ["2", "ESSOMBA Carine", "15,10", "Bien"], ["3", "FOUDA Daniel", "14,85", "Bien"],
-              ["4", "NGO Marie", "13,07", "Assez bien"], ["5", "BELLA Bruno", "12,66", "Assez bien"], ["6", "KAMGA Estelle", "11,93", "Passable"],
-              ["7", "OWONA Joël", "11,40", "Passable"], ["8", "NJOYA Inès", "10,25", "Passable"]].map((l) => (
-              <div className="lp-app-ligne" key={l[0]}><span>{l[0]}</span><span>{l[1]}</span><b>{l[2]}</b><em>{t(l[3])}</em></div>))}
-            <div className="lp-app-pied"><span>{t("Moyenne de la classe : 12,34")}</span><span>{t("Réussite :")} <b>71 %</b></span></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      <video ref={ref} className="lp-video" controls={lancee} preload="none" playsInline poster={`${MEDIA}nexiaschool-demo-apercu.webp`}
+             aria-label={t("Vidéo de démonstration de NexIA School (2 minutes)")} onPlay={() => setLancee(true)}>
+        <source src={`${MEDIA}nexiaschool-demo.mp4`} type="video/mp4" />
+        {t("Votre navigateur ne peut pas lire cette vidéo.")}
+      </video>
+      {!lancee && (
+        <button type="button" className="lp-lecture" onClick={() => { setLancee(true); ref.current?.play() }} aria-label={t("Lire la vidéo de démonstration")}>
+          <span className="lp-lecture-icone" aria-hidden="true" /><span className="lp-lecture-texte">{t("Voir la démo · 2 min")}</span>
+        </button>)}
+    </>
   )
 }
 
@@ -118,18 +102,20 @@ const FONCTIONNEMENT = [
       "Chaque membre du personnel peut connecter son assistant IA (Claude, par exemple) pour interroger ses résultats ou saisir des notes, avec ses propres droits."] },
 ]
 
-// --- Tarifs : PROPOSITION À VALIDER (répartition des fonctionnalités et prix à confirmer par l'éditeur) -------------------------
+// --- Tarifs (en FCFA) : paiement mensuel, ou annuel avec 2 mois offerts (10 mois facturés au lieu de 12) ---------------------------
+const MOIS_FACTURES_PAR_AN = 10
 const OFFRES = [
-  { nom: "Découverte", prix: "Gratuit", sous: "pour tester sans engagement",
-    inclus: ["1 établissement, jusqu'à 150 élèves", "Personnel : jusqu'à 10 comptes", "Import Excel des élèves, classes et matières", "Saisie des notes, moyennes et rangs", "Bulletins PDF (sans QR code anti-fraude)", "Appel du jour"],
+  { nom: "Découverte", mensuel: 0, sous: "pour tester sans engagement",
+    inclus: ["1 établissement, jusqu'à 50 élèves", "Personnel : jusqu'à 10 comptes", "Import Excel des élèves, classes et matières", "Saisie des notes, moyennes et rangs", "Bulletins PDF (sans QR code anti-fraude)", "Appel du jour", "Mode hors ligne"],
     exclus: ["SmartEval, emploi du temps, finances, espace parents, IA"], cta: "Commencer gratuitement" },
-  { nom: "Essentiel", prix: "Tarif à venir", sous: "par an",
-    inclus: ["Jusqu'à 500 élèves, personnel illimité", "Tout Découverte", "Bulletins avec QR code anti-fraude et décisions de fin de période", "Discipline complète et alertes", "Finances : frais, reçus, retards, moratoires", "Import et export Excel complets", "Mode hors ligne"], cta: "Choisir Essentiel" },
-  { nom: "Pro", prix: "Tarif à venir", sous: "par an", recommande: true,
+  { nom: "Essentiel", mensuel: 30000,
+    inclus: ["Jusqu'à 500 élèves, personnel illimité", "Tout Découverte", "Bulletins avec QR code anti-fraude et décisions de fin de période", "Discipline complète et alertes", "Finances : frais, reçus, retards, moratoires", "Import et export Excel complets"], cta: "Choisir Essentiel" },
+  { nom: "Pro", mensuel: 55000, recommande: true,
     inclus: ["Élèves illimités", "Tout Essentiel", "SmartEval : évaluation digitalisée et correction automatique", "Génération automatique des emplois du temps", "Espace parents et courrier", "Statistiques avancées et alertes de retard de saisie"], cta: "Choisir Pro" },
-  { nom: "Premium", prix: "Tarif à venir", sous: "par an",
+  { nom: "Premium", mensuel: 80000,
     inclus: ["Tout Pro", "IA intégrée : analyse des évaluations et remédiation", "Connexion de vos assistants IA (API et MCP)", "Accompagnement au démarrage et formation de l'équipe", "Assistance prioritaire"], cta: "Choisir Premium" },
 ]
+const fcfa = (n) => `${new Intl.NumberFormat("fr-FR").format(n).replace(/\s/g, " ")} FCFA`
 
 // --- Témoignages : EXEMPLES ILLUSTRATIFS, à remplacer par de vrais témoignages (avec l'accord des personnes) ------------------
 const TEMOIGNAGES = [
@@ -144,7 +130,7 @@ const TEMOIGNAGES = [
 ]
 
 const FAQ = [
-  ["Combien coûte NexIA School ?", "Une offre Découverte gratuite permet de créer l'espace de l'établissement et de gérer l'essentiel (élèves, notes, bulletins). Les offres payantes débloquent les fonctionnalités avancées. Rien ne vous est facturé sans votre accord."],
+  ["Combien coûte NexIA School ?", "L'offre Découverte est gratuite (jusqu'à 50 élèves). Essentiel coûte 30 000 FCFA par mois, Pro 55 000 FCFA et Premium 80 000 FCFA. En payant à l'année, deux mois sont offerts. Rien ne vous est facturé sans votre accord."],
   ["Faut-il installer un logiciel ?", "Non. NexIA School fonctionne dans le navigateur, sur ordinateur, tablette ou téléphone. Vous pouvez aussi l'ajouter à l'écran d'accueil du téléphone pour l'ouvrir comme une application."],
   ["Et si la connexion Internet est mauvaise ou coupée ?", "L'application est conçue pour les connexions lentes : les données déjà consultées s'affichent sans attendre. Hors ligne, notes, appel, élèves et infractions se saisissent normalement et sont envoyés automatiquement au retour du réseau."],
   ["Dois-je ressaisir toutes mes données ?", "Non. Importez vos listes Excel (élèves, classes, matières, personnel, coefficients, notes), séparément ou en un seul classeur. Les cases incomplètes sont signalées sans bloquer l'import."],
@@ -156,11 +142,13 @@ const FAQ = [
   ["Que fait l'IA avec nos données ?", "L'IA n'est utilisée que si un membre du personnel la connecte lui-même à son compte, avec ses propres droits. Elle aide à analyser les résultats des évaluations ; les données des élèves ne sont jamais revendues."],
   ["Que se passe-t-il si un membre du personnel perd son code ?", "L'administration génère un nouveau code en un clic ; l'ancien cesse aussitôt de fonctionner. Les codes sont enregistrés chiffrés et ne peuvent pas être relus."],
   ["L'application existe-t-elle en anglais ?", "Oui. Choisissez « EN » en haut de la page : votre choix est conservé jusque dans votre espace, quel que soit votre rôle."],
+  ["Puis-je changer d'offre ?", "Oui, à tout moment. Toutes les données de l'établissement sont conservées. Dans une offre inférieure, les fonctionnalités avancées restent visibles en aperçu : vous savez exactement ce que vous gagnez en changeant d'offre."],
   ["Puis-je récupérer mes données ?", "Oui. Listes d'élèves, notes, résultats et emplois du temps s'exportent à tout moment au format Excel ou PDF."],
 ]
 
 export default function Landing() {
   const [menu, setMenu] = useState(false)
+  const [annuel, setAnnuel] = useState(false)
   useEffect(() => { document.title = t("NexIA School — Repérez les difficultés avant qu'elles ne deviennent des échecs") }, [])
   const liens = [["#benefices", "Bénéfices"], ["#fonctionnement", "Comment ça marche"], ["#tarifs", "Tarifs"], ["#temoignages", "Témoignages"], ["#faq", "FAQ"]]
 
@@ -201,7 +189,7 @@ export default function Landing() {
           <div className="lp-conteneur">
             <div className="lp-navigateur">
               <div className="lp-navigateur-barre" aria-hidden="true"><i /><i /><i /><span>nexiaschool.netlify.app</span></div>
-              <div className="lp-ecran-dalle lp-demo"><EcranApplication /><span className="lp-demo-bientot">{t("Vidéo de démonstration bientôt disponible")}</span></div>
+              <div className="lp-ecran-dalle lp-demo"><Demo /></div>
             </div>
           </div>
         </section>
@@ -243,19 +231,30 @@ export default function Landing() {
           <div className="lp-conteneur">
             <p className="lp-surtitre">{t("Tarifs")}</p>
             <h2>{t("Une offre pour chaque établissement")}</h2>
-            <div className="lp-offres">
-              {OFFRES.map((o) => (
-                <article key={o.nom} className={`lp-offre${o.recommande ? " lp-offre-recommandee" : ""}`}>
-                  {o.recommande && <span className="lp-offre-badge">{t("Recommandée")}</span>}
-                  <h3>{t(o.nom)}</h3>
-                  <p className="lp-offre-prix">{t(o.prix)}</p>
-                  <p className="lp-offre-sous">{t(o.sous)}</p>
-                  <ul className="lp-offre-liste">{o.inclus.map((x) => <li key={x}>{t(x)}</li>)}</ul>
-                  {o.exclus && <ul className="lp-offre-liste lp-offre-exclus">{o.exclus.map((x) => <li key={x}>{t(x)}</li>)}</ul>}
-                  {o.prix === "Gratuit" ? <Commencer className="lp-bouton lp-offre-bouton" libelle={o.cta} />
-                    : <a className={`lp-bouton lp-offre-bouton${o.recommande ? "" : " lp-bouton-blanc lp-bouton-contour"}`} href={`mailto:${EDITEUR.contact}?subject=${encodeURIComponent(`NexIA School — ${o.nom}`)}`}>{t(o.cta)}</a>}
-                </article>))}
+            <div className="lp-periodicite" role="group" aria-label={t("Période de paiement")}>
+              <button type="button" className={annuel ? "" : "actif"} aria-pressed={!annuel} onClick={() => setAnnuel(false)}>{t("Mensuel")}</button>
+              <button type="button" className={annuel ? "actif" : ""} aria-pressed={annuel} onClick={() => setAnnuel(true)}>{t("Annuel")} <span className="lp-economie">{t("2 mois offerts")}</span></button>
             </div>
+            <div className="lp-offres">
+              {OFFRES.map((o) => {
+                const gratuit = !o.mensuel
+                const prix = gratuit ? t("Gratuit") : fcfa(annuel ? o.mensuel * MOIS_FACTURES_PAR_AN : o.mensuel)
+                const sous = gratuit ? t(o.sous) : annuel ? t("par an, soit {v0} d'économie", { v0: fcfa(o.mensuel * (12 - MOIS_FACTURES_PAR_AN)) }) : t("par mois")
+                return (
+                  <article key={o.nom} className={`lp-offre${o.recommande ? " lp-offre-recommandee" : ""}`}>
+                    {o.recommande && <span className="lp-offre-badge">{t("Recommandée")}</span>}
+                    <h3>{t(o.nom)}</h3>
+                    <p className="lp-offre-prix">{prix}</p>
+                    <p className="lp-offre-sous">{sous}</p>
+                    <ul className="lp-offre-liste">{o.inclus.map((x) => <li key={x}>{t(x)}</li>)}</ul>
+                    {o.exclus && <ul className="lp-offre-liste lp-offre-exclus">{o.exclus.map((x) => <li key={x}>{t(x)}</li>)}</ul>}
+                    {gratuit ? <Commencer className="lp-bouton lp-offre-bouton" libelle={o.cta} />
+                      : <a className={`lp-bouton lp-offre-bouton${o.recommande ? "" : " lp-bouton-blanc lp-bouton-contour"}`}
+                           href={`mailto:${EDITEUR.contact}?subject=${encodeURIComponent(`NexIA School — ${o.nom} (${annuel ? "annuel" : "mensuel"})`)}`}>{t(o.cta)}</a>}
+                  </article>)
+              })}
+            </div>
+            <p className="lp-offres-note">{t("Prix en francs CFA. Changez d'offre à tout moment ; les données de l'établissement sont conservées.")}</p>
           </div>
         </section>
 
@@ -288,12 +287,12 @@ export default function Landing() {
         <section id="apropos" className="lp-section lp-section-teinte">
           <div className="lp-conteneur">
             <div className="lp-developpeur">
-              <div className="lp-avatar" aria-hidden="true">MA</div>
+              <img className="lp-avatar lp-avatar-photo" src={`${MEDIA}marvin-ahanda.webp`} alt="Marvin AHANDA" width="160" height="160" loading="lazy" decoding="async" />
               <div>
                 <p className="lp-surtitre">{t("À propos du développeur")}</p>
                 <h2>Marvin AHANDA</h2>
-                <p className="lp-developpeur-role">{t("Développeur et fondateur de NexIA School")}</p>
-                <p>{t("Passionné d'éducation et de numérique, j'ai d'abord créé Otourix, un logiciel de gestion des notes pour les établissements scolaires, avant de le réinventer en NexIA School : une plateforme en ligne, sécurisée et bilingue, pensée pour les écoles d'Afrique. Mon objectif : libérer les équipes des tâches répétitives pour qu'elles se consacrent à la réussite des élèves.")}</p>
+                <p className="lp-developpeur-role">{t("Ingénieur en systèmes multi-agents et automatisation IA · Fondateur de NexIA School")}</p>
+                <p>{t("Je suis Marvin Ahanda, ingénieur spécialisé dans la conception et le déploiement de systèmes multi-agents et d'automatisation IA. Fondateur de NexIA Automatisation et de NexIA Academy, j'accompagne les entreprises dans l'automatisation durable de leurs processus critiques. Également directeur technique de l'IA Challenge Inter-School 2026, j'œuvre activement pour faire évoluer l'écosystème éducatif et technologique africain de la simple consommation à la conception d'outils intelligents.")}</p>
                 <div className="lp-developpeur-liens">
                   <a className="lp-bouton" href="https://marvinahanda.netlify.app" target="_blank" rel="noopener noreferrer">{t("Voir mon portfolio")}</a>
                   <a className="lp-bouton lp-bouton-blanc" href={`mailto:${EDITEUR.contact}`}>{t("Me contacter")}</a>
