@@ -6,6 +6,9 @@ export const EDITEUR = {
   // VITE_SITE_PLATEFORME, le jour où NexIA School aura son propre nom de domaine.
   site: (import.meta.env.VITE_SITE_PLATEFORME || "https://nexiaschool.pages.dev").replace(/\/$/, ""),
   contact: import.meta.env.VITE_CONTACT_EMAIL || "contact@nexiaacademy.net",
+  // réseaux du développeur (page d'accueil : « Me contacter » et pied de page)
+  whatsapp: "https://wa.me/653724075",
+  linkedin: "https://www.linkedin.com/in/marvin-brice-ahanda?utm_source=share_via&utm_content=profile&utm_medium=member_android",
   pays: "Cameroun",
   miseAJour: "2026-11-06",
 }
