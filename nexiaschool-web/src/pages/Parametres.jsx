@@ -9,7 +9,7 @@ import { useSession } from "../Session.jsx"
 import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
 import { Cadenas, Verrou } from "../composants/Offre.jsx"
-import { NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
+import { LIBELLES_FONCTIONS, NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
 
 const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
 
@@ -49,9 +49,9 @@ export default function Parametres() {
 // --- Établissement ------------------------------------------------------------------------------------------
 /** Offre souscrite par l'établissement (attribuée par NexIA après paiement). */
 function OffreActuelle() {
-  const { etablissement, offre } = useSession()
+  const { etablissement, offre, offertes, aOffre } = useSession()
   const echue = offre !== etablissement.offre
-  const plafond = PLAFONDS[offre]
+  const plafond = aOffre("plafonds") ? null : PLAFONDS[offre]
   return (
     <div className={"card mb-3 carte-offre" + (echue ? " border-warning" : "")} data-offre={offre}><div className="card-body py-2 d-flex flex-wrap align-items-center gap-2">
       <span>{t("Offre actuelle :")}</span><span className="badge text-bg-primary fs-6">{t(NOMS_OFFRES[offre])}</span>
@@ -63,6 +63,8 @@ function OffreActuelle() {
         ? t("Jusqu'à {v0} élèves et {v1} comptes du personnel.", { v0: plafond.eleves, v1: plafond.personnels })
         : t("Jusqu'à {v0} élèves.", { v0: plafond.eleves })}</span>}
       <span className="small text-muted ms-auto">{t("Les rubriques marquées d'un cadenas sont comprises dans les offres supérieures.")}</span>
+      {offertes.length > 0 && <div className="w-100 small fonctions-offertes">🎁 <strong>{t("Offert par NexIA :")}</strong>{" "}
+        {offertes.map((f) => `${t(LIBELLES_FONCTIONS[f.fonction] || f.fonction)} (${f.fin ? t("jusqu'au {v0}", { v0: formatDate(f.fin) }) : t("sans limite de durée")})`).join(" · ")}</div>}
     </div></div>
   )
 }

@@ -2479,6 +2479,26 @@ Object.assign(EN, {
   "IA intégrée, clés API et connexion des assistants IA (MCP)": "Built-in AI, API keys and AI assistant connection (MCP)",
 })
 
+Object.assign(EN, {
+  // Fonctionnalités réglées par la plateforme, établissement par établissement
+  "Fonctionnalité momentanément désactivée": "Feature temporarily disabled",
+  "est momentanément désactivée pour votre établissement.": "is temporarily disabled for your school.",
+  "Pour la réactiver, écrivez à {v0}.": "To re-enable it, write to {v0}.",
+  "Nouvelles fonctionnalités pour votre établissement": "New features for your school",
+  "NexIA vous offre l'accès aux fonctionnalités suivantes :": "NexIA is giving you access to the following features:",
+  "sans limite de durée": "with no time limit",
+  "Profitez-en : à l'échéance, votre établissement retrouve simplement les fonctionnalités de son offre. Vos données sont conservées.": "Enjoy them: when the period ends, your school simply returns to the features of its plan. Your data is kept.",
+  "Découvrir": "Explore",
+  "Momentanément désactivée": "Temporarily disabled",
+  "Offert par NexIA :": "Offered by NexIA:",
+  "Saisie des notes": "Mark entry",
+  "Appel du jour (absences, retards)": "Daily roll call (absences, lateness)",
+  "Bulletins (édition et impression)": "Report cards (creation and printing)",
+  "Import et export Excel des élèves, classes et matières": "Excel import and export of students, classes and subjects",
+  "Effectifs illimités (élèves et personnel)": "Unlimited headcount (students and staff)",
+  "Cette fonctionnalité est momentanément désactivée pour votre établissement. Contactez NexIA pour la réactiver.": "This feature is temporarily disabled for your school. Contact NexIA to re-enable it.",
+})
+
 EN.__modeles = [
   [/^Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure \(offre (.+) ou plus\)\.$/, "To use this feature, please upgrade to a higher plan ($1 or above)."],
   [/^Votre offre (.+) est limitée à (\d+) élèves\. Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure\.$/, "Your $1 plan is limited to $2 students. To use this feature, please upgrade to a higher plan."],

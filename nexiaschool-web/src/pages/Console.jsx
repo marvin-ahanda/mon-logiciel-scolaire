@@ -9,7 +9,7 @@ import { comparerNoms, date, dateHeure } from "../lib/format.js"
 import { siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase } from "../supabase.js"
-import { NOMS_OFFRES, ORDRE_OFFRES } from "../lib/offres.js"
+import { LIBELLES_FONCTIONS, NOMS_OFFRES, ORDRE_OFFRES } from "../lib/offres.js"
 
 const LIMITE_STOCKAGE = 1024 ** 3, LIMITE_BASE = 500 * 1024 ** 2     // plan Free de Supabase
 const entier = new Intl.NumberFormat("fr-FR")
@@ -242,6 +242,7 @@ function FicheEtablissement() {
       </div>
 
       <OffreEtablissement id={e.id} nom={e.nom} onMessage={setMsg} />
+      <FonctionsEtablissement id={e.id} onMessage={setMsg} />
 
       <div className="card shadow-sm mb-3"><div className="card-body">
         <h3 className="h6">Personnel</h3>
@@ -331,6 +332,70 @@ function OffreEtablissement({ id, nom, onMessage }) {
         <div className="col-sm-3"><button className="btn btn-primary btn-sm w-100" disabled={envoi || !f}>{envoi ? "Enregistrement…" : "Attribuer l'offre"}</button></div>
       </form>
       <p className="small text-muted mb-0 mt-2">Sans date, l'offre n'expire pas. À l'échéance, l'établissement repasse en Découverte : ses données sont conservées, les fonctions avancées passent en lecture seule.</p>
+    </div></div>
+  )
+}
+
+/** Fonctionnalités de l'établissement, une à une : selon l'offre, activée ou désactivée jusqu'à une date (ou sans échéance).
+    L'offre souscrite n'est pas modifiée ; à l'échéance, l'établissement retrouve les droits de son offre.
+    Seules les activations de fonctionnalités hors offre sont annoncées aux administrateurs de l'établissement. */
+function FonctionsEtablissement({ id, onMessage }) {
+  const [liste, erreur, rafraichir] = useDonnees(() => rpc("console_fonctions", { p_id: id }), [id])
+  const [modifs, setModifs] = useState({}), [envoi, setEnvoi] = useState(false)
+  if (!liste) return <Alerte>{erreur}</Alerte>
+  const jour = (d) => (d ? new Date(d).toLocaleDateString("fr-CA") : "")              // AAAA-MM-JJ, heure locale
+  const dans = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return jour(d) }
+  const initial = (f) => { const d = f.derogation; return d && !d.echue ? { etat: d.active ? "active" : "desactive", fin: jour(d.fin) } : { etat: "offre", fin: "" } }
+  const valeur = (f) => modifs[f.fonction] || initial(f)
+  const changer = (f, v) => {
+    const n = { ...valeur(f), ...v }; if (n.etat === "offre") n.fin = ""
+    const i = initial(f), egal = n.etat === i.etat && n.fin === i.fin
+    setModifs((m) => { const c = { ...m }; if (egal) delete c[f.fonction]; else c[f.fonction] = n; return c })
+  }
+  const nb = Object.keys(modifs).length
+  async function appliquer() {
+    setEnvoi(true); onMessage({})
+    try {
+      const reglages = Object.entries(modifs).map(([fonction, v]) => ({ fonction, etat: v.etat, fin: v.fin ? new Date(v.fin + "T23:59:59").toISOString() : null }))
+      const r = await rpc("console_definir_fonctions", { p_id: id, p_reglages: reglages })
+      onMessage({ ok: `${r.appliques} réglage(s) appliqué(s).` + (r.notifies ? ` Les administrateurs de l'établissement ont été prévenus (${r.notifies} fonctionnalité(s) offerte(s)).` : " Aucune notification envoyée.") })
+      setModifs({}); rafraichir()
+    } catch (x) { onMessage({ erreur: x.message }) } finally { setEnvoi(false) }
+  }
+  return (
+    <div className="card shadow-sm mb-3 carte-fonctions-console"><div className="card-body">
+      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h3 className="h6 m-0">Fonctionnalités</h3>
+        <span className="small text-muted">Activez ou désactivez chaque fonctionnalité pour cet établissement, pour la durée de votre choix. L'offre souscrite ne change pas.</span>
+      </div>
+      <div className="table-responsive"><table className="table table-sm align-middle mb-2">
+        <thead><tr><th>Fonctionnalité</th><th>Dans l'offre</th><th style={{ minWidth: 170 }}>Réglage</th><th style={{ minWidth: 300 }}>Jusqu'au</th><th>Aujourd'hui</th></tr></thead>
+        <tbody>{liste.map((f) => {
+          const v = valeur(f), d = f.derogation, modifiee = !!modifs[f.fonction]
+          return (
+            <tr key={f.fonction} data-fonction={f.fonction} className={modifiee ? "table-warning" : undefined}>
+              <td>{LIBELLES_FONCTIONS[f.fonction]}</td>
+              <td className="small">{f.par_offre ? <span className="text-success">✓ comprise</span> : <span className="text-muted">dès l'offre {NOMS_OFFRES[f.requise]}</span>}</td>
+              <td><select className="form-select form-select-sm" aria-label={`Réglage — ${LIBELLES_FONCTIONS[f.fonction]}`} value={v.etat} onChange={(x) => changer(f, { etat: x.target.value })}>
+                <option value="offre">Selon l'offre</option><option value="active">Activée</option><option value="desactive">Désactivée</option></select></td>
+              <td><div className="d-flex gap-1 align-items-center">
+                <input type="date" className="form-control form-control-sm" style={{ maxWidth: 150 }} aria-label={`Échéance — ${LIBELLES_FONCTIONS[f.fonction]}`} min={dans(1)}
+                       value={v.fin} disabled={v.etat === "offre"} onChange={(x) => changer(f, { fin: x.target.value })} />
+                {v.etat !== "offre" && <>{[[7, "7 j"], [30, "30 j"], [90, "3 mois"]].map(([n, lib]) => (
+                  <button key={n} type="button" className="btn btn-outline-secondary btn-sm py-0" onClick={() => changer(f, { fin: dans(n) })}>{lib}</button>))}
+                  {!v.fin && <span className="small text-muted text-nowrap">sans échéance</span>}</>}
+              </div></td>
+              <td className="small">{f.effective ? <span className="badge text-bg-success">disponible</span> : <span className="badge text-bg-secondary">indisponible</span>}
+                {d && !d.echue && <div className="text-muted">{d.active ? "offerte" : "retirée"} {d.fin ? `jusqu'au ${date(d.fin)}` : "sans échéance"}</div>}
+                {d && d.echue && <div className="text-muted">réglage échu le {date(d.fin)}</div>}</td>
+            </tr>)
+        })}</tbody>
+      </table></div>
+      <div className="d-flex flex-wrap gap-2 align-items-center">
+        <button className="btn btn-primary btn-sm" disabled={!nb || envoi} onClick={appliquer}>{envoi ? "Application…" : `Appliquer les modifications${nb ? ` (${nb})` : ""}`}</button>
+        {nb > 0 && <button className="btn btn-outline-secondary btn-sm" disabled={envoi} onClick={() => setModifs({})}>Annuler</button>}
+        <span className="small text-muted">Une activation hors offre est annoncée aux administrateurs de l'établissement ; une désactivation s'applique aussitôt, sans notification.</span>
+      </div>
     </div></div>
   )
 }

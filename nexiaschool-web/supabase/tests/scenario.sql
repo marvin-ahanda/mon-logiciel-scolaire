@@ -353,4 +353,5 @@ reset role;
 \ir scenario_parents.sql
 \ir scenario_edt.sql
 \ir scenario_offres.sql
+\ir scenario_fonctions.sql
 \echo SCÉNARIO TERMINÉ

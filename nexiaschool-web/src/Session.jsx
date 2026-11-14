@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
 import { adresseLogo } from "./lib/logo.js"
-import { offreEffective, offreInclut } from "./lib/offres.js"
+import { droitEffectif, offreEffective } from "./lib/offres.js"
 import { sessionLocale, supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
@@ -20,6 +20,20 @@ async function compterMesMatieres(profil, exercice) {
     return n
   } catch {
     try { return Number(localStorage.getItem(cle)) || 0 } catch { return 0 }
+  }
+}
+
+/** Droits effectifs de l'établissement, fonction par fonction (offre + réglages de la plateforme), gardés sur l'appareil. */
+async function lireFonctions(etablissementId) {
+  const cle = `nexiaschool.fonctions.${etablissementId}`
+  try {
+    if (navigator.onLine === false) throw new Error("hors ligne")
+    const { data, error } = await supabase.rpc("mes_fonctions")
+    if (error || !data) throw error || new Error("vide")
+    try { localStorage.setItem(cle, JSON.stringify(data)) } catch { /* stockage indisponible */ }
+    return data
+  } catch {
+    try { return JSON.parse(localStorage.getItem(cle) || "null") } catch { return null }
   }
 }
 
@@ -49,12 +63,13 @@ export function SessionProvider({ children }) {
         return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
       }
       const etablissement = verifier(await supabase.from("etablissements").select(COLONNES_ETABLISSEMENT).eq("id", profil.etablissement_id).single())
-      const [exercice, logoUrl] = await Promise.all([
+      const [exercice, logoUrl, fonctions] = await Promise.all([
         supabase.from("exercices").select("*").eq("actif", true).maybeSingle().then(verifier),
         adresseLogo(etablissement.logo),
+        lireFonctions(etablissement.id),
       ])
       const mesMatieres = await compterMesMatieres(profil, exercice)
-      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire, mesMatieres })
+      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire, mesMatieres, fonctions })
     } catch (e) {
       console.error("NexIASchool : chargement du profil impossible", e)
       setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: e?.message || "erreur" })
@@ -78,8 +93,9 @@ export function SessionProvider({ children }) {
 
   const role = etat.profil?.role
   const offre = offreEffective(etat.etablissement)
-  const aOffre = (fonction) => offreInclut(offre, fonction)
-  const valeur = { ...etat, recharger, offre, aOffre, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
+  const aOffre = (fonction) => droitEffectif(etat.fonctions, offre, fonction)
+  const offertes = etat.fonctions?.__offertes || []                      // fonctions offertes en plus de l'offre (avec échéance)
+  const valeur = { ...etat, recharger, offre, aOffre, offertes, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
                    peutDiscipline: role === "admin" || role === "surveillant",
                    // rubrique Notes (saisie, résultats, bulletins selon le rôle) : tout le personnel ; chacun ne saisit que les matières qui lui sont confiées
                    peutNoter: ["admin", "enseignant", "surveillant", "comptable"].includes(role),

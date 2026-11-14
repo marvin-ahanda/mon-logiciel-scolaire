@@ -2,7 +2,9 @@
 // à une offre supérieure. La fenêtre est unique (MiseEnPage) et s'ouvre de n'importe où avec demanderOffre(fonction).
 import { useEffect, useRef, useState } from "react"
 import { EDITEUR } from "../lib/editeur.js"
-import { LIBELLES_FONCTIONS, NOMS_OFFRES, OFFRE_REQUISE } from "../lib/offres.js"
+import { LIBELLES_FONCTIONS, NOMS_OFFRES, OFFRE_REQUISE, offreInclut } from "../lib/offres.js"
+import { rpc } from "../supabase.js"
+import { date as formatDate } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
 import { t } from "../i18n.jsx"
 
@@ -36,6 +38,7 @@ export function FenetreOffre() {
   }, [fonction])
   if (!fonction) return null
   const requise = OFFRE_REQUISE[fonction] || "premium"
+  if (offreInclut(offre, fonction)) return <FenetreDesactivee fonction={fonction} estAdmin={estAdmin} fermer={() => setFonction(null)} bouton={bouton} />
   const sujet = t("Passer à l'offre {v0} — {v1}", { v0: t(NOMS_OFFRES[requise]), v1: etablissement?.nom || "" })
   const mail = `mailto:${EDITEUR.contact}?subject=${encodeURIComponent(sujet)}`
   return (
@@ -67,11 +70,72 @@ export function FenetreOffre() {
   )
 }
 
+/** Fonction comprise dans l'offre mais retirée par la plateforme : pas d'invitation à changer d'offre. */
+function FenetreDesactivee({ fonction, estAdmin, fermer, bouton }) {
+  return (
+    <>
+      <div className="modal d-block fenetre-offre" tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby="titre-offre" aria-describedby="texte-offre"
+           onClick={(e) => e.target === e.currentTarget && fermer()}>
+        <div className="modal-dialog modal-dialog-centered"><div className="modal-content">
+          <div className="modal-header">
+            <h2 className="modal-title h5" id="titre-offre"><Cadenas /> {t("Fonctionnalité momentanément désactivée")}</h2>
+            <button type="button" className="btn-close" aria-label={t("Fermer")} onClick={fermer} />
+          </div>
+          <div className="modal-body">
+            <p className="mb-2" id="texte-offre"><strong>{t(LIBELLES_FONCTIONS[fonction] || "Fonction avancée")}</strong>{" "}
+              {t("est momentanément désactivée pour votre établissement.")}</p>
+            <p className="text-muted small mb-0">{estAdmin ? t("Pour la réactiver, écrivez à {v0}.", { v0: EDITEUR.contact }) : t("Parlez-en à l'administration de votre établissement.")}</p>
+          </div>
+          <div className="modal-footer"><button ref={bouton} type="button" className="btn btn-primary" onClick={fermer}>{t("J'ai compris")}</button></div>
+        </div></div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>
+  )
+}
+
+/** Administration : fonctionnalités offertes par la plateforme (annonce affichée une fois, jusqu'à lecture). */
+export function FonctionsOffertes() {
+  const { estAdmin, recharger } = useSession()
+  const [notes, setNotes] = useState([])
+  useEffect(() => {
+    if (!estAdmin || navigator.onLine === false) return
+    let actif = true
+    rpc("notifications_offre_non_lues").then((l) => { if (actif && Array.isArray(l)) setNotes(l) }).catch(() => {})
+    return () => { actif = false }
+  }, [estAdmin])
+  if (!notes.length) return null
+  const fonctions = notes.flatMap((n) => n.fonctions)
+  async function compris() {
+    const ids = notes.map((n) => n.id); setNotes([])
+    await Promise.all(ids.map((id) => rpc("notification_offre_lue", { p_id: id }).catch(() => {})))
+    recharger()
+  }
+  return (
+    <>
+      <div className="modal d-block fenetre-offre fenetre-offertes" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="titre-offertes">
+        <div className="modal-dialog modal-dialog-centered"><div className="modal-content">
+          <div className="modal-header"><h2 className="modal-title h5" id="titre-offertes">🎁 {t("Nouvelles fonctionnalités pour votre établissement")}</h2></div>
+          <div className="modal-body">
+            <p>{t("NexIA vous offre l'accès aux fonctionnalités suivantes :")}</p>
+            <ul className="mb-3">{fonctions.map((f, i) => (
+              <li key={f.fonction + i} className="mb-1"><strong>{t(LIBELLES_FONCTIONS[f.fonction] || f.fonction)}</strong>
+                <span className="text-muted"> — {f.fin ? t("jusqu'au {v0}", { v0: formatDate(f.fin) }) : t("sans limite de durée")}</span></li>))}</ul>
+            <p className="small text-muted mb-0">{t("Profitez-en : à l'échéance, votre établissement retrouve simplement les fonctionnalités de son offre. Vos données sont conservées.")}</p>
+          </div>
+          <div className="modal-footer"><button type="button" className="btn btn-primary" onClick={compris}>{t("Découvrir")}</button></div>
+        </div></div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>
+  )
+}
+
 /** Contenu réservé : affiché flouté, inutilisable ; un clic ouvre l'invitation à changer d'offre. */
 export function Verrou({ fonction, children, compact = false }) {
   const { aOffre, offre } = useSession()
   if (aOffre(fonction)) return children
-  const requise = OFFRE_REQUISE[fonction] || "premium"
+  const requise = OFFRE_REQUISE[fonction] || "premium", desactivee = offreInclut(offre, fonction)
   return (
     <div className={"verrou-offre" + (compact ? " compact" : "")} data-fonction={fonction}>
       <div className="verrou-contenu" aria-hidden="true" inert>{children}</div>
@@ -79,8 +143,8 @@ export function Verrou({ fonction, children, compact = false }) {
               aria-label={t("Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure.")}>
         <span className="verrou-carte">
           <Cadenas />
-          <span className="fw-semibold">{t("Offre {v0}", { v0: t(NOMS_OFFRES[requise]) })}</span>
-          {!compact && <span className="small text-muted d-block">{t("Votre offre actuelle : {v0}. Cliquez pour en savoir plus.", { v0: t(NOMS_OFFRES[offre]) })}</span>}
+          <span className="fw-semibold">{desactivee ? t("Momentanément désactivée") : t("Offre {v0}", { v0: t(NOMS_OFFRES[requise]) })}</span>
+          {!compact && !desactivee && <span className="small text-muted d-block">{t("Votre offre actuelle : {v0}. Cliquez pour en savoir plus.", { v0: t(NOMS_OFFRES[offre]) })}</span>}
         </span>
       </button>
     </div>

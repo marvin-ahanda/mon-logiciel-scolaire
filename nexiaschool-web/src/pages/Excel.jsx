@@ -164,7 +164,7 @@ const LISTES_LIBRES = ["eleves", "classes", "matieres"]
 
 function CarteListe({ cle, ref_, annee, onMaj }) {
   const { exercice, estAdmin, profil, recharger, aOffre } = useSession()
-  const verrou = !LISTES_LIBRES.includes(cle) && !aOffre("excel")
+  const fonctionListe = LISTES_LIBRES.includes(cle) ? "excel_base" : "excel", verrou = !aOffre(fonctionListe)
   const [analyse, setAnalyse] = useState(null), [bilan, setBilan] = useState(null), [msg, setMsg] = useState({})
   const [occupe, setOccupe] = useState(""), [progression, setProgression] = useState(0)
   const [classeId, setClasseId] = useState(""), [code, setCode] = useState(""), [sequence, setSequence] = useState("")
@@ -246,7 +246,7 @@ function CarteListe({ cle, ref_, annee, onMaj }) {
   )
   return (
     <div className="col-xl-6">
-      {verrou ? <Verrou fonction="excel">{carte}</Verrou> : carte}
+      {verrou ? <Verrou fonction={fonctionListe}>{carte}</Verrou> : carte}
       {analyse && <Validation cle={cle} analyse={analyse} envoi={occupe === "envoi"} progression={progression} onValider={valider} onFermer={() => setAnalyse(null)} />}
     </div>
   )

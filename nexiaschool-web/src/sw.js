@@ -25,7 +25,7 @@ const MAX_DONNEES = 600, MAX_IMAGES = 400
 // Lectures par fonctions (POST) sans aucun effet sur les données : elles peuvent être gardées pour l'usage hors ligne
 const RPC_LECTURE = new Set(["edt_lire", "edt_versions", "edt_brouillon_lire", "smarteval_detail", "smarteval_contexte", "smarteval_liste",
   "smarteval_journal", "smarteval_notifications", "notes_retards", "discipline_alertes", "moratoires_actifs", "mon_compte", "finance_eleves",
-  "finance_alertes", "courrier_liste", "courrier_notifications"])
+  "finance_alertes", "courrier_liste", "courrier_notifications", "mes_fonctions"])
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(APP).then((c) => c.addAll(ESSENTIELS)).then(() => self.skipWaiting()))

@@ -13,7 +13,7 @@ import { Chargement, LimiteChargement } from "./Communs.jsx"
 import EtatConnexion, { PastilleConnexion, useEtatConnexion } from "./EtatConnexion.jsx"
 import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
-import { Cadenas, demanderOffre, FenetreOffre, Verrou } from "./Offre.jsx"
+import { Cadenas, demanderOffre, FenetreOffre, FonctionsOffertes, Verrou } from "./Offre.jsx"
 import { fonctionDuChemin } from "../lib/offres.js"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
@@ -146,6 +146,7 @@ export default function MiseEnPage() {
         <LimiteChargement key={pathname}><Suspense fallback={<Chargement />}>{fonctionPage && !aOffre(fonctionPage) ? <Verrou fonction={fonctionPage}><Outlet /></Verrou> : <Outlet />}</Suspense></LimiteChargement>
       </main>
       <FenetreOffre />
+      <FonctionsOffertes />
       {exercice && (
         <div className="bulles-alertes no-print">
           <AlerteSmartEval />

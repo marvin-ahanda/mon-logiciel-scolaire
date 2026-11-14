@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { fonctionDuChemin, offreEffective, offreInclut, OFFRE_REQUISE, LIBELLES_FONCTIONS } from "./offres.js"
+import { droitEffectif, FONCTIONS, fonctionDuChemin, offreEffective, offreInclut, OFFRE_REQUISE, LIBELLES_FONCTIONS } from "./offres.js"
 
 describe("offres", () => {
   it("chaque offre ouvre ses fonctions et celles des offres inférieures", () => {
@@ -20,11 +20,20 @@ describe("offres", () => {
   })
   it("rubriques réservées d'après l'adresse", () => {
     expect(fonctionDuChemin("/finance/paiements")).toBe("finances")
-    expect(fonctionDuChemin("/discipline/appel")).toBe(null)
+    expect(fonctionDuChemin("/discipline/appel")).toBe("appel")
+    expect(fonctionDuChemin("/notes/saisie")).toBe("notes")
+    expect(fonctionDuChemin("/notes/resultats")).toBe(null)
     expect(fonctionDuChemin("/discipline/suivi")).toBe("discipline")
     expect(fonctionDuChemin("/smarteval/nouvelle")).toBe("smarteval")
     expect(fonctionDuChemin("/financement")).toBe(null)
     expect(fonctionDuChemin("/")).toBe(null)
+  })
+  it("droits effectifs : le réglage de la plateforme l'emporte sur l'offre", () => {
+    expect(droitEffectif({ smarteval: true }, "decouverte", "smarteval")).toBe(true)
+    expect(droitEffectif({ notes: false }, "premium", "notes")).toBe(false)
+    expect(droitEffectif(null, "decouverte", "notes")).toBe(true)          // hors ligne, jamais lu : l'offre décide
+    expect(droitEffectif({}, "decouverte", "ia")).toBe(false)
+    expect(FONCTIONS.every((f) => OFFRE_REQUISE[f])).toBe(true)
   })
   it("chaque fonction a un libellé", () => {
     for (const f of Object.keys(OFFRE_REQUISE)) expect(LIBELLES_FONCTIONS[f]).toBeTruthy()

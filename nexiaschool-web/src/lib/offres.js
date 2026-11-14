@@ -5,8 +5,11 @@
 export const ORDRE_OFFRES = ["decouverte", "essentiel", "pro", "premium"]
 export const NOMS_OFFRES = { decouverte: "Découverte", essentiel: "Essentiel", pro: "Pro", premium: "Premium" }
 
-/** Offre minimale de chaque fonction avancée. */
+/** Offre minimale de chaque fonction (les fonctions de base sont comprises dans toutes les offres). Même table que la base
+ *  (offre_requise, migrations 0028 et 0029). Le propriétaire de la plateforme peut, établissement par établissement, activer
+ *  ou désactiver chacune pour une durée choisie (console) : l'application lit alors les droits effectifs (mes_fonctions). */
 export const OFFRE_REQUISE = {
+  notes: "decouverte", appel: "decouverte", bulletins: "decouverte", excel_base: "decouverte", plafonds: "pro",
   discipline: "essentiel", finances: "essentiel", decisions: "essentiel", qr: "essentiel", excel: "essentiel",
   smarteval: "pro", edt: "pro", parents: "pro", statistiques: "pro",
   ia: "premium",
@@ -14,6 +17,11 @@ export const OFFRE_REQUISE = {
 
 /** Libellé de chaque fonction (fenêtre « passer à une offre supérieure »). */
 export const LIBELLES_FONCTIONS = {
+  notes: "Saisie des notes",
+  appel: "Appel du jour (absences, retards)",
+  bulletins: "Bulletins (édition et impression)",
+  excel_base: "Import et export Excel des élèves, classes et matières",
+  plafonds: "Effectifs illimités (élèves et personnel)",
   discipline: "Discipline complète (infractions, suivi, seuils et alertes)",
   finances: "Finances (frais, paiements, reçus, retards, moratoires)",
   decisions: "Décisions de fin de période",
@@ -28,6 +36,7 @@ export const LIBELLES_FONCTIONS = {
 
 /** Rubriques de l'application réservées à une fonction (le chemin le plus précis l'emporte). */
 const RUBRIQUES = [
+  ["/notes/saisie", "notes"], ["/notes/bulletins", "bulletins"], ["/discipline/appel", "appel"],
   ["/discipline/infractions", "discipline"], ["/discipline/suivi", "discipline"], ["/discipline/alertes", "discipline"],
   ["/finance", "finances"], ["/courrier", "parents"], ["/smarteval", "smarteval"], ["/emploi-du-temps", "edt"],
   ["/statistiques", "statistiques"], ["/notes/retards", "statistiques"], ["/developpeur", "ia"],
@@ -56,3 +65,13 @@ export function fonctionDuChemin(chemin) {
 
 /** Plafonds d'effectifs (null = illimité). */
 export const PLAFONDS = { decouverte: { eleves: 50, personnels: 10 }, essentiel: { eleves: 500, personnels: null } }
+
+/** Toutes les fonctionnalités réglables, dans l'ordre d'affichage de la console. */
+export const FONCTIONS = ["notes", "appel", "bulletins", "excel_base", "plafonds", "discipline", "finances", "decisions", "qr", "excel",
+  "smarteval", "edt", "parents", "statistiques", "ia"]
+
+/** Droit effectif : celui lu sur le serveur (dérogations comprises) s'il est connu, sinon celui de l'offre. */
+export function droitEffectif(fonctions, offre, fonction) {
+  const v = fonctions?.[fonction]
+  return typeof v === "boolean" ? v : offreInclut(offre, fonction)
+}
