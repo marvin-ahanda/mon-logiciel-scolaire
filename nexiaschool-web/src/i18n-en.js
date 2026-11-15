@@ -2545,6 +2545,43 @@ Object.assign(EN, {
   "Tout est envoyé": "Everything sent",
 })
 
+// Page d'accueil (refonte épurée)
+Object.assign(EN, {
+  "Créer mon établissement": "Create my school",
+  "Essai gratuit": "Free trial",
+  "Gratuit jusqu'à 50 élèves": "Free up to 50 students",
+  "Prêt en 2 minutes · sans installation": "Ready in 2 minutes · nothing to install",
+  "Tout ce dont votre établissement a besoin, au même endroit": "Everything your school needs, in one place",
+  "Notes et bulletins": "Marks and report cards",
+  "Emplois du temps": "Timetables",
+  "Avantages": "Benefits",
+  "Moins d'administratif, plus de pédagogie": "Less paperwork, more teaching",
+  "Moins de tâches répétitives": "Fewer repetitive tasks",
+  "Moyennes, rangs, bulletins et emplois du temps se calculent tout seuls. Vos équipes passent moins de temps sur les calculs et la recopie.":
+    "Averages, rankings, report cards and timetables are computed for you. Your staff spend less time on calculations and copying.",
+  "Les difficultés repérées à temps": "Learning gaps caught early",
+  "SmartEval corrige les évaluations en ligne et montre les notions non acquises, élève par élève, avant le devoir sur table.":
+    "SmartEval marks online assessments and shows which skills are not yet mastered, student by student, before the written test.",
+  "Toute l'école au même endroit": "The whole school in one place",
+  "Notes, discipline, finances, parents et courrier réunis, sur ordinateur comme sur téléphone, même quand la connexion coupe.":
+    "Marks, discipline, finances, parents and mail together, on computer and phone, even when the connection drops.",
+  "Démo": "Demo",
+  "Voyez NexIA School en deux minutes": "See NexIA School in two minutes",
+  "Démarrer": "Get started",
+  "Opérationnel le jour même, en trois étapes": "Up and running the same day, in three steps",
+  "Créez l'espace de l'établissement": "Create your school's space",
+  "Avec votre compte Google, en deux minutes. Sans installation.": "With your Google account, in two minutes. Nothing to install.",
+  "Élèves, classes, matières et personnel : rien à ressaisir, même si le fichier est imparfait.":
+    "Students, classes, subjects and staff: nothing to retype, even if the file is imperfect.",
+  "Votre équipe se connecte": "Your team signs in",
+  "Chacun reçoit son code et retrouve ses classes : notes, appel et bulletins dès le premier jour.":
+    "Everyone gets their code and finds their classes: marks, roll call and report cards from day one.",
+  "Une autre question ?": "Another question?",
+  "Écrivez-nous sur WhatsApp": "Message us on WhatsApp",
+  "Prêt à libérer votre établissement ?": "Ready to free up your school?",
+  "Conçu par": "Designed by",
+})
+
 EN.__modeles = [
   [/^Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure \(offre (.+) ou plus\)\.$/, "To use this feature, please upgrade to a higher plan ($1 or above)."],
   [/^Votre offre (.+) est limitée à (\d+) élèves\. Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure\.$/, "Your $1 plan is limited to $2 students. To use this feature, please upgrade to a higher plan."],
