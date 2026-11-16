@@ -120,7 +120,10 @@ async function webhook(req) {
   if (!SECRET_WEBHOOK) throw new Erreur("Webhook non configuré.", 503)
   const corps = await req.text()
   const recue = (req.headers.get("x-webhook-signature") || "").trim().toLowerCase()
-  if (!recue || !egal(recue, await hmacHex(SECRET_WEBHOOK, corps))) throw new Erreur("Signature invalide.", 401)
+  const horodatage = (req.headers.get("x-webhook-timestamp") || "").trim()
+  // SasPay signe « horodatage.corps » (HMAC-SHA256 en hexadécimal) et date chaque tentative : refus au-delà de 5 minutes d'écart
+  if (!/^\d{9,12}$/.test(horodatage) || Math.abs(Date.now() / 1000 - Number(horodatage)) > 300) throw new Erreur("Horodatage hors tolérance.", 401)
+  if (!recue || !egal(recue, await hmacHex(SECRET_WEBHOOK, `${horodatage}.${corps}`))) throw new Erreur("Signature invalide.", 401)
   // le contenu ne fait pas foi : on revérifie auprès de SasPay les paiements en attente
   return { recu: true, paiements: await verifierAttente(null, null) }
 }
