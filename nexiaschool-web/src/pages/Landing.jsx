@@ -6,7 +6,7 @@ import { Link } from "react-router-dom"
 import "@fontsource-variable/inter"
 import { ChoixLangue, t } from "../i18n.jsx"
 import { EDITEUR } from "../lib/editeur.js"
-import { connexionGoogle } from "../supabase.js"
+import { connexionGoogle, rpc } from "../supabase.js"
 import "../accueil.css"
 
 const MEDIA = `${import.meta.env.BASE_URL}media/`
@@ -82,16 +82,17 @@ const ETAPES = [
 ]
 
 // --- Tarifs (en FCFA) : paiement mensuel, ou annuel avec 2 mois offerts (10 mois facturés au lieu de 12) ---------------------------
+// Les prix font foi en base (table tarifs, lue par tarifs_offres) ; les valeurs ci-dessous ne servent qu'en attendant la réponse.
 const MOIS_FACTURES_PAR_AN = 10
 const OFFRES = [
   { nom: "Découverte", mensuel: 0, sous: "pour tester sans engagement",
     inclus: ["1 établissement, jusqu'à 50 élèves", "Personnel : jusqu'à 10 comptes", "Import Excel des élèves, classes et matières", "Saisie des notes, moyennes et rangs", "Bulletins PDF (sans QR code anti-fraude)", "Appel du jour", "Mode hors ligne"],
     cta: "Commencer gratuitement" },
-  { nom: "Essentiel", mensuel: 30000,
+  { nom: "Essentiel", code: "essentiel", mensuel: 100,
     inclus: ["Jusqu'à 500 élèves, personnel illimité", "Tout Découverte", "Bulletins avec QR code anti-fraude et décisions de fin de période", "Discipline complète et alertes", "Finances : frais, reçus, retards, moratoires", "Import et export Excel complets"], cta: "Choisir Essentiel" },
-  { nom: "Pro", mensuel: 55000, recommande: true,
+  { nom: "Pro", code: "pro", mensuel: 150, recommande: true,
     inclus: ["Élèves illimités", "Tout Essentiel", "SmartEval : évaluation digitalisée et correction automatique", "Génération automatique des emplois du temps", "Espace parents et courrier", "Statistiques avancées et alertes de retard de saisie"], cta: "Choisir Pro" },
-  { nom: "Premium", mensuel: 80000,
+  { nom: "Premium", code: "premium", mensuel: 200,
     inclus: ["Tout Pro", "IA intégrée : analyse des évaluations et remédiation", "Connexion de vos assistants IA (API et MCP)", "Accompagnement au démarrage et formation de l'équipe", "Assistance prioritaire"], cta: "Choisir Premium" },
 ]
 const fcfa = (n) => `${new Intl.NumberFormat("fr-FR").format(n).replace(/\s/g, " ")} FCFA`
@@ -118,6 +119,10 @@ export default function Landing() {
   const [menu, setMenu] = useState(false)
   const [annuel, setAnnuel] = useState(false)
   const [actif, setActif] = useState("#avantages")
+  const [tarifs, setTarifs] = useState({})       // { pro: { mensuel, annuel }, … } lus en base
+  useEffect(() => {
+    rpc("tarifs_offres").then((l) => setTarifs(Object.fromEntries((l || []).map((x) => [x.offre, x])))).catch(() => {})
+  }, [])
   useEffect(() => { document.title = t("NexIA School — Libérez votre établissement des tâches chronophages") }, [])
   useEffect(() => {                       // menu : la section visible est mise en avant (comme l'onglet blanc du modèle)
     const obs = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActif("#" + e.target.id)), { rootMargin: "-45% 0px -50% 0px" })
@@ -220,9 +225,10 @@ export default function Landing() {
             </div>
             <div className="ac-offres">
               {OFFRES.map((o) => {
-                const gratuit = !o.mensuel
-                const prix = gratuit ? t("Gratuit") : fcfa(annuel ? o.mensuel * MOIS_FACTURES_PAR_AN : o.mensuel)
-                const sous = gratuit ? t(o.sous) : annuel ? t("par an, soit {v0} d'économie", { v0: fcfa(o.mensuel * (12 - MOIS_FACTURES_PAR_AN)) }) : t("par mois")
+                const gratuit = !o.mensuel, b = tarifs[o.code]
+                const mensuel = b?.mensuel ?? o.mensuel, parAn = b?.annuel ?? mensuel * MOIS_FACTURES_PAR_AN
+                const prix = gratuit ? t("Gratuit") : fcfa(annuel ? parAn : mensuel)
+                const sous = gratuit ? t(o.sous) : annuel ? t("par an, soit {v0} d'économie", { v0: fcfa(mensuel * 12 - parAn) }) : t("par mois")
                 return (
                   <article key={o.nom} className={`ac-offre${o.recommande ? " ac-offre-phare" : ""}`}>
                     <div className="ac-offre-tete"><h3>{t(o.nom)}</h3>{o.recommande && <span className="ac-badge">{t("Recommandée")}</span>}</div>
