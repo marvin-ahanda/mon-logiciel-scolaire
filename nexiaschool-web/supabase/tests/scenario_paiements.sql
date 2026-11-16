@@ -43,3 +43,33 @@ select public._paiement_echec((select id from public.paiements_abonnement where 
 select pg_temp.verifier((select statut from public.paiements_abonnement where montant = 2000 limit 1) = 'annule', 'paiements : paiement annulé enregistré');
 -- remet l'établissement des offres en Découverte pour la suite
 update public.etablissements set offre = 'decouverte', offre_expire_le = null where id = :'etab_p';
+
+-- Reçus : numéro unique et continu, reçu consultable par l'administrateur de l'établissement seulement
+reset role;
+insert into public.paiements_abonnement (etablissement_id, offre, periode, montant, demande_par)
+  select etablissement_id, 'essentiel', 'mensuel', 100, id from public.personnels where id = :'admin_o' returning id as pair1 \gset
+select public._paiement_valider(:'pair1', 'tx-recu1', 100) \g /dev/null
+insert into public.paiements_abonnement (etablissement_id, offre, periode, montant, demande_par)
+  select etablissement_id, 'essentiel', 'mensuel', 100, id from public.personnels where id = :'admin_o' returning id as pair2 \gset
+select public._paiement_valider(:'pair2', 'tx-recu2', 100) \g /dev/null
+select pg_temp.verifier((select numero_recu ~ '^NXS-[0-9]{4}-[0-9]{6}$' from public.paiements_abonnement where id = :'pair1'), 'reçus : numéro de la forme NXS-AAAA-000001');
+select pg_temp.verifier((select b.numero_recu > a.numero_recu from public.paiements_abonnement a, public.paiements_abonnement b where a.id = :'pair1' and b.id = :'pair2'),
+  'reçus : numéros croissants, sans doublon');
+select pg_temp.verifier((select count(*) from public.paiements_abonnement where statut = 'paye' and numero_recu is null) = 0, 'reçus : tout paiement validé a un numéro');
+select pg_temp.verifier(public._paiement_valider(:'pair1', 'tx-recu1', 100)->>'numero_recu' = (select numero_recu from public.paiements_abonnement where id = :'pair1'),
+  'reçus : revalider un paiement ne change pas son numéro');
+set role authenticated;
+select set_config('request.jwt.claims', '{"app_metadata": {"provider": "google"}}', false) \g /dev/null
+select set_config('request.jwt.claim.sub', :'admin_o', false) \g /dev/null
+select pg_temp.verifier(public.recu_paiement(:'pair1')->>'numero' = (select numero_recu from public.paiements_abonnement where id = :'pair1')
+  and (public.recu_paiement(:'pair1')->>'montant')::int = 100 and public.recu_paiement(:'pair1')->'etablissement'->>'nom' = 'École des offres',
+  'reçus : l''administrateur obtient le contenu de son reçu');
+select pg_temp.verifier((select bool_and(p->>'numero_recu' is not null) from jsonb_array_elements(public.mon_abonnement()->'paiements') p where p->>'statut' = 'paye'),
+  'reçus : numéros visibles dans l''historique');
+do $$ begin perform public._recu_a_envoyer(gen_random_uuid()); raise exception 'ÉCHEC : données d''envoi lisibles depuis le navigateur';
+exception when insufficient_privilege then raise notice 'ok : reçus : préparation de l''e-mail réservée au serveur'; end $$;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+do $$ begin perform public.recu_paiement((select id from public.paiements_abonnement where numero_recu is not null limit 1)); raise exception 'ÉCHEC : reçu d''un autre établissement';
+exception when sqlstate 'P0001' or insufficient_privilege then if sqlerrm like 'ÉCHEC%' then raise; end if; raise notice 'ok : reçus : le reçu d''un autre établissement est refusé'; end $$;
+reset role;
+update public.etablissements set offre = 'decouverte', offre_expire_le = null where id = (select etablissement_id from public.personnels where id = :'admin_o');

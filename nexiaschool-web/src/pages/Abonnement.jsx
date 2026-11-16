@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { date, dateHeure } from "../lib/format.js"
 import { NOMS_OFFRES } from "../lib/offres.js"
+import { recuPdf } from "../lib/recuPdf.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase } from "../supabase.js"
 import { locale, t } from "../i18n.jsx"
@@ -60,6 +61,11 @@ export default function Abonnement() {
   const jours = expire ? Math.ceil((expire - Date.now()) / 86400000) : null
   const renouvellement = actif && a.offre === choix.offre
 
+  const telechargerRecu = async (id) => {
+    setMsg({})
+    try { await recuPdf(await rpc("recu_paiement", { p_id: id })) } catch (e) { setMsg({ erreur: e.message }) }
+  }
+
   const payer = async () => {
     setOccupe(true); setMsg({})
     try {
@@ -112,17 +118,20 @@ export default function Abonnement() {
         <p className="small text-muted mt-3 mb-0">
           {renouvellement ? t("Renouvellement : la nouvelle période s'ajoute à la date d'échéance actuelle, sans perdre de jours.")
                           : t("La nouvelle offre est active dès la confirmation du paiement, pour la période choisie.")}{" "}
-          {t("Paiement sécurisé par SasPay (mobile money ou carte) : vous êtes redirigé vers sa page de paiement, puis ramené ici.")}</p>
+          {t("Paiement sécurisé par SasPay (mobile money ou carte) : vous êtes redirigé vers sa page de paiement, puis ramené ici.")}{" "}
+          {t("Un reçu est envoyé par e-mail à chaque paiement et reste téléchargeable ci-dessous.")}</p>
       </div></div>
 
       <h2 className="h5">{t("Historique des paiements")}</h2>
       {!a.paiements.length ? <p className="text-muted">{t("Aucun paiement pour le moment.")}</p> : (
         <div className="table-responsive"><table className="table table-sm align-middle">
-          <thead><tr><th>{t("Date")}</th><th>{t("Offre")}</th><th>{t("Période")}</th><th className="text-end">{t("Montant")}</th><th>{t("Statut")}</th><th>{t("Valable jusqu'au")}</th></tr></thead>
+          <thead><tr><th>{t("Date")}</th><th>{t("Offre")}</th><th>{t("Période")}</th><th className="text-end">{t("Montant")}</th><th>{t("Statut")}</th><th>{t("Valable jusqu'au")}</th><th>{t("Reçu")}</th></tr></thead>
           <tbody>{a.paiements.map((p) => {
             const [lib, coul] = STATUTS[p.statut] || [p.statut, "secondary"]
             return <tr key={p.id}><td>{dateHeure(p.cree_le)}</td><td>{t(NOMS_OFFRES[p.offre])}</td><td>{t(p.periode === "annuel" ? "1 an" : "1 mois")}</td>
-              <td className="text-end">{fcfa(p.montant)}</td><td><span className={`badge text-bg-${coul}`}>{t(lib)}</span></td><td>{p.fin ? date(p.fin) : "—"}</td></tr>
+              <td className="text-end">{fcfa(p.montant)}</td><td><span className={`badge text-bg-${coul}`}>{t(lib)}</span></td><td>{p.fin ? date(p.fin) : "—"}</td>
+              <td>{p.numero_recu ? <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => telechargerRecu(p.id)}
+                aria-label={t("Télécharger le reçu {v0}", { v0: p.numero_recu })}>{t("Télécharger")}</button> : "—"}</td></tr>
           })}</tbody>
         </table></div>)}
     </div>

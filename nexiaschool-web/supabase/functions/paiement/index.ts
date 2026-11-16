@@ -6,6 +6,9 @@
 // Le montant est fixé en base (paiement_preparer) et un paiement n'est validé qu'après vérification auprès de l'API
 // SasPay (statut PAYÉ + montant + devise) : ni le navigateur ni le contenu d'un webhook ne suffisent à activer une offre.
 // Secrets (Supabase → Edge Functions → Secrets) : SASPAY_SECRET_KEY (sk_test_… ou sk_live_…), SASPAY_WEBHOOK_SECRET.
+// Reçu par e-mail à chaque paiement validé (service Resend) : RESEND_API_KEY, et facultativement RECU_EXPEDITEUR
+// (défaut « NexIA School <contact@nexiaschool.com> », adresse dont le domaine doit être vérifié chez Resend). Sans clé : pas d'e-mail,
+// le reçu reste téléchargeable en PDF depuis la page Abonnement.
 const env = (k) => (globalThis.Deno ? globalThis.Deno.env.get(k) : globalThis.process?.env?.[k])
 const URL_SUPABASE = env("SUPABASE_URL")
 const CLE_PUBLIQUE = env("SUPABASE_ANON_KEY")
@@ -16,6 +19,9 @@ const SECRET_WEBHOOK = env("SASPAY_WEBHOOK_SECRET")
 // adresses de retour autorisées après paiement (le client revient sur la page Abonnement du site d'où il vient)
 const SITES = ["https://nexiaschool.com", "https://www.nexiaschool.com", "https://nexiaschool.pages.dev", "https://marvin-ahanda.github.io/mon-logiciel-scolaire",
   ...(env("NEXIA_SITES_SUPPL") || "").split(",").map((s) => s.trim()).filter(Boolean)]
+const RESEND = (env("RESEND_API") || "https://api.resend.com").replace(/\/$/, "")
+const CLE_RESEND = env("RESEND_API_KEY")
+const EXPEDITEUR = env("RECU_EXPEDITEUR") || "NexIA School <contact@nexiaschool.com>"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 let envoyer = (url, init) => fetch(url, init)        // remplaçable par les tests
@@ -72,6 +78,37 @@ async function creer(req, jeton) {
   return { id: p.id, url: s.checkout_url, montant: p.montant }
 }
 
+const echapper = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
+const montantTexte = (n) => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(n)).replace(/[\u202f\u00a0]/g, " ")} FCFA`
+const jourTexte = (d) => new Date(d).toLocaleDateString("fr-FR", { timeZone: "Africa/Douala" })
+const NOMS = { essentiel: "Essentiel", pro: "Pro", premium: "Premium" }
+
+/** Envoie le reçu par e-mail (une seule fois par paiement). Ne bloque jamais l'activation de l'offre : toute erreur est ignorée. */
+async function envoyerRecu(id) {
+  if (!CLE_RESEND) return false
+  try {
+    const r = await rpc("_recu_a_envoyer", { p_id: id })
+    if (!r?.email) return false
+    const offre = NOMS[r.offre] || r.offre, duree = r.periode === "annuel" ? "1 an / 1 year" : "1 mois / 1 month"
+    const lignes = [["Reçu / Receipt", r.numero], ["Date", jourTexte(r.date)], ["Établissement / School", r.etablissement?.nom],
+      ["Offre / Plan", `${offre} (${duree})`], ["Période / Period", `${jourTexte(r.debut)} → ${jourTexte(r.fin)}`], ["Montant / Amount", montantTexte(r.montant)],
+      ["Référence / Reference", r.transaction || "—"]]
+    const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#212529">
+      <h2 style="color:#0b46e5">NexIA School</h2>
+      <p>Merci, votre paiement est bien reçu et votre offre <strong>${echapper(offre)}</strong> est active jusqu'au <strong>${jourTexte(r.fin)}</strong>.<br>
+      <em>Thank you: your payment was received and your <strong>${echapper(offre)}</strong> plan is active until ${jourTexte(r.fin)}.</em></p>
+      <table style="border-collapse:collapse;width:100%">${lignes.map(([k, v]) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #dee2e6;color:#6c757d">${echapper(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #dee2e6"><strong>${echapper(v)}</strong></td></tr>`).join("")}</table>
+      <p style="color:#6c757d;font-size:13px">Ce reçu vaut preuve de paiement. Vous pouvez aussi le télécharger en PDF depuis Abonnement et paiement dans votre espace.<br>
+      This receipt serves as proof of payment. You can also download it as a PDF from Subscription in your account.</p>
+      <p style="color:#6c757d;font-size:13px">NexIA School · contact@nexiaschool.com</p></div>`
+    const rep = await envoyer(`${RESEND}/emails`, { method: "POST", headers: { Authorization: `Bearer ${CLE_RESEND}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: EXPEDITEUR, to: [r.email], subject: `Reçu ${r.numero} — NexIA School / Receipt`, html }) })
+    if (!rep.ok) return false
+    await rpc("_recu_marquer_envoye", { p_id: id })
+    return true
+  } catch { return false }
+}
+
 /** Revérifie auprès de SasPay les paiements en attente (d'un établissement, ou un seul), et valide ceux qui sont payés. */
 async function verifierAttente(etab, id) {
   const liste = await rpc("_paiements_a_verifier", { p_etab: etab, p_id: id })
@@ -84,7 +121,8 @@ async function verifierAttente(etab, id) {
         const d = await saspay(`/checkout-sessions/${encodeURIComponent(x.session_id)}/`)
         if (String(d?.currency || "").toUpperCase() !== "XAF") throw new Error(`devise inattendue ${d?.currency}`)
         const r = await rpc("_paiement_valider", { p_id: x.id, p_transaction: String(st.transaction_id || st.transaction_reference || ""), p_montant: Number(d.amount) })
-        bilan.push({ id: x.id, statut: "paye", fin: r?.fin })
+        const recu = await envoyerRecu(x.id)
+        bilan.push({ id: x.id, statut: "paye", fin: r?.fin, numero_recu: r?.numero_recu, recu_envoye: recu })
       } else if (["CANCELLED", "CANCELED"].includes(statut)) {
         await rpc("_paiement_echec", { p_id: x.id, p_statut: "annule" }); bilan.push({ id: x.id, statut: "annule" })
       } else if (["EXPIRED", "FAILED"].includes(statut)) {

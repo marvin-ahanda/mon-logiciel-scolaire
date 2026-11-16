@@ -1082,6 +1082,8 @@ export const EN = {
   "À venir": "Upcoming",
   "Paiements": "Payments",
   "Reçu": "Receipt",
+  "du": "from",
+  "au": "to",
   "Mode": "Method",
   "Référence": "Reference",
   "Encaissé par": "Received by",
@@ -2618,6 +2620,29 @@ Object.assign(EN, {
   "Annulé": "Cancelled",
   "Prix en francs CFA, paiement par mobile money ou carte. Sans renouvellement, l'offre repasse en Découverte à l'échéance ; les données sont conservées.":
     "Prices in CFA francs, paid by mobile money or card. Without renewal, the plan returns to Discovery when it expires; data is kept.",
+})
+
+// Reçus de paiement
+Object.assign(EN, {
+  "Reçu": "Receipt",
+  "REÇU DE PAIEMENT": "PAYMENT RECEIPT",
+  "N°": "No.",
+  "REÇU DE": "RECEIVED FROM",
+  "Désignation": "Description",
+  "Abonnement NexIA School": "NexIA School subscription",
+  "offre": "plan",
+  "Période couverte": "Period covered",
+  "Total payé": "Total paid",
+  "Aucune TVA facturée sur cet abonnement.": "No VAT charged on this subscription.",
+  "Mode de paiement": "Payment method",
+  "SasPay (mobile money ou carte)": "SasPay (mobile money or card)",
+  "Référence de transaction": "Transaction reference",
+  "PAYÉ": "PAID",
+  "Ce reçu est généré automatiquement par NexIA School ; il vaut preuve de paiement. Conservez-le avec vos documents comptables.":
+    "This receipt is generated automatically by NexIA School and serves as proof of payment. Keep it with your accounting records.",
+  "Télécharger": "Download",
+  "Télécharger le reçu {v0}": "Download receipt {v0}",
+  "Un reçu est envoyé par e-mail à chaque paiement et reste téléchargeable ci-dessous.": "A receipt is emailed with every payment and can be downloaded below.",
 })
 
 EN.__modeles = [

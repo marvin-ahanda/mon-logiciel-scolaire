@@ -88,11 +88,11 @@ const OFFRES = [
   { nom: "Découverte", mensuel: 0, sous: "pour tester sans engagement",
     inclus: ["1 établissement, jusqu'à 50 élèves", "Personnel : jusqu'à 10 comptes", "Import Excel des élèves, classes et matières", "Saisie des notes, moyennes et rangs", "Bulletins PDF (sans QR code anti-fraude)", "Appel du jour", "Mode hors ligne"],
     cta: "Commencer gratuitement" },
-  { nom: "Essentiel", code: "essentiel", mensuel: 100,
+  { nom: "Essentiel", code: "essentiel", mensuel: 30000,
     inclus: ["Jusqu'à 500 élèves, personnel illimité", "Tout Découverte", "Bulletins avec QR code anti-fraude et décisions de fin de période", "Discipline complète et alertes", "Finances : frais, reçus, retards, moratoires", "Import et export Excel complets"], cta: "Choisir Essentiel" },
-  { nom: "Pro", code: "pro", mensuel: 150, recommande: true,
+  { nom: "Pro", code: "pro", mensuel: 55000, recommande: true,
     inclus: ["Élèves illimités", "Tout Essentiel", "SmartEval : évaluation digitalisée et correction automatique", "Génération automatique des emplois du temps", "Espace parents et courrier", "Statistiques avancées et alertes de retard de saisie"], cta: "Choisir Pro" },
-  { nom: "Premium", code: "premium", mensuel: 200,
+  { nom: "Premium", code: "premium", mensuel: 80000,
     inclus: ["Tout Pro", "IA intégrée : analyse des évaluations et remédiation", "Connexion de vos assistants IA (API et MCP)", "Accompagnement au démarrage et formation de l'équipe", "Assistance prioritaire"], cta: "Choisir Premium" },
 ]
 const fcfa = (n) => `${new Intl.NumberFormat("fr-FR").format(n).replace(/\s/g, " ")} FCFA`
