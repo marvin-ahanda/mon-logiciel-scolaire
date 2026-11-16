@@ -1,6 +1,7 @@
 // Fonctions avancées hors de l'offre de l'établissement : montrées floutées ; un clic ouvre l'invitation à passer
 // à une offre supérieure. La fenêtre est unique (MiseEnPage) et s'ouvre de n'importe où avec demanderOffre(fonction).
 import { useEffect, useRef, useState } from "react"
+import { Link } from "react-router-dom"
 import { EDITEUR } from "../lib/editeur.js"
 import { LIBELLES_FONCTIONS, NOMS_OFFRES, OFFRE_REQUISE, offreInclut } from "../lib/offres.js"
 import { rpc } from "../supabase.js"
@@ -21,7 +22,7 @@ export function Cadenas() {
 
 /** Fenêtre « Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure ». */
 export function FenetreOffre() {
-  const { offre, estAdmin, etablissement } = useSession()
+  const { offre, estAdmin } = useSession()
   const [fonction, setFonction] = useState(null)
   const bouton = useRef(null)
   useEffect(() => {
@@ -39,8 +40,6 @@ export function FenetreOffre() {
   if (!fonction) return null
   const requise = OFFRE_REQUISE[fonction] || "premium"
   if (offreInclut(offre, fonction)) return <FenetreDesactivee fonction={fonction} estAdmin={estAdmin} fermer={() => setFonction(null)} bouton={bouton} />
-  const sujet = t("Passer à l'offre {v0} — {v1}", { v0: t(NOMS_OFFRES[requise]), v1: etablissement?.nom || "" })
-  const mail = `mailto:${EDITEUR.contact}?subject=${encodeURIComponent(sujet)}`
   return (
     <>
       <div className="modal d-block fenetre-offre" tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby="titre-offre" aria-describedby="texte-offre"
@@ -55,12 +54,12 @@ export function FenetreOffre() {
             <p className="mb-2"><strong>{t(LIBELLES_FONCTIONS[fonction] || "Fonction avancée")}</strong>{" "}
               {t("est disponible à partir de l'offre {v0}.", { v0: t(NOMS_OFFRES[requise]) })}</p>
             <p className="text-muted small mb-0">{t("Offre actuelle de votre établissement : {v0}.", { v0: t(NOMS_OFFRES[offre]) })}{" "}
-              {estAdmin ? t("Écrivez-nous pour changer d'offre : le changement est immédiat, vos données sont conservées.")
+              {estAdmin ? t("Le changement d'offre est immédiat après paiement ; vos données sont conservées.")
                         : t("Parlez-en à l'administration de votre établissement.")}</p>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline-secondary" onClick={() => setFonction(null)}>{t("Fermer")}</button>
-            {estAdmin && <a ref={bouton} className="btn btn-primary" href={mail}>{t("Demander l'offre {v0}", { v0: t(NOMS_OFFRES[requise]) })}</a>}
+            {estAdmin && <Link ref={bouton} className="btn btn-primary" to="/abonnement" onClick={() => setFonction(null)}>{t("Passer à l'offre {v0}", { v0: t(NOMS_OFFRES[requise]) })}</Link>}
             {!estAdmin && <button ref={bouton} type="button" className="btn btn-primary" onClick={() => setFonction(null)}>{t("J'ai compris")}</button>}
           </div>
         </div></div>

@@ -355,4 +355,5 @@ reset role;
 \ir scenario_offres.sql
 \ir scenario_fonctions.sql
 \ir scenario_tarifs.sql
+\ir scenario_paiements.sql
 \echo SCÉNARIO TERMINÉ

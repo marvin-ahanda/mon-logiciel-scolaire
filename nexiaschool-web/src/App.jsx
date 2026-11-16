@@ -26,6 +26,7 @@ const Finance = page(() => import("./pages/Finance.jsx"))
 const Statistiques = page(() => import("./pages/Statistiques.jsx"))
 const Parametres = page(() => import("./pages/Parametres.jsx"))
 const Personnel = page(() => import("./pages/Personnel.jsx"))
+const Abonnement = page(() => import("./pages/Abonnement.jsx"))
 const Resultats = page(() => import("./pages/Resultats.jsx"))
 const Saisie = page(() => import("./pages/Saisie.jsx"))
 const AlertesDiscipline = page(() => import("./pages/AlertesDiscipline.jsx"))
@@ -149,6 +150,7 @@ export default function App() {
             <Route path="/notes/retards" element={<RetardsNotes />} />
             <Route path="/parametres/*" element={<Parametres />} />
             <Route path="/personnel" element={<Personnel />} />
+            <Route path="/abonnement" element={<Abonnement />} />
             <Route path="/statistiques/*" element={<Statistiques />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

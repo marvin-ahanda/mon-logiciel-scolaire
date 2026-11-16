@@ -45,7 +45,7 @@ function Menu({ titre, liens }) {
 }
 
 /** Menu du compte : nom, rôle et déconnexion regroupés pour garder la barre sur une ligne. */
-function Compte({ nom, role, onDeconnecter }) {
+function Compte({ nom, role, onDeconnecter, estAdmin }) {
   const [ouvert, setOuvert] = useState(false)
   const ref = useRef(null)
   useEffect(() => {
@@ -72,6 +72,7 @@ function Compte({ nom, role, onDeconnecter }) {
       <div ref={menu} className={"dropdown-menu dropdown-menu-end shadow compte-menu" + (ouvert ? " show" : "")} style={decalage ? { transform: `translateX(${decalage}px)` } : undefined}>
         <div className="px-3 py-2"><div className="fw-semibold">{nom}</div><span className="badge text-bg-primary">{role}</span></div>
         <div className="dropdown-divider" />
+        {estAdmin && <Link className="dropdown-item" to="/abonnement" onClick={() => setOuvert(false)}>{t("Abonnement et paiement")}</Link>}
         <button type="button" className="dropdown-item" onClick={onDeconnecter}>{t("Se déconnecter")}</button>
       </div>
     </div>
@@ -136,7 +137,7 @@ export default function MiseEnPage() {
             <div className="d-flex align-items-center gap-2">
               {proprietaire && <Link className="btn btn-sm btn-warning text-dark" to="/console" title={t("Console du propriétaire de la plateforme")}>{t("Console")}</Link>}
               <ChoixLangue variante="sombre" />
-              <Compte nom={nomComplet(profil)} role={t(LIBELLES_ROLES[profil?.role])} onDeconnecter={deconnecter} />
+              <Compte nom={nomComplet(profil)} role={t(LIBELLES_ROLES[profil?.role])} onDeconnecter={deconnecter} estAdmin={estAdmin} />
             </div>
           </div>
         </div>

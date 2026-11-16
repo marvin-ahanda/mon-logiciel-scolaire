@@ -2582,6 +2582,44 @@ Object.assign(EN, {
   "Conçu par": "Designed by",
 })
 
+// Abonnement et paiement SasPay
+Object.assign(EN, {
+  "Abonnement et paiement": "Subscription and payment",
+  "Le changement d'offre est immédiat après paiement ; vos données sont conservées.": "The plan changes as soon as the payment is confirmed; your data is kept.",
+  "Passer à l'offre {v0}": "Upgrade to {v0}",
+  "Vérification du paiement auprès de SasPay…": "Checking the payment with SasPay…",
+  "Paiement reçu : votre offre est active jusqu'au {v0}.": "Payment received: your plan is active until {v0}.",
+  "Paiement annulé : aucun montant n'a été débité.": "Payment cancelled: nothing was charged.",
+  "Le paiement a échoué. Vous pouvez réessayer.": "The payment failed. You can try again.",
+  "Paiement en cours de confirmation. Cette page se met à jour dès que SasPay le confirme.": "Payment awaiting confirmation. This page updates as soon as SasPay confirms it.",
+  "Abonnement": "Subscription",
+  "Offre actuelle": "Current plan",
+  "Active jusqu'au {v0} ({v1} jours restants).": "Active until {v0} ({v1} days left).",
+  "Sans renouvellement, l'établissement repasse automatiquement en offre Découverte à cette date ; ses données sont conservées.":
+    "Without renewal, the school automatically returns to the Discovery plan on that date; its data is kept.",
+  "Votre offre {v0} a expiré le {v1} : renouvelez-la pour retrouver ses fonctionnalités.": "Your {v0} plan expired on {v1}: renew it to get its features back.",
+  "Offre gratuite : jusqu'à 50 élèves et 10 comptes du personnel.": "Free plan: up to 50 students and 10 staff accounts.",
+  "Renouveler ou changer d'offre": "Renew or change plan",
+  "Choisir une offre": "Choose a plan",
+  "Offre": "Plan",
+  "1 mois": "1 month",
+  "1 an (2 mois offerts)": "1 year (2 months free)",
+  "Patientez…": "Please wait…",
+  "Payer {v0}": "Pay {v0}",
+  "Renouvellement : la nouvelle période s'ajoute à la date d'échéance actuelle, sans perdre de jours.": "Renewal: the new period is added to the current expiry date, so no days are lost.",
+  "La nouvelle offre est active dès la confirmation du paiement, pour la période choisie.": "The new plan is active as soon as the payment is confirmed, for the chosen period.",
+  "Paiement sécurisé par SasPay (mobile money ou carte) : vous êtes redirigé vers sa page de paiement, puis ramené ici.":
+    "Secure payment by SasPay (mobile money or card): you are taken to its payment page, then brought back here.",
+  "Historique des paiements": "Payment history",
+  "Aucun paiement pour le moment.": "No payments yet.",
+  "Valable jusqu'au": "Valid until",
+  "En attente": "Pending",
+  "Échoué": "Failed",
+  "Annulé": "Cancelled",
+  "Prix en francs CFA, paiement par mobile money ou carte. Sans renouvellement, l'offre repasse en Découverte à l'échéance ; les données sont conservées.":
+    "Prices in CFA francs, paid by mobile money or card. Without renewal, the plan returns to Discovery when it expires; data is kept.",
+})
+
 EN.__modeles = [
   [/^Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure \(offre (.+) ou plus\)\.$/, "To use this feature, please upgrade to a higher plan ($1 or above)."],
   [/^Votre offre (.+) est limitée à (\d+) élèves\. Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure\.$/, "Your $1 plan is limited to $2 students. To use this feature, please upgrade to a higher plan."],

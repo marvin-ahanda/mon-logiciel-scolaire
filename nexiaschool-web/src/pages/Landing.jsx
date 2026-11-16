@@ -236,13 +236,12 @@ export default function Landing() {
                     <p className="ac-prix-sous">{sous}</p>
                     <ul>{o.inclus.map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
                     {gratuit ? <Commencer libelle={o.cta} petit clair={!o.recommande} />
-                      : <a className={`ac-pilule ac-pilule-petite${o.recommande ? "" : " ac-pilule-claire"}`}
-                           href={`mailto:${EDITEUR.contact}?subject=${encodeURIComponent(`NexIA School — ${o.nom} (${annuel ? "annuel" : "mensuel"})`)}`}>
-                          <span>{t(o.cta)}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></a>}
+                      : <Link className={`ac-pilule ac-pilule-petite${o.recommande ? "" : " ac-pilule-claire"}`} to="/abonnement">
+                          <span>{t(o.cta)}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>}
                   </article>)
               })}
             </div>
-            <p className="ac-note">{t("Prix en francs CFA. Changez d'offre à tout moment ; les données de l'établissement sont conservées.")}</p>
+            <p className="ac-note">{t("Prix en francs CFA, paiement par mobile money ou carte. Sans renouvellement, l'offre repasse en Découverte à l'échéance ; les données sont conservées.")}</p>
           </div>
         </section>
 
