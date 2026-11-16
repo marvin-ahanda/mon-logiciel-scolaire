@@ -3,9 +3,9 @@ export const EDITEUR = {
   nom: "NexIA",
   service: "NexIA School",
   // Adresse de la plateforme (bulletins, QR codes, pages légales) : à changer ici, ou par la variable
-  // VITE_SITE_PLATEFORME, le jour où NexIA School aura son propre nom de domaine.
-  site: (import.meta.env.VITE_SITE_PLATEFORME || "https://nexiaschool.pages.dev").replace(/\/$/, ""),
-  contact: import.meta.env.VITE_CONTACT_EMAIL || "contact@nexiaacademy.net",
+  // VITE_SITE_PLATEFORME, si l’adresse change un jour.
+  site: (import.meta.env.VITE_SITE_PLATEFORME || "https://nexiaschool.com").replace(/\/$/, ""),
+  contact: import.meta.env.VITE_CONTACT_EMAIL || "contact@nexiaschool.com",
   // réseaux du développeur (page d'accueil : « Me contacter » et pied de page)
   whatsapp: "https://wa.me/237653724075",
   linkedin: "https://www.linkedin.com/in/marvin-brice-ahanda?utm_source=share_via&utm_content=profile&utm_medium=member_android",

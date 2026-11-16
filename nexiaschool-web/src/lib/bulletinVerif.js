@@ -3,7 +3,7 @@ import qrcode from "qrcode-generator"
 import { EDITEUR } from "./editeur.js"
 import { rpc } from "../supabase.js"
 
-/** Adresse de la plateforme telle qu'imprimée sur le bulletin : « nexiaschool.pages.dev ». */
+/** Adresse de la plateforme telle qu'imprimée sur le bulletin : « nexiaschool.com ». */
 export const sitePlateforme = () => EDITEUR.site.replace(/^https?:\/\//, "")
 
 /** Adresse ouverte par le QR code d'un bulletin. */

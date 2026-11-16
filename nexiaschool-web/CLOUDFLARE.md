@@ -31,10 +31,11 @@ Commandes : `npm run build:cloudflare` (construction), `npm run dev:cloudflare` 
 
 ## À garder en tête
 
-- **Adresse principale : `https://nexiaschool.pages.dev`** (site, QR codes des nouveaux bulletins, serveur MCP
-  `nexiaschool.pages.dev/mcp`, identité OAuth de la fonction Supabase `mcp`). L'ancien site Netlify reste en ligne pour les
-  QR codes des bulletins déjà imprimés. Le jour où un domaine propre devient l'adresse officielle : changer l'adresse par défaut
-  dans `src/lib/editeur.js` (ou `VITE_SITE_PLATEFORME`), `URL_MCP` (src/lib/retour.js), `ISSUER` (src/pages/OAuthAutoriser.jsx)
-  et `BASE` / `NEXIA_BASE_URL` de la fonction Supabase `mcp`, en gardant l'ancienne adresse active.
+- **Adresse officielle : `https://nexiaschool.com`** (domaine acheté chez LWS, DNS chez Cloudflare, rattaché au projet Pages ;
+  `www.nexiaschool.com` redirige vers elle). Elle sert le site, les QR codes des nouveaux bulletins, le serveur MCP
+  `nexiaschool.com/mcp` et l'identité OAuth de la fonction Supabase `mcp`. Réglée dans `src/lib/editeur.js` (ou `VITE_SITE_PLATEFORME`),
+  `URL_MCP` (src/lib/retour.js), `ISSUER` (src/pages/OAuthAutoriser.jsx) et `BASE` / `NEXIA_BASE_URL` de la fonction `mcp`.
+- Les pages de `nexiaschool.pages.dev` renvoient vers `nexiaschool.com` (public/redirection.js) ; son relais MCP/OAuth reste actif.
+  L'ancien site Netlify reste en ligne pour les QR codes des bulletins déjà imprimés.
 - Plan Free Cloudflare : 500 constructions/mois (non utilisées : la construction se fait dans GitHub), Functions 100 000 requêtes/jour
   (seulement MCP/OAuth), bande passante du site illimitée.

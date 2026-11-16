@@ -10,7 +10,7 @@ import { rpc, supabase } from "../supabase.js"
 import { BoutonGoogle } from "./Acces.jsx"
 import { ChoixLangue, t } from "../i18n.jsx"
 
-const ISSUER = "https://nexiaschool.pages.dev"
+const ISSUER = "https://nexiaschool.com"
 
 function Cadre({ children }) {
   return (
