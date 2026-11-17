@@ -52,7 +52,10 @@ async function saspay(chemin, init = {}) {
   const texte = await r.text()
   let d = null
   try { d = texte ? JSON.parse(texte) : null } catch { d = null }
-  if (!r.ok) throw new Erreur(d?.message || d?.error?.detail || `SasPay : erreur ${r.status}`, 502)
+  if (!r.ok) {
+    console.error("SasPay", init.method || "GET", chemin.replace(/[0-9a-f-]{36}/gi, ":id"), r.status, texte.slice(0, 500))   // diagnostic (aucune clé)
+    throw new Erreur(d?.message || d?.error?.detail || `SasPay : erreur ${r.status}`, 502)
+  }
   return d?.data && !d.id ? d.data : d                 // certaines réponses sont enveloppées { success, data }
 }
 
@@ -103,10 +106,10 @@ async function envoyerRecu(id) {
       <p style="color:#6c757d;font-size:13px">NexIA School · contact@nexiaschool.com</p></div>`
     const rep = await envoyer(`${RESEND}/emails`, { method: "POST", headers: { Authorization: `Bearer ${CLE_RESEND}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: EXPEDITEUR, to: [r.email], subject: `Reçu ${r.numero} — NexIA School / Receipt`, html }) })
-    if (!rep.ok) return false
+    if (!rep.ok) { console.error("Resend", rep.status, (await rep.text()).slice(0, 300)); return false }
     await rpc("_recu_marquer_envoye", { p_id: id })
     return true
-  } catch { return false }
+  } catch (e) { console.error("Reçu", e?.message); return false }
 }
 
 /** Revérifie auprès de SasPay les paiements en attente (d'un établissement, ou un seul), et valide ceux qui sont payés. */

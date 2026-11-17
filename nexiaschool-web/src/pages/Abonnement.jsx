@@ -48,7 +48,8 @@ export default function Abonnement() {
 
   // paiement resté en attente (page fermée trop tôt) : nouvelle vérification à l'ouverture de la page
   useEffect(() => {
-    if (retour || !a?.paiements?.some((p) => p.statut === "en_attente")) return
+    const recent = (p) => p.statut === "paye" && !p.recu_envoye && p.paye_le && Date.now() - new Date(p.paye_le) < 30 * 864e5
+    if (retour || !a?.paiements?.some((p) => p.statut === "en_attente" || recent(p))) return
     appeler("verifier", {}).then((r) => { if (r.paiements?.some((p) => p.statut === "paye")) { relire(); recharger() } }).catch(() => {})
   }, [a?.paiements?.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
