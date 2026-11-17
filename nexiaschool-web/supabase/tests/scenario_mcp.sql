@@ -35,5 +35,11 @@ do $$ begin perform public.api_importer(current_setting('nexia.cle_r'), '{}'::js
 exception when sqlstate '42501' then raise notice 'ok : MCP : clé en lecture seule refusée pour l''import'; end $$;
 do $$ begin perform public.api_importer('nxs_cle_inexistante', '{}'::jsonb); raise exception 'ÉCHEC : clé invalide acceptée';
 exception when sqlstate '28000' then raise notice 'ok : MCP : clé invalide refusée'; end $$;
+-- Imports lourds : délai propre généreux (jamais interrompu, même via MCP en rôle anon)
+reset role;
+select pg_temp.verifier((select 'statement_timeout=120s' = any(proconfig) from pg_proc where proname = 'importer_ecole'),
+  'imports : importer_ecole a son propre délai de 120 s');
+select pg_temp.verifier((select 'statement_timeout=120s' = any(proconfig) from pg_proc where proname = 'api_importer'),
+  'imports : api_importer (MCP) a son propre délai de 120 s');
 reset role;
 update public.etablissements set offre = 'decouverte', offre_expire_le = null where id = (select etablissement_id from public.personnels where id = :'admin_o');
