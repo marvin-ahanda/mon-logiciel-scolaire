@@ -144,6 +144,9 @@ async function verifier(req, jeton) {
   const ids = id ? [id] : [...miens]
   const bilan = []
   for (const x of ids) bilan.push(...(await verifierAttente(null, x)))
+  // rattrapage : reçus de paiements validés des 30 derniers jours qui n'ont pas encore pu partir par e-mail (déjà envoyés : ignorés)
+  const recents = (a?.paiements || []).filter((p) => p.statut === "paye" && p.paye_le && Date.now() - new Date(p.paye_le) < 30 * 864e5)
+  for (const p of recents) await envoyerRecu(p.id)
   return { paiements: bilan, abonnement: await rpc("mon_abonnement", {}, jeton) }
 }
 
