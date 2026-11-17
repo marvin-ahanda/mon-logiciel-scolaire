@@ -123,6 +123,15 @@ const OUTILS = [
     description: "Définit les critères de décision (admission, rattrapage, redoublement, exclusion) d'une période (administration). Faites d'abord un aperçu.",
     inputSchema: { type: "object", properties: { periode: P_PERIODE, criteres: { type: "array", items: { type: "object" } }, confirmer: P_CONFIRMER }, required: ["periode", "criteres"] },
     annotations: { readOnlyHint: false } },
+  { name: "lister_courrier", title: "Courrier des parents",
+    description: "Liste les courriers reçus des parents (réclamations, demandes d'audience, de moratoire, justificatifs d'absence…) visibles selon votre rôle, avec leur identifiant pour y répondre.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "repondre_courrier", title: "Répondre à un courrier",
+    description: "Répond à un courrier de parent (identifiant obtenu via lister_courrier). Pour une demande de moratoire, moratoire_accorde=true avec jus_au=date accorde le délai. Faites d'abord un aperçu.",
+    inputSchema: { type: "object", properties: { courrier_id: { type: "string", description: "Identifiant du courrier (voir lister_courrier)" },
+      message: { type: "string" }, moratoire_accorde: { type: "boolean", description: "Seulement pour une demande de moratoire" },
+      jusqu_au: { type: "string", description: "AAAA-MM-JJ : date jusqu'à laquelle le moratoire est accordé" }, confirmer: P_CONFIRMER },
+      required: ["courrier_id", "message"] }, annotations: { readOnlyHint: false } },
   { name: "importer_donnees", title: "Importer des données (appliquer un document)",
     description: "Applique à l'espace de l'établissement des données extraites d'un fichier, d'une photo ou d'un tableau (administration). Importe élèves, classes, matières, sections, personnel, programme (qui enseigne quoi) et notes. Import tolérant : ce qui est incomplet est signalé, pas bloqué. Lisez le document vous-même, structurez les données, faites un aperçu, puis confirmez.",
     inputSchema: { type: "object", properties: {
@@ -351,6 +360,13 @@ export async function executer(outil, a, cle) {
     case "definir_criteres_decision": {
       if (!a.confirmer) return { apercu: true, periode: a.periode, criteres: a.criteres || [], message: "Rien n'a été enregistré. Confirmez pour appliquer." }
       return rpc("api_criteres_decision", { p_cle: cle, p_periode: a.periode, p_criteres: a.criteres || [] })
+    }
+    case "lister_courrier": return rpc("api_courrier_liste", { p_cle: cle })
+    case "repondre_courrier": {
+      const mor = a.moratoire_accorde === undefined ? null : !!a.moratoire_accorde
+      if (!a.confirmer) return { apercu: true, courrier_id: a.courrier_id, message: a.message, moratoire_accorde: mor, jusqu_au: a.jusqu_au || null,
+        message_outil: "Rien n'a été envoyé. Montrez cette réponse à l'utilisateur, puis rappelez repondre_courrier avec confirmer=true." }
+      return rpc("api_courrier_repondre", { p_cle: cle, p_id: a.courrier_id, p_message: a.message, p_moratoire_accorde: mor, p_jusqu_au: a.jusqu_au || null })
     }
     case "importer_donnees": {
       const cles = ["sections", "classes", "matieres", "personnels", "eleves", "programme", "notes"]

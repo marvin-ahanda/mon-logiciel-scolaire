@@ -35,6 +35,14 @@ do $$ begin perform public.api_importer(current_setting('nexia.cle_r'), '{}'::js
 exception when sqlstate '42501' then raise notice 'ok : MCP : clé en lecture seule refusée pour l''import'; end $$;
 do $$ begin perform public.api_importer('nxs_cle_inexistante', '{}'::jsonb); raise exception 'ÉCHEC : clé invalide acceptée';
 exception when sqlstate '28000' then raise notice 'ok : MCP : clé invalide refusée'; end $$;
+-- Courrier via MCP
+set role anon;
+select pg_temp.verifier(jsonb_typeof(public.api_courrier_liste(:'cle_w')) = 'array', 'MCP : lister le courrier (vide ou non) sans erreur');
+reset role; select set_config('nexia.cle_w', :'cle_w', false) \g /dev/null
+set role anon;
+do $$ begin perform public.api_courrier_repondre(current_setting('nexia.cle_w'), gen_random_uuid(), 'Bonjour', null, null); raise exception 'ÉCHEC : réponse à un courrier inexistant';
+exception when sqlstate 'P0001' then raise notice 'ok : MCP : répondre à un courrier inexistant est refusé'; end $$;
+reset role;
 -- Imports lourds : délai propre généreux (jamais interrompu, même via MCP en rôle anon)
 reset role;
 select pg_temp.verifier((select 'statement_timeout=120s' = any(proconfig) from pg_proc where proname = 'importer_ecole'),
