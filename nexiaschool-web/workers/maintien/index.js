@@ -1,4 +1,4 @@
-// Cloudflare Worker planifié : maintien du projet Supabase (plan Free).
+// Cloudflare Worker planifié : maintien du projet Supabase (plan Free) et rappels de fin d'abonnement.
 // Un projet Supabase gratuit sans aucune requête pendant 7 jours est mis en pause : ce Worker appelle une fois par jour
 // la fonction publique « ping » (aucune donnée lue ni écrite). Remplace la fonction planifiée Netlify (netlify/functions/maintien.mjs).
 // Variables (publiques, voir wrangler.toml) : SUPABASE_URL, SUPABASE_CLE_PUBLIQUE.
@@ -15,10 +15,19 @@ async function ping(env) {
   return r.status
 }
 
+/** Rappels quotidiens « fin d'abonnement dans N jours » (fonction Supabase « paiement », qui n'envoie que les rappels dus). */
+async function rappels(env) {
+  const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/functions/v1/paiement/rappels`, {
+    method: "POST", headers: { apikey: env.SUPABASE_CLE_PUBLIQUE, "Content-Type": "application/json" }, body: "{}",
+  })
+  console.log("rappels d'abonnement :", r.status, await r.text())
+  return r.status
+}
+
 export default {
   // déclenchement planifié (voir [triggers] dans wrangler.toml)
   async scheduled(evenement, env, contexte) {
-    contexte.waitUntil(ping(env))
+    contexte.waitUntil(Promise.allSettled([ping(env), rappels(env)]))
   },
   // appel manuel : renvoie seulement l'état du dernier ping (aucune donnée)
   async fetch(requete, env) {

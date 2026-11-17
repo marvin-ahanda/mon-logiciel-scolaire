@@ -1,9 +1,12 @@
 // Reçu de paiement d'abonnement NexIA School (PDF A4). jsPDF est chargé à la demande.
 import { EDITEUR } from "./editeur.js"
 import { NOMS_OFFRES } from "./offres.js"
+import { matriceQr } from "./bulletinVerif.js"
 import { fcfa, jour } from "./financePdf.js"
 import { t } from "../i18n.jsx"
 
+/** Adresse ouverte par le QR code d'un reçu. */
+export const urlVerificationRecu = (code) => `${EDITEUR.site}/recu/${code}`
 const pdf = (v) => String(v ?? "").replace(/[   ]/g, " ")
 const NOIR = [33, 37, 41], GRIS = [108, 117, 125], BLEU = [11, 70, 229], VERT = [25, 135, 84]
 
@@ -65,11 +68,27 @@ export async function recuPdf(recu, { imprimer = false } = {}) {
     doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(pdf(v), L - 2 * M - 52), M + 52, y); y += 6
   }
 
+  // QR code anti-fraude : ouvre la page publique de vérification du reçu
+  if (recu.code) {
+    const url = urlVerificationRecu(recu.code), taille = 30, x = M, yq = y + 4
+    const m = matriceQr(url), n = m.length, k = taille / n
+    doc.setFillColor(0, 0, 0)
+    m.forEach((ligne, l) => ligne.forEach((noir, c) => { if (noir) doc.rect(x + c * k, yq + l * k, k + 0.02, k + 0.02, "F") }))
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...NOIR)
+    doc.text(pdf(t("Reçu sécurisé par QR code")), x + taille + 5, yq + 5)
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...GRIS)
+    doc.text(doc.splitTextToSize(pdf(t("Scannez ce code pour vérifier l'authenticité du reçu sur NexIA School, ou ouvrez :")), 85), x + taille + 5, yq + 10)
+    doc.setTextColor(...BLEU); doc.text(pdf(url.replace(/^https?:\/\//, "")), x + taille + 5, yq + 19)
+    doc.setTextColor(...GRIS); doc.text(pdf(`${t("Code")} : ${recu.code}`), x + taille + 5, yq + 24)
+    y = yq + taille + 2
+  }
+
   // tampon « PAYÉ »
   doc.setTextColor(...VERT); doc.setDrawColor(...VERT); doc.setLineWidth(0.8); doc.setFont("helvetica", "bold"); doc.setFontSize(22)
-  doc.roundedRect(L - M - 42, y + 4, 42, 14, 2, 2); doc.text(pdf(t("PAYÉ")), L - M - 21, y + 14, { align: "center" })
+  const yt = recu.code ? y - 32 : y + 4
+  doc.roundedRect(L - M - 42, yt, 42, 14, 2, 2); doc.text(pdf(t("PAYÉ")), L - M - 21, yt + 10, { align: "center" })
   doc.setTextColor(...GRIS); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5)
-  doc.text(doc.splitTextToSize(pdf(t("Ce reçu est généré automatiquement par NexIA School ; il vaut preuve de paiement. Conservez-le avec vos documents comptables.")), L - 2 * M - 50), M, y + 9)
+  doc.text(doc.splitTextToSize(pdf(t("Ce reçu est généré automatiquement par NexIA School ; il vaut preuve de paiement. Conservez-le avec vos documents comptables.")), L - 2 * M), M, y + 9)
 
   const nom = `recu-${recu.numero}`
   if (imprimer) { doc.autoPrint(); window.open(doc.output("bloburl"), "_blank") } else doc.save(`${nom}.pdf`)

@@ -2645,6 +2645,25 @@ Object.assign(EN, {
   "Un reçu est envoyé par e-mail à chaque paiement et reste téléchargeable ci-dessous.": "A receipt is emailed with every payment and can be downloaded below.",
 })
 
+// Rappels de fin d'abonnement et vérification des reçus
+Object.assign(EN, {
+  "Votre abonnement se termine aujourd'hui. Pensez à le renouveler.": "Your subscription ends today. Remember to renew it.",
+  "Fin d'abonnement demain. Pensez à le renouveler.": "Your subscription ends tomorrow. Remember to renew it.",
+  "Fin d'abonnement dans {v0} jours. Pensez à le renouveler.": "Your subscription ends in {v0} days. Remember to renew it.",
+  "Renouveler": "Renew",
+  "Masquer pour aujourd'hui": "Hide for today",
+  "Reçu sécurisé par QR code": "Receipt secured by QR code",
+  "Scannez ce code pour vérifier l'authenticité du reçu sur NexIA School, ou ouvrez :": "Scan this code to check the receipt is genuine on NexIA School, or open:",
+  "Vérification d'un reçu de paiement": "Payment receipt verification",
+  "Aucun reçu portant ce code n'a été émis par NexIA School. Ce document n'est pas authentique.": "No receipt with this code was issued by NexIA School. This document is not genuine.",
+  "Reçu authentique": "Genuine receipt",
+  "Ce reçu a bien été émis par NexIA School pour le paiement ci-dessous. Comparez avec le document : si un montant, une date ou un nom diffère, le document a été modifié.":
+    "This receipt was issued by NexIA School for the payment below. Compare it with the document: if an amount, a date or a name differs, the document was altered.",
+  "Date du paiement": "Payment date",
+  "Montant payé": "Amount paid",
+  "Reçus sécurisés par NexIA School": "Receipts secured by NexIA School",
+})
+
 EN.__modeles = [
   [/^Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure \(offre (.+) ou plus\)\.$/, "To use this feature, please upgrade to a higher plan ($1 or above)."],
   [/^Votre offre (.+) est limitée à (\d+) élèves\. Pour bénéficier de cette fonctionnalité, veuillez passer à une offre supérieure\.$/, "Your $1 plan is limited to $2 students. To use this feature, please upgrade to a higher plan."],

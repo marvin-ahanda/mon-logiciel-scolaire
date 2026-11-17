@@ -17,6 +17,7 @@ const Developpeur = page(() => import("./pages/Developpeur.jsx"))
 const Developpeurs = page(() => import("./pages/Developpeurs.jsx"))
 const OAuthAutoriser = page(() => import("./pages/OAuthAutoriser.jsx"))
 const Verifier = page(() => import("./pages/Verifier.jsx"))
+const VerifierRecu = page(() => import("./pages/VerifierRecu.jsx"))
 const EvaluationEleve = page(() => import("./pages/EvaluationEleve.jsx"))
 const Courrier = page(() => import("./pages/Courrier.jsx"))
 const PageBulletins = page(() => import("./pages/Bulletins.jsx"))
@@ -106,6 +107,7 @@ export default function App() {
           <Route path="/developpeurs" element={<Developpeurs />} />
           <Route path="/oauth/autoriser" element={<OAuthAutoriser />} />
           <Route path="/verifier/:code" element={<Verifier />} />
+          <Route path="/recu/:code" element={<VerifierRecu />} />
           <Route path="/e/:jeton" element={<EvaluationEleve />} />
           <Route path="/acces" element={<ChoixProfil />} />
           <Route path="/parent/connexion" element={<ConnexionParent />} />

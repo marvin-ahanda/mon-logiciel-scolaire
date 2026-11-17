@@ -3,6 +3,7 @@
 //   POST /paiement/creer     { offre, periode, retour } (administrateur connecté) → { url } de la page SasPay
 //   POST /paiement/verifier  { paiement_id? } (personne connectée) → revérifie les paiements en attente
 //   POST /paiement/webhook   notification SasPay signée (X-Webhook-Signature) → revérifie les paiements en attente
+//   POST /paiement/rappels   (tâche planifiée quotidienne) e-mails « fin d'abonnement dans N jours » de J-5 au dernier jour ; un seul par jour
 // Le montant est fixé en base (paiement_preparer) et un paiement n'est validé qu'après vérification auprès de l'API
 // SasPay (statut PAYÉ + montant + devise) : ni le navigateur ni le contenu d'un webhook ne suffisent à activer une offre.
 // Secrets (Supabase → Edge Functions → Secrets) : SASPAY_SECRET_KEY (sk_test_… ou sk_live_…), SASPAY_WEBHOOK_SECRET.
@@ -22,6 +23,7 @@ const SITES = ["https://nexiaschool.com", "https://www.nexiaschool.com", "https:
 const RESEND = (env("RESEND_API") || "https://api.resend.com").replace(/\/$/, "")
 const CLE_RESEND = env("RESEND_API_KEY")
 const EXPEDITEUR = env("RECU_EXPEDITEUR") || "NexIA School <contact@nexiaschool.com>"
+const SITE = (env("NEXIA_SITE") || "https://nexiaschool.com").replace(/\/$/, "")
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 let envoyer = (url, init) => fetch(url, init)        // remplaçable par les tests
@@ -101,6 +103,7 @@ async function envoyerRecu(id) {
       <p>Merci, votre paiement est bien reçu et votre offre <strong>${echapper(offre)}</strong> est active jusqu'au <strong>${jourTexte(r.fin)}</strong>.<br>
       <em>Thank you: your payment was received and your <strong>${echapper(offre)}</strong> plan is active until ${jourTexte(r.fin)}.</em></p>
       <table style="border-collapse:collapse;width:100%">${lignes.map(([k, v]) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #dee2e6;color:#6c757d">${echapper(k)}</td><td style="padding:6px 8px;border-bottom:1px solid #dee2e6"><strong>${echapper(v)}</strong></td></tr>`).join("")}</table>
+      ${r.code ? `<p><a href="${SITE}/recu/${encodeURIComponent(r.code)}" style="color:#0b46e5">Vérifier l'authenticité de ce reçu / Verify this receipt</a></p>` : ""}
       <p style="color:#6c757d;font-size:13px">Ce reçu vaut preuve de paiement. Vous pouvez aussi le télécharger en PDF depuis Abonnement et paiement dans votre espace.<br>
       This receipt serves as proof of payment. You can also download it as a PDF from Subscription in your account.</p>
       <p style="color:#6c757d;font-size:13px">NexIA School · contact@nexiaschool.com</p></div>`
@@ -110,6 +113,37 @@ async function envoyerRecu(id) {
     await rpc("_recu_marquer_envoye", { p_id: id })
     return true
   } catch (e) { console.error("Reçu", e?.message); return false }
+}
+
+/** Message bref du rappel, avec le décompte des jours. */
+function texteRappel(jours) {
+  if (jours <= 0) return ["Votre abonnement se termine aujourd'hui. Pensez à le renouveler.", "Your subscription ends today. Remember to renew it."]
+  if (jours === 1) return ["Fin d'abonnement demain. Pensez à le renouveler.", "Your subscription ends tomorrow. Remember to renew it."]
+  return [`Fin d'abonnement dans ${jours} jours. Pensez à le renouveler.`, `Your subscription ends in ${jours} days. Remember to renew it.`]
+}
+
+/** Rappels du jour (appelés chaque matin par la tâche planifiée) : un e-mail par établissement concerné, une seule fois par jour. */
+async function rappels() {
+  if (!CLE_RESEND) return { envoyes: 0, raison: "e-mail non configuré" }
+  const liste = await rpc("_rappels_a_envoyer", {})
+  let envoyes = 0
+  for (const x of liste || []) {
+    try {
+      const [fr, en] = texteRappel(Number(x.jours)), offre = NOMS[x.offre] || x.offre
+      const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#212529">
+        <h2 style="color:#0b46e5;margin-bottom:8px">NexIA School</h2>
+        <p style="font-size:16px"><strong>${echapper(fr)}</strong><br><em style="color:#6c757d">${echapper(en)}</em></p>
+        <p>${echapper(x.etablissement)} · offre ${echapper(offre)} · échéance le ${jourTexte(x.echeance)}</p>
+        <p><a href="${SITE}/abonnement" style="display:inline-block;background:#0b46e5;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Renouveler / Renew</a></p>
+        <p style="color:#6c757d;font-size:12px">Sans renouvellement, l'établissement repasse en offre Découverte à l'échéance ; ses données sont conservées.</p></div>`
+      const rep = await envoyer(`${RESEND}/emails`, { method: "POST", headers: { Authorization: `Bearer ${CLE_RESEND}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: EXPEDITEUR, to: x.emails, subject: `${fr} — NexIA School`, html }) })
+      if (!rep.ok) { console.error("Resend rappel", rep.status, (await rep.text()).slice(0, 300)); continue }
+      await rpc("_rappel_envoye", { p_etab: x.etablissement_id, p_echeance: x.echeance, p_jours: Number(x.jours) })
+      envoyes++
+    } catch (e) { console.error("Rappel", e?.message) }
+  }
+  return { envoyes, a_envoyer: (liste || []).length }
 }
 
 /** Revérifie auprès de SasPay les paiements en attente (d'un établissement, ou un seul), et valide ceux qui sont payés. */
@@ -179,6 +213,7 @@ export async function traiter(req) {
   const action = new URL(req.url).pathname.replace(/\/+$/, "").split("/").pop()
   try {
     if (action === "webhook") return json(await webhook(req))
+    if (action === "rappels") return json(await rappels())          // sans danger : n'envoie que les rappels dus, une fois par jour
     const jeton = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "")
     if (!jeton || jeton === CLE_PUBLIQUE) return json({ erreur: "Connexion requise." }, 401)
     if (action === "creer") return json(await creer(req, jeton))

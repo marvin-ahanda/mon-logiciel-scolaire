@@ -15,6 +15,7 @@ import { enAttente } from "../lib/horsLigne.js"
 import { ChoixLangue, t } from "../i18n.jsx"
 import { Cadenas, demanderOffre, FenetreOffre, FonctionsOffertes, Verrou } from "./Offre.jsx"
 import { fonctionDuChemin } from "../lib/offres.js"
+import RappelAbonnement from "./RappelAbonnement.jsx"
 
 export const LIBELLES_ROLES = { admin: "Administration", enseignant: "Enseignant", surveillant: "Surveillant général", comptable: "Comptable / caissier" }
 
@@ -144,6 +145,7 @@ export default function MiseEnPage() {
       </nav>
       <EtatConnexion etatConnexion={etatConnexion} />
       <main className="container-fluid py-3 px-3 px-lg-4">
+        <RappelAbonnement />
         <LimiteChargement key={pathname}><Suspense fallback={<Chargement />}>{fonctionPage && !aOffre(fonctionPage) ? <Verrou fonction={fonctionPage}><Outlet /></Verrou> : <Outlet />}</Suspense></LimiteChargement>
       </main>
       <FenetreOffre />
