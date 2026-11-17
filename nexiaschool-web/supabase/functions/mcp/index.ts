@@ -76,18 +76,21 @@ const OUTILS = [
     description: "Pour chaque élève : heures d'absence (justifiées ou non), retards, sanctions et note de discipline sur la période.",
     inputSchema: { type: "object", properties: { classe: P_CLASSE, periode: P_PERIODE }, required: ["classe"] }, annotations: { readOnlyHint: true } },
   { name: "saisir_notes", title: "Saisir des notes",
-    description: "Enregistre des notes /20 pour une matière, une classe et une séquence (droit d'écriture requis ; un enseignant ne note que ses matières). Une note absente n'efface rien. Toujours faire d'abord un aperçu (confirmer=false).",
+    description: "Enregistre des notes /20 pour une matière, une classe et une séquence (droit d'écriture requis ; un enseignant ne note que ses matières). Chaque élève est identifié par son matricule OU par son nom (idéal pour un relevé photographié ou filmé : lisez-le, puis listez les notes). L'aperçu indique la correspondance trouvée. Toujours faire d'abord un aperçu (confirmer=false).",
     inputSchema: { type: "object", properties: { classe: P_CLASSE, matiere: { type: "string", description: "Code ou nom de la matière" },
       sequence: { type: "integer", minimum: 1, maximum: 6 },
-      notes: { type: "array", items: { type: "object", properties: { matricule: { type: "string" }, note: { type: "number", minimum: 0, maximum: 20 } }, required: ["matricule", "note"] } },
+      notes: { type: "array", items: { type: "object", properties: { matricule: { type: "string", description: "Matricule si connu" },
+        nom: { type: "string", description: "Nom (et prénom) de l'élève — utilisé quand le matricule n'est pas lisible, par exemple sur un relevé filmé ou scanné" },
+        note: { type: "number", minimum: 0, maximum: 20 } }, required: ["note"] } },
       confirmer: P_CONFIRMER }, required: ["classe", "matiere", "sequence", "notes"] },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
   { name: "enregistrer_appel", title: "Faire l'appel",
     description: "Absences (heures non justifiées / justifiées, motif) et retards d'une classe pour une date (administration ou surveillant général). Remplace l'appel déjà saisi pour les élèves listés. Toujours faire d'abord un aperçu.",
     inputSchema: { type: "object", properties: { classe: P_CLASSE, date: { type: "string", description: "AAAA-MM-JJ (aujourd'hui par défaut)" },
       sequence: { type: "integer", minimum: 1, maximum: 6 },
-      lignes: { type: "array", items: { type: "object", properties: { matricule: { type: "string" }, heures_non_justifiees: { type: "integer", minimum: 0, maximum: 24 },
-        heures_justifiees: { type: "integer", minimum: 0, maximum: 24 }, motif: { type: "string" }, retard: { type: "boolean" } }, required: ["matricule"] } },
+      lignes: { type: "array", items: { type: "object", properties: { matricule: { type: "string", description: "Matricule si connu" },
+        nom: { type: "string", description: "Nom (et prénom) de l'élève si le matricule n'est pas connu" }, heures_non_justifiees: { type: "integer", minimum: 0, maximum: 24 },
+        heures_justifiees: { type: "integer", minimum: 0, maximum: 24 }, motif: { type: "string" }, retard: { type: "boolean" } } } },
       confirmer: P_CONFIRMER }, required: ["classe", "sequence", "lignes"] },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
   { name: "ajouter_eleve", title: "Ajouter un élève",
@@ -120,6 +123,25 @@ const GUIDE_SMARTEVAL = [
   "6. Le déroulé d'une ou deux séances d'intégration en classe : notions sur lesquelles insister, activités, organisation des groupes, durée.",
   "Apprécie toi-même les réponses ouvertes (paragraphes) des copies. Reste bienveillant : les élèves sont mineurs, ne partage pas leurs données en dehors de cette aide.",
 ].join("\n")
+
+// Correspondance d'un élève par matricule OU par nom. Un relevé filmé donne surtout des noms (l'OCR de l'IA) :
+// on retrouve l'élève dans la classe, et on signale le niveau de correspondance pour que l'utilisateur confirme.
+const _normNom = (v) => String(v ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim()
+export function resoudreEleve(eleves, ligne) {
+  const mat = _normNom(ligne.matricule)
+  if (mat) { const e = eleves.find((x) => _normNom(x.matricule) === mat); if (e) return { eleve: e, correspondance: "matricule" } }
+  const q = _normNom(ligne.nom ?? ligne.eleve)
+  if (!q) return { correspondance: "introuvable" }
+  const formes = (e) => [_normNom(`${e.nom} ${e.prenom ?? ""}`), _normNom(`${e.prenom ?? ""} ${e.nom}`)]
+  const exact = eleves.filter((e) => formes(e).includes(q))
+  if (exact.length === 1) return { eleve: exact[0], correspondance: "exact" }
+  if (exact.length > 1) return { correspondance: "ambigu", candidats: exact }
+  const toks = q.split(" ").filter(Boolean)
+  const sous = eleves.filter((e) => { const mots = new Set(formes(e).join(" ").split(" ").filter(Boolean)); return toks.length > 0 && toks.every((t) => mots.has(t)) })
+  if (sous.length === 1) return { eleve: sous[0], correspondance: "approche" }
+  if (sous.length > 1) return { correspondance: "ambigu", candidats: sous }
+  return { correspondance: "introuvable" }
+}
 
 // --- Calculs à partir des données d'une classe --------------------------------------------------------------
 function periodeDe(code, sequences) {
@@ -157,7 +179,7 @@ function bilans(d, periode) {
     d.bareme || { note_max: 20, points_par_retard: 0.25, points_par_heure: 0.25 })
 }
 
-async function executer(outil, a, cle) {
+export async function executer(outil, a, cle) {
   const donnees = (classe) => rpc("api_donnees_classe", { p_cle: cle, p_classe: classe })
   switch (outil) {
     case "contexte_etablissement": return rpc("api_contexte", { p_cle: cle })
@@ -210,33 +232,48 @@ async function executer(outil, a, cle) {
           heures_justifiees: x.j, retards: x.retards, sanctions: x.incidents, note_discipline: x.note, appreciation: x.appreciation } }) }
     }
     case "saisir_notes": {
+      const d = await donnees(a.classe)
+      const att = d.attributions.find((x) => [x.code, x.matiere].some((v) => v.toLowerCase() === String(a.matiere).toLowerCase()))
+      if (!att) throw new ErreurApi(`Matière « ${a.matiere} » non enseignée en ${d.classe.libelle}.`)
+      const seq = d.sequences.find((s) => s.numero === Number(a.sequence))
+      if (!seq) throw new ErreurApi("Séquence inexistante (1 à 6).")
+      const actuelles = new Map(d.notes.filter((n) => n.attribution_id === att.id && n.sequence_id === seq.id).map((n) => [n.inscription_id, Number(n.valeur)]))
+      const lignes = (a.notes || []).map((l) => {
+        const r = resoudreEleve(d.eleves, l)
+        if (!r.eleve) return { saisi: l.nom || l.matricule || "?", nouvelle_note: l.note, correspondance: r.correspondance, ...(r.candidats ? { candidats: r.candidats.map(nom) } : {}) }
+        return { saisi: l.nom || l.matricule || r.eleve.matricule, eleve: nom(r.eleve), matricule: r.eleve.matricule,
+          correspondance: r.correspondance, note_actuelle: actuelles.get(r.eleve.inscription_id) ?? null, nouvelle_note: l.note }
+      })
+      const problemes = lignes.filter((x) => !x.matricule)
       if (!a.confirmer) {
-        const d = await donnees(a.classe)
-        const att = d.attributions.find((x) => [x.code, x.matiere].some((v) => v.toLowerCase() === String(a.matiere).toLowerCase()))
-        if (!att) throw new ErreurApi(`Matière « ${a.matiere} » non enseignée en ${d.classe.libelle}.`)
-        const seq = d.sequences.find((s) => s.numero === Number(a.sequence))
-        if (!seq) throw new ErreurApi("Séquence inexistante (1 à 6).")
-        const actuelles = new Map(d.notes.filter((n) => n.attribution_id === att.id && n.sequence_id === seq.id).map((n) => [n.inscription_id, Number(n.valeur)]))
-        const parMat = new Map(d.eleves.map((e) => [e.matricule, e]))
-        return { apercu: true, message: "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur, puis rappelez saisir_notes avec confirmer=true s'il est d'accord.",
-          classe: d.classe.libelle, matiere: att.matiere, sequence: seq.numero, sequence_verrouillee: seq.verrouillee,
-          lignes: (a.notes || []).map((l) => { const e = parMat.get(String(l.matricule).trim())
-            return e ? { eleve: nom(e), matricule: e.matricule, note_actuelle: actuelles.get(e.inscription_id) ?? null, nouvelle_note: l.note }
-                     : { matricule: l.matricule, erreur: "élève absent de la classe" } }) }
+        return { apercu: true, classe: d.classe.libelle, matiere: att.matiere, sequence: seq.numero, sequence_verrouillee: seq.verrouillee, lignes,
+          message: problemes.length
+            ? `Rien n'a été enregistré. ${problemes.length} ligne(s) ne correspondent à aucun élève certain (correspondance « introuvable » ou « ambigu ») : demandez à l'utilisateur le matricule ou le nom exact avant de confirmer.`
+            : "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur (vérifiez la colonne correspondance), puis rappelez saisir_notes avec confirmer=true s'il est d'accord." }
       }
-      return rpc("api_saisir_notes", { p_cle: cle, p_classe: a.classe, p_matiere: a.matiere, p_sequence: Number(a.sequence), p_notes: a.notes || [] })
+      if (problemes.length) throw new ErreurApi(`Saisie refusée : ${problemes.length} ligne(s) sans élève certain (${problemes.map((x) => x.saisi).join(", ")}). Précisez le matricule ou le nom exact, puis recommencez.`)
+      return rpc("api_saisir_notes", { p_cle: cle, p_classe: a.classe, p_matiere: a.matiere, p_sequence: Number(a.sequence),
+        p_notes: lignes.map((x) => ({ matricule: x.matricule, note: x.nouvelle_note })) })
     }
     case "enregistrer_appel": {
       const jour = a.date || new Date().toISOString().slice(0, 10)
+      const d = await donnees(a.classe)
+      const lignes = (a.lignes || []).map((l) => {
+        const r = resoudreEleve(d.eleves, l)
+        const base = { heures_non_justifiees: l.heures_non_justifiees || 0, heures_justifiees: l.heures_justifiees || 0, motif: l.motif || "", retard: !!l.retard }
+        if (!r.eleve) return { saisi: l.nom || l.matricule || "?", correspondance: r.correspondance, ...(r.candidats ? { candidats: r.candidats.map(nom) } : {}), ...base }
+        return { saisi: l.nom || l.matricule || r.eleve.matricule, eleve: nom(r.eleve), matricule: r.eleve.matricule, correspondance: r.correspondance, ...base }
+      })
+      const problemes = lignes.filter((x) => !x.matricule)
       if (!a.confirmer) {
-        const d = await donnees(a.classe), parMat = new Map(d.eleves.map((e) => [e.matricule, e]))
-        return { apercu: true, message: "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur, puis rappelez enregistrer_appel avec confirmer=true s'il est d'accord.",
-          classe: d.classe.libelle, date: jour, sequence: Number(a.sequence),
-          lignes: (a.lignes || []).map((l) => { const e = parMat.get(String(l.matricule).trim())
-            return e ? { eleve: nom(e), heures_non_justifiees: l.heures_non_justifiees || 0, heures_justifiees: l.heures_justifiees || 0, motif: l.motif || "", retard: !!l.retard }
-                     : { matricule: l.matricule, erreur: "élève absent de la classe" } }) }
+        return { apercu: true, classe: d.classe.libelle, date: jour, sequence: Number(a.sequence), lignes,
+          message: problemes.length
+            ? `Rien n'a été enregistré. ${problemes.length} ligne(s) sans élève certain : précisez le matricule ou le nom exact avant de confirmer.`
+            : "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur, puis rappelez enregistrer_appel avec confirmer=true s'il est d'accord." }
       }
-      return rpc("api_enregistrer_appel", { p_cle: cle, p_classe: a.classe, p_date: jour, p_sequence: Number(a.sequence), p_lignes: a.lignes || [] })
+      if (problemes.length) throw new ErreurApi(`Appel refusé : ${problemes.length} ligne(s) sans élève certain (${problemes.map((x) => x.saisi).join(", ")}). Précisez le matricule ou le nom exact.`)
+      return rpc("api_enregistrer_appel", { p_cle: cle, p_classe: a.classe, p_date: jour, p_sequence: Number(a.sequence),
+        p_lignes: lignes.map((x) => ({ matricule: x.matricule, heures_non_justifiees: x.heures_non_justifiees, heures_justifiees: x.heures_justifiees, motif: x.motif, retard: x.retard })) })
     }
     case "ajouter_eleve": {
       if (!a.confirmer) {
@@ -270,7 +307,9 @@ const INSTRUCTIONS = "Serveur de NexIA School, logiciel de gestion scolaire (not
   "faites d'abord un aperçu (confirmer=false), montrez-le à l'utilisateur et n'appelez avec confirmer=true qu'après son accord explicite. " +
   "Les notes sont sur 20 ; périodes : s1 à s6, t1 à t3, annee. " +
   "SmartEval : smarteval_lister puis smarteval_resultats donnent les évaluations digitalisées de l'utilisateur et les réponses de ses élèves ; " +
-  "suivez la démarche d'analyse fournie pour l'aider à remédier avant l'évaluation sur papier."
+  "suivez la démarche d'analyse fournie pour l'aider à remédier avant l'évaluation sur papier. " +
+  "L'utilisateur peut vous envoyer une photo, une vidéo (relevé filmé) ou un document (image, PDF) : lisez-le vous-même, puis saisissez les données avec l'outil adapté. " +
+  "saisir_notes et enregistrer_appel acceptent le nom de l'élève quand le matricule n'est pas lisible ; vérifiez toujours la correspondance (exact, approche, ambigu) dans l'aperçu avec l'utilisateur avant de confirmer."
 
 const INVITES = [{ name: "analyse_smarteval", title: "Analyser une évaluation SmartEval",
   description: "Bilan, profils d'élèves, binômes et trinômes, exercices adaptés et séances d'intégration à partir des soumissions d'une évaluation digitalisée.",
