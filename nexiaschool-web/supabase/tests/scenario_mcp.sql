@@ -10,7 +10,20 @@ select (public.creer_cle_api('IA écriture', true, 0))->>'cle' as cle_w \gset
 select (public.creer_cle_api('IA lecture', false, 0))->>'cle' as cle_r \gset
 reset role;
 set role anon;
-select public.api_importer(:'cle_w', '{"classes":[{"libelle":"Tle MCP","niveau":"Tle"}],"matieres":[{"code":"MCPX","libelle":"Matière MCP"}]}'::jsonb) \g /dev/null
+select public.api_importer(:'cle_w', '{"annee":"2026-2027","classes":[{"libelle":"Tle MCP","niveau":"Tle"}],"matieres":[{"code":"MCPX","libelle":"Matière MCP"}],"eleves":[{"matricule":"MCP001","nom":"ESSOMBA","prenom":"Luc","sexe":"M","classe":"Tle MCP"}]}'::jsonb) \g /dev/null
+-- écritures supplémentaires de l'IA (clé écriture)
+select public.api_enregistrer_paiement(:'cle_w', 'Tle MCP', 'MCP001', 5000, 'mobile_money', null, 'REF-IA', 'Paiement par l''IA') \g /dev/null
+select (public.api_creer_personnel(:'cle_w', 'NDJEMA', 'Paul', 'enseignant', 'P-IA-1', '', ''))->>'code' as code_perso \gset
+select public.api_discipline_seuils(:'cle_w', 12, '[]'::jsonb) \g /dev/null
+select public.api_criteres_decision(:'cle_w', 't1', '[]'::jsonb) \g /dev/null
+reset role;
+select pg_temp.verifier(exists(select 1 from public.paiements p join public.inscriptions i on i.id = p.inscription_id join public.eleves e on e.id = i.eleve_id
+  where e.matricule = 'MCP001' and p.montant = 5000 and p.mode = 'mobile_money'), 'MCP : l''IA enregistre un paiement d''élève (reçu attribué)');
+select pg_temp.verifier(length(:'code_perso') >= 6, 'MCP : l''IA crée un membre du personnel et reçoit son code d''accès');
+select pg_temp.verifier(exists(select 1 from public.personnels where etablissement_id = (select etablissement_id from public.personnels where id = :'admin_o') and nom = 'NDJEMA'),
+  'MCP : le membre du personnel est bien créé');
+select pg_temp.verifier((select count(*) from public.journal_api where etablissement_id = (select etablissement_id from public.personnels where id = :'admin_o')
+  and outil in ('enregistrer_paiement', 'creer_personnel', 'discipline_seuils', 'criteres_decision')) = 4, 'MCP : les écritures de l''IA sont toutes journalisées');
 reset role;
 select pg_temp.verifier(exists(select 1 from public.classes where etablissement_id = (select etablissement_id from public.personnels where id = :'admin_o') and libelle = 'Tle MCP'),
   'MCP : l''IA crée une classe par import (clé écriture)');

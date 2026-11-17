@@ -98,6 +98,31 @@ const OUTILS = [
     inputSchema: { type: "object", properties: { matricule: { type: "string" }, nom: { type: "string" }, prenom: { type: "string" }, sexe: { type: "string", enum: ["M", "F"] },
       date_naissance: { type: "string", description: "AAAA-MM-JJ" }, classe: P_CLASSE, confirmer: P_CONFIRMER }, required: ["matricule", "nom", "sexe"] },
     annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: "enregistrer_paiement", title: "Enregistrer un paiement",
+    description: "Enregistre le paiement des frais d'un élève (administration ou comptabilité). L'élève est identifié par matricule ou par nom dans sa classe. Un reçu (numéro) est attribué. Faites d'abord un aperçu.",
+    inputSchema: { type: "object", properties: { classe: P_CLASSE, matricule: { type: "string", description: "Matricule si connu" },
+      nom: { type: "string", description: "Nom (et prénom) de l'élève si le matricule n'est pas connu" }, montant: { type: "integer", minimum: 1, description: "Montant en FCFA" },
+      mode: { type: "string", enum: ["especes", "mobile_money", "virement", "cheque", "autre"], default: "especes" },
+      date: { type: "string", description: "AAAA-MM-JJ (aujourd'hui par défaut)" }, reference: { type: "string" }, observation: { type: "string" }, confirmer: P_CONFIRMER },
+      required: ["classe", "montant"] }, annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: "enregistrer_frais", title: "Définir les frais de scolarité",
+    description: "Définit la pension des nouveaux et des anciens élèves et l'échéancier (administration ou comptabilité). Faites d'abord un aperçu.",
+    inputSchema: { type: "object", properties: { pension_nouveaux: { type: "integer", minimum: 0 }, pension_anciens: { type: "integer", minimum: 0 },
+      echeances: { type: "array", items: { type: "object" }, description: "Inscription + 4 tranches : { libelle, montant, date }" }, confirmer: P_CONFIRMER },
+      required: ["pension_nouveaux", "pension_anciens", "echeances"] }, annotations: { readOnlyHint: false } },
+  { name: "ajouter_personnel", title: "Ajouter un membre du personnel",
+    description: "Crée un compte du personnel (administration) et renvoie son code d'accès à usage unique. Rôles : admin, enseignant, surveillant, comptable. Faites d'abord un aperçu.",
+    inputSchema: { type: "object", properties: { nom: { type: "string" }, prenom: { type: "string" }, role: { type: "string", enum: ["admin", "enseignant", "surveillant", "comptable"] },
+      matricule: { type: "string" }, telephone: { type: "string" }, poste: { type: "string" }, confirmer: P_CONFIRMER }, required: ["nom", "role"] },
+    annotations: { readOnlyHint: false } },
+  { name: "definir_seuils_discipline", title: "Seuils d'alerte de discipline",
+    description: "Définit le seuil d'heures d'absence non justifiées et les sanctions déclenchant une alerte (surveillant général ou administration). Faites d'abord un aperçu.",
+    inputSchema: { type: "object", properties: { heures: { type: "integer", minimum: 1, maximum: 1000 }, sanctions: { type: "array", items: { type: "object" } }, confirmer: P_CONFIRMER },
+      required: ["heures"] }, annotations: { readOnlyHint: false } },
+  { name: "definir_criteres_decision", title: "Critères de décision de fin de période",
+    description: "Définit les critères de décision (admission, rattrapage, redoublement, exclusion) d'une période (administration). Faites d'abord un aperçu.",
+    inputSchema: { type: "object", properties: { periode: P_PERIODE, criteres: { type: "array", items: { type: "object" } }, confirmer: P_CONFIRMER }, required: ["periode", "criteres"] },
+    annotations: { readOnlyHint: false } },
   { name: "importer_donnees", title: "Importer des données (appliquer un document)",
     description: "Applique à l'espace de l'établissement des données extraites d'un fichier, d'une photo ou d'un tableau (administration). Importe élèves, classes, matières, sections, personnel, programme (qui enseigne quoi) et notes. Import tolérant : ce qui est incomplet est signalé, pas bloqué. Lisez le document vous-même, structurez les données, faites un aperçu, puis confirmez.",
     inputSchema: { type: "object", properties: {
@@ -296,6 +321,36 @@ export async function executer(outil, a, cle) {
       }
       return rpc("api_ajouter_eleve", { p_cle: cle, p_matricule: a.matricule, p_nom: a.nom, p_prenom: a.prenom || "", p_sexe: a.sexe,
         p_date_naissance: a.date_naissance || null, p_classe: a.classe || "" })
+    }
+    case "enregistrer_paiement": {
+      const d = await donnees(a.classe)
+      const r = resoudreEleve(d.eleves, a)
+      if (!r.eleve) throw new ErreurApi(r.correspondance === "ambigu"
+        ? `Élève ambigu (${(r.candidats || []).map(nom).join(", ")}) : précisez le matricule ou le nom complet.`
+        : "Élève introuvable dans la classe : précisez le matricule ou le nom.")
+      const mode = a.mode || "especes"
+      const apercu = { eleve: nom(r.eleve), matricule: r.eleve.matricule, classe: d.classe.libelle, montant: a.montant, mode, date: a.date || null, reference: a.reference || "", observation: a.observation || "" }
+      if (!a.confirmer) return { apercu: true, paiement: apercu, message: "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur, puis rappelez enregistrer_paiement avec confirmer=true." }
+      return rpc("api_enregistrer_paiement", { p_cle: cle, p_classe: a.classe, p_matricule: r.eleve.matricule, p_montant: a.montant, p_mode: mode,
+        p_date: a.date || null, p_reference: a.reference || "", p_observation: a.observation || "" })
+    }
+    case "enregistrer_frais": {
+      if (!a.confirmer) return { apercu: true, pension_nouveaux: a.pension_nouveaux, pension_anciens: a.pension_anciens, echeances: a.echeances || [],
+        message: "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur, puis confirmez pour appliquer." }
+      return rpc("api_finance_frais", { p_cle: cle, p_pension_nouveaux: a.pension_nouveaux, p_pension_anciens: a.pension_anciens, p_echeances: a.echeances || [] })
+    }
+    case "ajouter_personnel": {
+      if (!a.confirmer) return { apercu: true, personnel: { nom: a.nom, prenom: a.prenom || "", role: a.role, matricule: a.matricule || "", poste: a.poste || "" },
+        message: "Rien n'a été enregistré. Confirmez pour créer le compte ; un code d'accès à usage unique sera généré." }
+      return rpc("api_creer_personnel", { p_cle: cle, p_nom: a.nom, p_prenom: a.prenom || "", p_role: a.role, p_matricule: a.matricule || "", p_telephone: a.telephone || "", p_poste: a.poste || "" })
+    }
+    case "definir_seuils_discipline": {
+      if (!a.confirmer) return { apercu: true, heures: a.heures, sanctions: a.sanctions || [], message: "Rien n'a été enregistré. Confirmez pour appliquer." }
+      return rpc("api_discipline_seuils", { p_cle: cle, p_heures: a.heures, p_sanctions: a.sanctions || [] })
+    }
+    case "definir_criteres_decision": {
+      if (!a.confirmer) return { apercu: true, periode: a.periode, criteres: a.criteres || [], message: "Rien n'a été enregistré. Confirmez pour appliquer." }
+      return rpc("api_criteres_decision", { p_cle: cle, p_periode: a.periode, p_criteres: a.criteres || [] })
     }
     case "importer_donnees": {
       const cles = ["sections", "classes", "matieres", "personnels", "eleves", "programme", "notes"]
