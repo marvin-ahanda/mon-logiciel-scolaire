@@ -127,7 +127,7 @@ const OUTILS = [
     description: "Liste les courriers reçus des parents (réclamations, demandes d'audience, de moratoire, justificatifs d'absence…) visibles selon votre rôle, avec leur identifiant pour y répondre.",
     inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
   { name: "repondre_courrier", title: "Répondre à un courrier",
-    description: "Répond à un courrier de parent (identifiant obtenu via lister_courrier). Pour une demande de moratoire, moratoire_accorde=true avec jus_au=date accorde le délai. Faites d'abord un aperçu.",
+    description: "Répond à un courrier de parent (identifiant obtenu via lister_courrier). Pour une demande de moratoire, moratoire_accorde=true avec jusqu_au=date accorde le délai. Faites d'abord un aperçu.",
     inputSchema: { type: "object", properties: { courrier_id: { type: "string", description: "Identifiant du courrier (voir lister_courrier)" },
       message: { type: "string" }, moratoire_accorde: { type: "boolean", description: "Seulement pour une demande de moratoire" },
       jusqu_au: { type: "string", description: "AAAA-MM-JJ : date jusqu'à laquelle le moratoire est accordé" }, confirmer: P_CONFIRMER },
