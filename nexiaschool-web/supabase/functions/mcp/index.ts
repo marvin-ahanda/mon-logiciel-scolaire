@@ -98,6 +98,19 @@ const OUTILS = [
     inputSchema: { type: "object", properties: { matricule: { type: "string" }, nom: { type: "string" }, prenom: { type: "string" }, sexe: { type: "string", enum: ["M", "F"] },
       date_naissance: { type: "string", description: "AAAA-MM-JJ" }, classe: P_CLASSE, confirmer: P_CONFIRMER }, required: ["matricule", "nom", "sexe"] },
     annotations: { readOnlyHint: false, destructiveHint: false } },
+  { name: "importer_donnees", title: "Importer des données (appliquer un document)",
+    description: "Applique à l'espace de l'établissement des données extraites d'un fichier, d'une photo ou d'un tableau (administration). Importe élèves, classes, matières, sections, personnel, programme (qui enseigne quoi) et notes. Import tolérant : ce qui est incomplet est signalé, pas bloqué. Lisez le document vous-même, structurez les données, faites un aperçu, puis confirmez.",
+    inputSchema: { type: "object", properties: {
+      annee: { type: "string", description: "Année scolaire, ex. 2026-2027 (requise s'il n'y a pas encore d'année active et qu'on importe des élèves ou des notes)" },
+      sections: { type: "array", items: { type: "object" }, description: "Sections ou filières" },
+      classes: { type: "array", items: { type: "object" }, description: "Classes : { libelle, niveau, section, cycle }" },
+      matieres: { type: "array", items: { type: "object" }, description: "Matières : { code, libelle }" },
+      personnels: { type: "array", items: { type: "object" }, description: "Personnel : { nom, prenom, role, matricule, telephone, poste }" },
+      eleves: { type: "array", items: { type: "object" }, description: "Élèves : { matricule, nom, prenom, sexe, date_naissance, classe }" },
+      programme: { type: "array", items: { type: "object" }, description: "Qui enseigne quoi : { classe, matiere, enseignant, coefficient, groupe }" },
+      notes: { type: "array", items: { type: "object" }, description: "Notes par matière (pour un relevé simple, préférez l'outil saisir_notes)" },
+      confirmer: P_CONFIRMER }, required: [] },
+    annotations: { readOnlyHint: false, destructiveHint: false } },
   { name: "smarteval_lister", title: "SmartEval : mes évaluations digitalisées",
     description: "Évaluations digitalisées (SmartEval) créées par l'utilisateur : titre, matière, classes, séquence, compétence visée, statut du lien, nombre de soumissions et moyenne.",
     inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
@@ -283,6 +296,18 @@ export async function executer(outil, a, cle) {
       }
       return rpc("api_ajouter_eleve", { p_cle: cle, p_matricule: a.matricule, p_nom: a.nom, p_prenom: a.prenom || "", p_sexe: a.sexe,
         p_date_naissance: a.date_naissance || null, p_classe: a.classe || "" })
+    }
+    case "importer_donnees": {
+      const cles = ["sections", "classes", "matieres", "personnels", "eleves", "programme", "notes"]
+      const payload = { annee: a.annee }
+      const resume = {}; let total = 0
+      for (const k of cles) { const arr = Array.isArray(a[k]) ? a[k] : []; payload[k] = arr; if (arr.length) { resume[k] = arr.length; total += arr.length } }
+      if (!total) throw new ErreurApi("Aucune donnée à importer : fournissez au moins une liste (élèves, classes, matières, personnel, programme ou notes).")
+      if (!a.confirmer) {
+        return { apercu: true, annee: a.annee || null, a_importer: resume,
+          message: "Rien n'a été enregistré. Montrez ce récapitulatif à l'utilisateur (import tolérant : les champs manquants seront signalés), puis rappelez importer_donnees avec confirmer=true s'il est d'accord." }
+      }
+      return rpc("api_importer", { p_cle: cle, p: payload })
     }
     case "smarteval_lister": return rpc("api_smarteval_liste", { p_cle: cle })
     case "smarteval_resultats": {
