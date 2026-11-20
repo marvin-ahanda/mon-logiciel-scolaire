@@ -20,8 +20,8 @@
 | 4 | F3 Transition d'année scolaire (Paramètres) | ✅ fait — commit `abe04ef` (migration 0044) |
 | 5-8 | F5 + F6 + F7 + F8 : **moteur unifié « PV et rapports »** (Notes → PV et rapports : PV de classe, PV par cycle, PV général, PV individuels + publication aux parents, registre numéroté, réglages) | ✅ fait — migration 0045 (demande de l'utilisateur : un seul moteur, un volet par PV) |
 | 9 | F9 Relances automatiques d'insolvabilité (Finances → Relances et insolvabilité) | ✅ fait — migration 0046 (l'utilisateur a demandé F9 avant F10 ; F9 pose le socle du courrier école → parents : table `courriers_ecole`, lecture, accusé, réponse, journal) |
-| 10 | F10 Courriers administratifs aux parents (Courrier) + confirmation de lecture | ⏭ **PROCHAINE** (attend l'autorisation de l'utilisateur) : étendre `courriers_ecole` (nouvelle catégorie, ciblage, modèles, pièces jointes) sans refaire la lecture / l'accusé / la réponse |
-| 11 | F11 MCP pour les parents (Claude / Grok, données de leur enfant uniquement) | à faire |
+| 10 | F10 Courriers administratifs aux parents (Courrier → Courriers aux parents) + confirmation de lecture | ✅ fait — migration 0047 (envois, modèles, PDF joint, ciblage, confirmation du nombre de destinataires, planification, renvoi des échecs) |
+| 11 | F11 MCP pour les parents (Claude / Grok, données de leur enfant uniquement) | ⏭ **PROCHAINE** (attend l'autorisation de l'utilisateur ; offre Premium) |
 | 12 | F12 Automatisations personnelles en langage naturel (Paramètres) | à faire |
 
 Décisions déjà prises avec l'utilisateur : périodes personnalisées (semestres) = regroupements de séquences ; « modifier le template » = textes, variables, couleurs, police, positions (pas d'éditeur libre) ; confirmation de lecture = liste des élèves dont le parent a ouvert le courrier + bouton « J'ai pris connaissance » ; F11 et F12 réservés à l'offre Premium (IA), les autres modules ouverts à toutes les offres (réglables par école dans la Console) ; le choix technique de F12 (modèle d'IA côté serveur ou catalogue guidé) sera soumis à l'utilisateur le moment venu.
@@ -33,10 +33,10 @@ Décisions déjà prises avec l'utilisateur : périodes personnalisées (semestr
 
 ## État de la production
 - **Déployé** : fonction MCP v9 et migrations jusqu'à `0040`.
-- **Pas encore déployé** (commits locaux/branche seulement) : migrations `0041` à `0046`, toute l'interface des tâches 1 à 9 et le Worker `workers/maintien` (il appelle désormais `relances_quotidiennes` chaque matin : à redéployer avec la migration 0046). Un déploiement unique (migrations, puis site) se fera sur demande de l'utilisateur.
+- **Pas encore déployé** (commits locaux/branche seulement) : migrations `0041` à `0047`, toute l'interface des tâches 1 à 10 et le Worker `workers/maintien` (il appelle désormais `relances_quotidiennes` chaque matin : à redéployer avec la migration 0046). Un déploiement unique (migrations, puis site) se fera sur demande de l'utilisateur.
 
 ## Poser le terrain (tests)
-- Base de test : `PGHOST=127.0.0.1 PGUSER=postgres PGPASSWORD=banc sh nexiaschool-web/supabase/tests/lancer.sh` (démarrer avant : `service postgresql start`). Dernier résultat : 589 vérifications SQL (dont 36 pour les PV, 36 pour les relances), 145 tests vitest (`npx vitest run`).
+- Base de test : `PGHOST=127.0.0.1 PGUSER=postgres PGPASSWORD=banc sh nexiaschool-web/supabase/tests/lancer.sh` (démarrer avant : `service postgresql start`). Dernier résultat : 618 vérifications SQL (dont 36 pour les PV, 36 pour les relances, 29 pour les courriers administratifs), 145 tests vitest (`npx vitest run`).
 - Poste Windows de l'utilisateur (`C:\Users\user\Downloads\Nexiaschool`, sans PostgreSQL ni Docker utilisable) : scénario rejoué sur PGlite (PostgreSQL 17 en WebAssembly) avec un mini-interpréteur psql hors dépôt (`…/scratchpad/banc-sql/psql.mjs`, `@electric-sql/pglite@0.5.15`). Sous PostgreSQL 17, `ON DELETE RESTRICT` lève `restrict_violation` : l'interpréteur l'accepte là où le scénario attend `foreign_key_violation`. Le test vitest `zip.test.js` échoue sous Windows (encodage de la commande `unzip`), sans lien avec l'application.
 - Parcours navigateur (banc d'essai) : dossier `…/scratchpad/banc/` de la session (scripts `parcours_*.cjs`, `relancer.sh`, `demarrer.sh`). **Il vit hors dépôt et peut avoir disparu** : le recréer au besoin (faux Supabase `serveur.mjs` sur Postgres, `vite preview` port 4173, Playwright déjà installé).
 - Note : `parcours_en.cjs` (anglais) échoue depuis le 8/11 sur la recherche du compte de test du fondateur, sans lien avec l'application.

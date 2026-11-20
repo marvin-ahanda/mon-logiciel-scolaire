@@ -254,6 +254,19 @@ function CourriersEcoleParent({ liste, recharger, quitter }) {
     setOuvert(ouvert === c.id ? null : c.id); setReponse("")
     if (!c.lu_le) await faire("parent_courrier_ecole_marquer", { p_id: c.id, p_accuse: false })
   }
+  /** Pièce jointe PDF : lue par la fonction réservée au parent de l'élève, puis téléchargée. */
+  async function telechargerPiece(c) {
+    setEnCours(true); setErreur("")
+    try {
+      const p = await rpcParent("parent_courrier_piece", { p_id: c.id })
+      if (!p?.donnees) throw new Error(t("Pièce jointe introuvable."))
+      const octets = Uint8Array.from(atob(p.donnees), (x) => x.charCodeAt(0))
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(new Blob([octets], { type: "application/pdf" })); a.download = p.nom || "document.pdf"
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+    } catch (e) { if (e.expiree) quitter(); else setErreur(e.message) } finally { setEnCours(false) }
+  }
   return (
     <>
       <Alerte>{erreur}</Alerte>
@@ -267,9 +280,10 @@ function CourriersEcoleParent({ liste, recharger, quitter }) {
             <div className="mt-2">
               <div className="small text-muted mb-1">{t("Réf. {v0}", { v0: c.reference })}</div>
               <div className="border rounded p-2 mb-2" style={{ whiteSpace: "pre-wrap" }}>{c.corps}</div>
-              {c.accuse_le
+              {c.piece && <button type="button" className="btn btn-sm btn-outline-primary mb-2 me-2" disabled={enCours} onClick={() => telechargerPiece(c)}>📎 {t("Télécharger la pièce jointe ({v0})", { v0: c.piece })}</button>}
+              {c.confirmation !== false && (c.accuse_le
                 ? <p className="small text-success">{t("Vous avez accusé réception le {v0}.", { v0: dateHeure(c.accuse_le) })}</p>
-                : <button type="button" className="btn btn-sm btn-success mb-2" disabled={enCours} onClick={() => faire("parent_courrier_ecole_marquer", { p_id: c.id, p_accuse: true })}>{t("J'ai pris connaissance")}</button>}
+                : <button type="button" className="btn btn-sm btn-success mb-2" disabled={enCours} onClick={() => faire("parent_courrier_ecole_marquer", { p_id: c.id, p_accuse: true })}>{t("J'ai pris connaissance")}</button>)}
               {c.reponses.map((r, k) => (
                 <div key={k} className={`small p-2 mb-1 rounded ${r.auteur === "parent" ? "bg-body-tertiary" : "border"}`}>
                   <strong>{r.auteur === "parent" ? t("Vous") : r.auteur_nom || t("L'établissement")}</strong> · {dateHeure(r.envoye_le)}<div style={{ whiteSpace: "pre-wrap" }}>{r.message}</div></div>))}

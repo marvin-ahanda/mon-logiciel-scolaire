@@ -9,6 +9,7 @@ import { dateHeure } from "../lib/format.js"
 import { useSession } from "../Session.jsx"
 import { rpc } from "../supabase.js"
 import { t } from "../i18n.jsx"
+import CourriersParents from "./CourriersParents.jsx"
 
 export const signalerCourrier = () => window.dispatchEvent(new Event("courrier:maj"))
 
@@ -60,7 +61,26 @@ function Detail({ c, etablissement, onRepondu }) {
   )
 }
 
+/** Rubrique Courrier : courriers reçus des parents ; l'administration écrit aussi aux parents (courriers administratifs). */
 export default function Courrier() {
+  const { estAdmin } = useSession()
+  const [rubrique, setRubrique] = useState("recus")
+  if (!estAdmin) return <CourrierRecus />
+  return (
+    <>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 no-print">
+        <h1 className="h3 m-0">{t("Courrier")}</h1>
+        <div className="btn-group" role="group" aria-label={t("Rubrique du courrier")}>
+          <button type="button" className={`btn btn-sm ${rubrique === "recus" ? "btn-primary" : "btn-outline-primary"}`} onClick={() => setRubrique("recus")}>{t("Reçus des parents")}</button>
+          <button type="button" className={`btn btn-sm ${rubrique === "envoyes" ? "btn-primary" : "btn-outline-primary"}`} onClick={() => setRubrique("envoyes")}>{t("Courriers aux parents")}</button>
+        </div>
+      </div>
+      {rubrique === "recus" ? <CourrierRecus sansTitre /> : <CourriersParents />}
+    </>
+  )
+}
+
+function CourrierRecus({ sansTitre = false }) {
   const { etablissement } = useSession()
   const [liste, erreur, recharger] = useDonnees(() => rpc("courrier_liste"), [])
   const [vue, setVue] = useState("a_traiter"), [ouvert, setOuvert] = useState(null)
@@ -78,7 +98,7 @@ export default function Courrier() {
   const aTraiter = liste.filter((x) => x.destinataire && !x.reponses.length).length
   return (
     <>
-      <h1 className="h3 mb-1 no-print">{t("Courrier")}</h1>
+      {!sansTitre && <h1 className="h3 mb-1 no-print">{t("Courrier")}</h1>}
       <p className="text-muted small no-print">{t("Courriers adressés par les parents à l'établissement, archivés et numérotés. Chacun est transmis au service concerné : réclamations, audiences et suggestions à l'administration ; moratoires à l'administration et au service financier ; demandes d'absence aux surveillants généraux.")}</p>
       <ul className="nav nav-tabs mb-3 no-print">
         <li className="nav-item"><button className={`nav-link${vue === "a_traiter" ? " active" : ""}`} onClick={() => setVue("a_traiter")}>{t("À traiter")}
