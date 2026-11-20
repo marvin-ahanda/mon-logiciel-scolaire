@@ -9,6 +9,7 @@ import { lireAppareil, oublierAppareil } from "../lib/appareil.js"
 import { image, nomDeFichier, telechargerBulletinsPdf } from "../lib/bulletinPdf.js"
 import { filigrane as faireFiligrane } from "../lib/bulletinVerif.js"
 import { calculerBilans } from "../lib/discipline.js"
+import { certificatsPdf, reglages } from "../lib/certificatPdf.js"
 import { OBJETS, QUALITES, SERVICES, dateLongue, libelleObjet, remerciement } from "../lib/courrier.js"
 import { date, dateHeure, note } from "../lib/format.js"
 import { enregistrerSessionParent, lireSessionParent, oublierSessionParent, rpcParent } from "../lib/parent.js"
@@ -122,12 +123,14 @@ export default function PortailParent() {
         <ul className="nav nav-pills mb-3 gap-1 no-print onglets-parent">
           <li className="nav-item"><button className={`nav-link${onglet === "discipline" ? " active" : ""}`} onClick={() => setOnglet("discipline")}>{t("Bilan disciplinaire")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "bulletins" ? " active" : ""}`} onClick={() => setOnglet("bulletins")}>{t("Bulletins de {v0}", { v0: `${e.prenom} ${e.nom.toUpperCase()}`.trim() })}</button></li>
+          <li className="nav-item"><button className={`nav-link${onglet === "distinctions" ? " active" : ""}`} onClick={() => setOnglet("distinctions")}>{t("Distinctions")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "courrier" ? " active" : ""}`} onClick={lireReponses}>{t("Écrire à l'école")}
             {d.reponses_non_lues > 0 && <span className="badge text-bg-danger ms-1">{d.reponses_non_lues}</span>}</button></li>
         </ul>
         <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte>
         {onglet === "discipline" && <BilanDisciplinaire d={d} />}
         {onglet === "bulletins" && <BulletinsParent d={d} quitter={quitter} />}
+        {onglet === "distinctions" && <DistinctionsParent d={d} quitter={quitter} />}
         {onglet === "courrier" && <CourrierParent d={d} recharger={charger} />}
       </main>
       {d.reponses_non_lues > 0 && onglet !== "courrier" && (
@@ -221,6 +224,36 @@ function BulletinsParent({ d, quitter }) {
         photo={b.contenu.photo} conduite={b.contenu.conduite} decision={b.contenu.decision} code={b.contenu.code} enCours={pdf ? "x" : null} onPdf={telecharger} />
         <p className="small text-muted no-print">{t("Publié par l'établissement le {v0}.", { v0: dateHeure(b.publie_le) })}</p></div>}
     </>
+  )
+}
+
+// --- Distinctions publiées (toutes années), certificat téléchargeable ------------------------------------------------
+function DistinctionsParent({ d, quitter }) {
+  const [liste, setListe] = useState(null), [erreur, setErreur] = useState(""), [pdf, setPdf] = useState(null)
+  useEffect(() => { rpcParent("parent_distinctions").then(setListe).catch((e) => (e.expiree ? quitter() : setErreur(e.message))) }, [quitter])
+  if (erreur) return <Alerte>{erreur}</Alerte>
+  if (!liste) return <Chargement />
+  if (!liste.length) return <div className="alert alert-info">{t("Aucune distinction publiée pour le moment. Les tableaux d'honneur, félicitations et prix obtenus par votre enfant apparaîtront ici.")}</div>
+  async function certificat(x, k) {
+    setPdf(k); setErreur("")
+    try {
+      const distinction = { nom: x.nom, modele: x.modele, personnalisation: x.personnalisation }
+      const logo = reglages(distinction, d.etablissement).afficherLogo && x.logo ? await image(x.logo) : null
+      await certificatsPdf([{ eleve: x.eleve, matricule: x.matricule, classe: x.classe, periode: x.periode, annee: x.annee, valeurs: x.valeurs, code: x.code, emis_le: x.emis_le }],
+        { distinction, etablissement: d.etablissement, logo, nom: nomDeFichier(t("certificat"), x.nom, x.periode, x.annee) })
+    } catch (e) { setErreur(e.message) } finally { setPdf(null) }
+  }
+  return (
+    <div className="row g-3 distinctions-parent">{liste.map((x, k) => (
+      <div className="col-md-6 col-lg-4" key={x.code}><div className="card h-100"><div className="card-body">
+        <div className="fs-3" aria-hidden="true">🏅</div>
+        <h2 className="h6 mb-1">{x.nom}</h2>
+        <div className="small text-muted">{x.periode} · {t("Année scolaire {v0}", { v0: x.annee })} · {x.classe}</div>
+        {x.valeurs?.moyenne !== null && x.valeurs?.moyenne !== undefined && <div className="small mt-1">{t("Moyenne : {v0}/20", { v0: note(Number(x.valeurs.moyenne)) })}</div>}
+        <div className="small text-muted mt-1">{t("Délivrée le {v0}", { v0: date(x.emis_le) })} · <code>{x.code}</code></div>
+        {x.imprimable && <button className="btn btn-sm btn-success mt-2" disabled={pdf !== null} onClick={() => certificat(x, k)}>{pdf === k ? t("Préparation du PDF…") : t("Télécharger le certificat")}</button>}
+      </div></div></div>))}
+    </div>
   )
 }
 

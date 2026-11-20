@@ -12,7 +12,7 @@ export const OFFRE_REQUISE = {
   notes: "decouverte", appel: "decouverte", bulletins: "decouverte", excel_base: "decouverte", plafonds: "pro",
   discipline: "essentiel", finances: "essentiel", decisions: "essentiel", qr: "essentiel", excel: "essentiel",
   smarteval: "pro", edt: "pro", parents: "pro", statistiques: "pro",
-  ia: "premium",
+  ia: "premium", distinctions: "decouverte",
 }
 
 /** Libellé de chaque fonction (fenêtre « passer à une offre supérieure »). */
@@ -32,6 +32,7 @@ export const LIBELLES_FONCTIONS = {
   parents: "Espace parents et courrier",
   statistiques: "Statistiques avancées et alertes de retard de saisie",
   ia: "IA intégrée, clés API et connexion des assistants IA (MCP)",
+  distinctions: "Récompenses et distinctions (tableaux d'honneur, certificats)",
 }
 
 /** Rubriques de l'application réservées à une fonction (le chemin le plus précis l'emporte). */
@@ -68,7 +69,7 @@ export const PLAFONDS = { decouverte: { eleves: 50, personnels: 10 }, essentiel:
 
 /** Toutes les fonctionnalités réglables, dans l'ordre d'affichage de la console. */
 export const FONCTIONS = ["notes", "appel", "bulletins", "excel_base", "plafonds", "discipline", "finances", "decisions", "qr", "excel",
-  "smarteval", "edt", "parents", "statistiques", "ia"]
+  "smarteval", "edt", "parents", "statistiques", "ia", "distinctions"]
 
 /** Droit effectif : celui lu sur le serveur (dérogations comprises) s'il est connu, sinon celui de l'offre. */
 export function droitEffectif(fonctions, offre, fonction) {

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
 import ParametresDecisions from "./ParametresDecisions.jsx"
+import PeriodesPersonnalisees from "./PeriodesPersonnalisees.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
 import { date as formatDate, exerciceParDefaut, nomComplet, comparerNoms } from "../lib/format.js"
 import { ChoixLogo } from "../composants/Logo.jsx"
@@ -11,6 +12,7 @@ import { t, locale } from "../i18n.jsx"
 import { Cadenas, Verrou } from "../composants/Offre.jsx"
 import { LIBELLES_FONCTIONS, NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
 
+const ParametresDistinctions = lazy(() => import("./ParametresDistinctions.jsx"))   // certificats PDF chargés à la demande
 const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
 
 export default function Parametres() {
@@ -29,6 +31,7 @@ export default function Parametres() {
         <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">{t("Matières par classe")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">{t("Discipline")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}{cadenas("decisions")}</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/distinctions">{t("Récompenses et distinctions")}{cadenas("distinctions")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/emploi-du-temps">{t("Emploi du temps")}{cadenas("edt")}</NavLink></li>
       </ul>
       <Routes>
@@ -40,6 +43,7 @@ export default function Parametres() {
         <Route path="coefficients" element={<Coefficients />} />
         <Route path="discipline" element={<ParametresDiscipline />} />
         <Route path="decisions" element={<Verrou fonction="decisions"><ParametresDecisions /></Verrou>} />
+        <Route path="distinctions" element={<Verrou fonction="distinctions"><Suspense fallback={<Chargement />}><ParametresDistinctions /></Suspense></Verrou>} />
         <Route path="emploi-du-temps" element={<Verrou fonction="edt"><Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense></Verrou>} />
       </Routes>
     </>
@@ -192,6 +196,7 @@ function Exercices() {
       <p className="small text-muted">{t(
         "Chaque exercice compte six séquences (deux par trimestre). Une séquence verrouillée n'accepte plus de saisie ni de correction."
       )}{" "}{t("Une fois le délai de saisie passé, l'administration est alertée des enseignants qui n'ont pas saisi toutes leurs notes.")}</p>
+      <PeriodesPersonnalisees />
     </>
   );
 }

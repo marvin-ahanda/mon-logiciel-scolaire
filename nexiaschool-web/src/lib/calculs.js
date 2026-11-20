@@ -62,13 +62,14 @@ export function moyennePonderee(lignes) {
  * Note d'une matière pour une période.
  * notesSeq : Map séquence_id -> note ; sequences : [{ id, numero, trimestre }]
  * Séquence : la note ; trimestre : moyenne des notes séquentielles du trimestre ;
- * année : moyenne des notes trimestrielles.
+ * année : moyenne des notes trimestrielles ; période personnalisée : moyenne des notes séquentielles retenues.
  */
 export function notePeriode(periode, notesSeq, sequences) {
   const note = (s) => (notesSeq.has(s.id) ? notesSeq.get(s.id) : null)
   if (periode.type === "sequence") return notesSeq.has(periode.sequenceId) ? notesSeq.get(periode.sequenceId) : null
   const trimestre = (t) => moyenneSimple(sequences.filter((s) => s.trimestre === t).map(note))
   if (periode.type === "trimestre") return trimestre(periode.trimestre)
+  if (periode.type === "perso") return moyenneSimple(sequences.filter((s) => periode.numeros.includes(s.numero)).map(note))
   return moyenneSimple([1, 2, 3].map(trimestre))
 }
 

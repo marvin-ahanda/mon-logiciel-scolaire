@@ -26,5 +26,6 @@ export function calculerBilans(inscriptionIds, absences, retards, incidents, bar
 export function sequencesDePeriode(periode, sequences) {
   if (periode.type === "sequence") return sequences.filter((s) => s.id === periode.sequenceId)
   if (periode.type === "trimestre") return sequences.filter((s) => s.trimestre === periode.trimestre)
+  if (periode.type === "perso") return sequences.filter((s) => periode.numeros.includes(s.numero))
   return sequences
 }

@@ -29,6 +29,8 @@ export async function chargerClasse(classe, exercice) {
 export function sousPeriodes(periode, sequences) {
   if (periode.type === "trimestre") return sequences.filter((s) => s.trimestre === periode.trimestre)
     .map((s) => ({ libelle: t("Séq. {v0}", { v0: s.numero }), periode: { type: "sequence", sequenceId: s.id } }))
+  if (periode.type === "perso") return sequences.filter((s) => periode.numeros.includes(s.numero))
+    .map((s) => ({ libelle: t("Séq. {v0}", { v0: s.numero }), periode: { type: "sequence", sequenceId: s.id } }))
   if (periode.type === "annee") return [1, 2, 3].map((n) => ({ libelle: t("Trim. {v0}", { v0: n }), periode: { type: "trimestre", trimestre: n } }))
   return []
 }
