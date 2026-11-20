@@ -43,7 +43,7 @@ const RUBRIQUES = [
   ["/notes/saisie", "notes"], ["/notes/pv", "pv"], ["/notes/bulletins", "bulletins"], ["/discipline/appel", "appel"],
   ["/discipline/infractions", "discipline"], ["/discipline/suivi", "discipline"], ["/discipline/alertes", "discipline"],
   ["/finance", "finances"], ["/courrier", "parents"], ["/smarteval", "smarteval"], ["/emploi-du-temps", "edt"],
-  ["/statistiques", "statistiques"], ["/notes/retards", "statistiques"], ["/developpeur", "ia"],
+  ["/statistiques", "statistiques"], ["/notes/retards", "statistiques"], ["/developpeur", "ia"], ["/automatisations", "ia"],
 ]
 // (Paramètres → Décisions et Emploi du temps : onglets verrouillés dans la page elle-même, pour garder les autres onglets utilisables)
 

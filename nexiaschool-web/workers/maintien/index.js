@@ -1,5 +1,6 @@
-// Cloudflare Worker planifié : maintien du projet Supabase (plan Free) et rappels de fin d'abonnement.
-// Un projet Supabase gratuit sans aucune requête pendant 7 jours est mis en pause : ce Worker appelle une fois par jour
+// Cloudflare Worker planifié (chaque heure) : maintien du projet Supabase, automatisations du personnel, courriers programmés,
+// relances de paiement et rappels de fin d'abonnement.
+// Un projet Supabase gratuit sans aucune requête pendant 7 jours est mis en pause : ce Worker appelle à chaque passage
 // la fonction publique « ping » (aucune donnée lue ni écrite). Remplace la fonction planifiée Netlify (netlify/functions/maintien.mjs).
 // Variables (publiques, voir wrangler.toml) : SUPABASE_URL, SUPABASE_CLE_PUBLIQUE.
 
@@ -34,10 +35,23 @@ async function relances(env) {
   return r.status
 }
 
+/** Automatisations personnelles du personnel dont l'heure est venue (ne renvoie que des compteurs). */
+async function automatisations(env) {
+  const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/automatisations_executer`, {
+    method: "POST", headers: { apikey: env.SUPABASE_CLE_PUBLIQUE, "Content-Type": "application/json" }, body: "{}",
+  })
+  console.log("automatisations :", r.status, await r.text())
+  return r.status
+}
+
 export default {
-  // déclenchement planifié (voir [triggers] dans wrangler.toml)
+  // déclenchement planifié chaque heure (voir [triggers] dans wrangler.toml). relances_quotidiennes distribue chaque heure les
+  // courriers programmés et n'envoie les relances qu'une fois par jour (pas avant 6 h à Douala) ; rappels d'abonnement à 06:17.
   async scheduled(evenement, env, contexte) {
-    contexte.waitUntil(Promise.allSettled([ping(env), rappels(env), relances(env)]))
+    const heureUtc = new Date(evenement.scheduledTime || Date.now()).getUTCHours()
+    const taches = [ping(env), automatisations(env), relances(env)]
+    if (heureUtc === 5) taches.push(rappels(env))
+    contexte.waitUntil(Promise.allSettled(taches))
   },
   // appel manuel : renvoie seulement l'état du dernier ping (aucune donnée)
   async fetch(requete, env) {

@@ -35,6 +35,7 @@ const Saisie = page(() => import("./pages/Saisie.jsx"))
 const AlertesDiscipline = page(() => import("./pages/AlertesDiscipline.jsx"))
 const RetardsNotes = page(() => import("./pages/RetardsNotes.jsx"))
 const Pv = page(() => import("./pages/pv/Pv.jsx"))
+const MesAutomatisations = lazy(() => import("./pages/Automatisations.jsx").then((m) => ({ default: () => <m.default rubrique /> })))
 const Conditions = page(() => import("./pages/Legal.jsx"), "Conditions")
 const Confidentialite = page(() => import("./pages/Legal.jsx"), "Confidentialite")
 const PortailParent = page(() => import("./pages/Parent.jsx"))
@@ -129,6 +130,7 @@ export default function App() {
             <Route path="/smarteval/:id/modifier" element={<EditeurEvaluation />} />
             <Route path="/smarteval/:id" element={<ResultatsEvaluation />} />
             <Route path="/emploi-du-temps" element={<Suspense fallback={<Chargement />}><ConsultationEdt /></Suspense>} />
+            <Route path="/automatisations" element={<MesAutomatisations />} />
           </Route>
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />

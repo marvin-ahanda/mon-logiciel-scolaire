@@ -17,6 +17,7 @@ const ParametresParcours = lazy(() => import("./ParametresParcours.jsx"))
 const ParametresCartes = lazy(() => import("./ParametresCartes.jsx"))           // modèles et PDF chargés à la demande
 const ParametresDistinctions = lazy(() => import("./ParametresDistinctions.jsx"))   // certificats PDF chargés à la demande
 const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
+const Automatisations = lazy(() => import("./Automatisations.jsx"))      // automatisations personnelles (même écran que la rubrique du personnel)
 
 // Rubriques des Paramètres, regroupées (le premier élément de chaque groupe est sa page d'arrivée)
 const GROUPES = [
@@ -25,6 +26,7 @@ const GROUPES = [
   ["Évaluation et vie scolaire", [["discipline", "Discipline"], ["decisions", "Décisions de fin de période", "decisions"], ["distinctions", "Récompenses et distinctions", "distinctions"]]],
   ["Documents", [["cartes", "Cartes scolaires", "cartes"]]],
   ["Emploi du temps", [["emploi-du-temps", "Emploi du temps", "edt"]]],
+  ["Mes automatisations", [["automatisations", "Mes automatisations", "ia"]]],
 ]
 
 export default function Parametres() {
@@ -59,6 +61,7 @@ export default function Parametres() {
         <Route path="parcours" element={<Verrou fonction="parcours"><Suspense fallback={<Chargement />}><ParametresParcours /></Suspense></Verrou>} />
         <Route path="cartes" element={<Verrou fonction="cartes"><Suspense fallback={<Chargement />}><ParametresCartes /></Suspense></Verrou>} />
         <Route path="emploi-du-temps" element={<Verrou fonction="edt"><Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense></Verrou>} />
+        <Route path="automatisations" element={<Verrou fonction="ia"><Suspense fallback={<Chargement />}><Automatisations /></Suspense></Verrou>} />
       </Routes>
     </>
   );

@@ -6,8 +6,9 @@ compatibility_date = "2025-09-01"
 workers_dev = false
 
 [triggers]
-# Tous les jours à 05:17 UTC (06:17 à Douala, UTC+1) : ping Supabase, rappels de fin d'abonnement et relances de paiement
-crons = ["17 5 * * *"]
+# Toutes les heures à la minute 17 : ping Supabase, automatisations personnelles dues, courriers programmés et relances de
+# paiement (relances une seule fois par jour, pas avant 6 h à Douala) ; à 05:17 UTC (06:17 à Douala) : rappels de fin d'abonnement.
+crons = ["17 * * * *"]
 
 # Valeurs publiques (déjà présentes dans le code envoyé au navigateur)
 [vars]

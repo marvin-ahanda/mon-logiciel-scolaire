@@ -125,6 +125,7 @@ export default function MiseEnPage() {
               {peutCourrier && rubrique("/courrier", t("Courrier"))}
               {peutExcel && <li className="nav-item"><NavLink className={lien} to="/excel">{t("Excel")}</NavLink></li>}
               {!estAdmin && rubrique("/emploi-du-temps", t("Emploi du temps"))}
+              {!estAdmin && rubrique("/automatisations", t("Automatisations"))}
               {rubrique("/smarteval", <>SmartEval <span className="badge se-badge-ia">IA</span></>)}
               {estAdmin && rubrique("/statistiques", t("Statistiques"))}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}
