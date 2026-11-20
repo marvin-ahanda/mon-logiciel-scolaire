@@ -6,10 +6,8 @@
 //  5. Listes d'affectation : par série, par classe de destination, par cycle (PDF, Excel)
 import { useMemo, useState } from "react"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
-import { DECISIONS, MENTIONS_DEFAUT, SOUS_SYSTEMES, TYPES_REGLE, libelleDestination, mentionDe, proposer } from "../lib/parcours.js"
-import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
-import { bilansPeriode, chargerDiscipline } from "../lib/donneesDiscipline.js"
-import { decisionProposee, sanctionsParEleve } from "../lib/decisions.js"
+import { DECISIONS, MENTIONS_DEFAUT, SOUS_SYSTEMES, TYPES_REGLE, libelleDestination, mentionDe } from "../lib/parcours.js"
+import { propositionsClasse } from "../lib/donneesParcours.js"
 import { listePdf } from "../lib/financePdf.js"
 import { telechargerClasseur } from "../lib/excel.js"
 import { nomDeFichier } from "../lib/bulletinPdf.js"
@@ -324,27 +322,11 @@ function Decisions({ reference: r }) {
     if (!id) return
     try {
       const c = r.classes.find((x) => x.id === id)
-      const d = await chargerClasse(c, exercice)
-      const periode = { type: "annee", code: "a", libelle: t("Bilan annuel") }
-      const res = resultatsPeriode(d, periode)
-      const ids = d.eleves.map((e) => e.inscriptionId)
-      const [discipline, criteres, orientations, existantes] = await Promise.all([chargerDiscipline(ids, exercice),
-        supabase.from("criteres_decision").select("*").then(verifier).catch(() => []),
-        ids.length ? supabase.from("orientations").select("*").in("inscription_id", ids).eq("statut", "acceptee").neq("type", "changement_serie").then(verifier) : [],
-        ids.length ? supabase.from("decisions_passage").select("*").in("inscription_id", ids).then(verifier) : []])
-      const conduite = bilansPeriode(discipline, ids, periode, d.sequences)
-      const sanctions = sanctionsParEleve(discipline.incidents, d.sequences)
-      const codes = new Map(d.attributions.map((a) => [a.id, a.code]))
-      setLignes(res.resultats.map((x) => {
-        const moyenne = x.moyenne ?? x.moyenneNonClassee
-        const fin = aOffre("decisions") ? decisionProposee(criteres, "a", { moyenne, conduite: conduite.get(x.inscriptionId), sanctions: sanctions.get(x.inscriptionId) }) : null
-        const orientation = orientations.find((o) => o.inscription_id === x.inscriptionId) || null
-        const existante = existantes.find((e) => e.inscription_id === x.inscriptionId)
-        const prop = proposer({ niveauId: c.niveau_id, serieId: c.serie_id, moyenne, decisionFin: fin?.decision ?? null,
-          lignes: x.lignes.map((l) => ({ code: codes.get(l.attributionId), note: l.note })), orientation }, r.regles, { niveaux: r.niveaux })
+      const liste = await propositionsClasse(c, r, exercice, { avecCriteres: aOffre("decisions") })
+      setLignes(liste.map(({ existante, proposition: prop, ...x }) => {
         const base = existante && !recalculer ? { ...existante, raison: existante.source === "manuel" ? t("Saisie manuelle") : prop.raison, choix: prop.choix }
           : { ...prop, mention: "", mention_forcee: false, source: "calcul", statut: existante?.statut || "provisoire", motif: "" }
-        return { ...base, inscription_id: x.inscriptionId, eleve: x.eleve, moyenne, fin: fin?.libelle || "—", orientation }
+        return { ...base, inscription_id: x.inscription_id, eleve: x.eleve, moyenne: x.moyenne, fin: x.fin, orientation: x.orientation }
       }))
     } catch (e) { setMsg({ erreur: e.message }) }
   }

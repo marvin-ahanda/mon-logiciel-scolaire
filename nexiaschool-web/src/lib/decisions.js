@@ -14,11 +14,19 @@ export const libelleParDefaut = (decision, periode) => (periode === "a" ? LIBELL
 
 const nombre = (v) => (v === null || v === undefined || v === "" ? null : Number(v))
 
+/** Le critère s'applique-t-il à cette classe ? portee = { cycles, niveaux, sections } (vide : toutes les classes). */
+export function dansPortee(portee, classe) {
+  const p = portee || {}
+  const ok = (liste, v) => !Array.isArray(liste) || !liste.length || liste.includes(v)
+  if (!classe) return !(p.cycles?.length || p.niveaux?.length || p.sections?.length)
+  return ok(p.cycles, classe.cycle_id) && ok(p.niveaux, classe.niveau_id) && ok(p.sections, classe.section_id)
+}
+
 /**
  * Un critère est rempli quand toutes ses conditions renseignées le sont.
- * situation = { moyenne, conduite: { nj, retards, note }, sanctions: Map(sanction_id -> nombre) }
+ * situation = { moyenne, conduite: { nj, retards, note }, sanctions: Map(sanction_id -> nombre), notes: [note par matière] }
  */
-export function critereRempli(c, { moyenne, conduite, sanctions }) {
+export function critereRempli(c, { moyenne, conduite, sanctions, notes }) {
   const verif = (valeur, min, max) => {
     min = nombre(min); max = nombre(max)
     if (min === null && max === null) return true
@@ -30,6 +38,9 @@ export function critereRempli(c, { moyenne, conduite, sanctions }) {
     && verif(conduite?.nj ?? 0, c.heures_nj_min, c.heures_nj_max)
     && verif(conduite?.retards ?? 0, c.retards_min, null)
     && (!c.sanction_id || (sanctions?.get(c.sanction_id) || 0) >= Number(c.sanctions_min))
+    && (nombre(c.note_min_matieres) === null || ((notes || []).filter((x) => x !== null && x !== undefined).length > 0
+        && (notes || []).every((x) => x === null || x === undefined || x >= nombre(c.note_min_matieres))))
+    && (nombre(c.matieres_echec_max) === null || (notes || []).filter((x) => x !== null && x !== undefined && x < MOYENNE_REUSSITE).length <= nombre(c.matieres_echec_max))
 }
 
 /**
@@ -39,7 +50,7 @@ export function critereRempli(c, { moyenne, conduite, sanctions }) {
  */
 export function decisionProposee(criteres, periode, situation) {
   if (!["t1", "t2", "t3", "a"].includes(periode)) return null
-  const liste = (criteres || []).filter((c) => c.periode === periode)
+  const liste = (criteres || []).filter((c) => c.periode === periode && dansPortee(c.portee, situation.classe))
   if (!liste.length) {
     if (periode !== "a" || situation.moyenne === null || situation.moyenne === undefined) return null
     const d = situation.moyenne >= MOYENNE_REUSSITE ? "admis" : "redouble"
@@ -76,5 +87,7 @@ export function resumeCritere(c, nomSanction = () => "", t = (x, v) => x.replace
   if (nombre(c.heures_nj_max) !== null) p.push(t("absences non justifiées < {v0} h", { v0: c.heures_nj_max }))
   if (nombre(c.retards_min) !== null) p.push(t("retards ≥ {v0}", { v0: c.retards_min }))
   if (c.sanction_id) p.push(t("« {v0} » reçu(e) au moins {v1} fois", { v0: nomSanction(c.sanction_id), v1: c.sanctions_min }))
+  if (nombre(c.note_min_matieres) !== null) p.push(t("aucune matière sous {v0}", { v0: n(c.note_min_matieres) }))
+  if (nombre(c.matieres_echec_max) !== null) p.push(t("{v0} matière(s) en échec au plus", { v0: c.matieres_echec_max }))
   return p.length ? p.join(t(" et ", {})) : t("tous les élèves (aucune condition)", {})
 }

@@ -12,6 +12,7 @@ import { t, locale } from "../i18n.jsx"
 import { Cadenas, Verrou } from "../composants/Offre.jsx"
 import { LIBELLES_FONCTIONS, NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
 
+const ParametresTransition = lazy(() => import("./ParametresTransition.jsx"))
 const ParametresParcours = lazy(() => import("./ParametresParcours.jsx"))
 const ParametresCartes = lazy(() => import("./ParametresCartes.jsx"))           // modèles et PDF chargés à la demande
 const ParametresDistinctions = lazy(() => import("./ParametresDistinctions.jsx"))   // certificats PDF chargés à la demande
@@ -19,7 +20,7 @@ const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // modul
 
 // Rubriques des Paramètres, regroupées (le premier élément de chaque groupe est sa page d'arrivée)
 const GROUPES = [
-  ["Établissement", [["", "Établissement"], ["exercices", "Exercices et séquences"]]],
+  ["Établissement", [["", "Établissement"], ["exercices", "Exercices et séquences"], ["transition", "Transition d'année", "parcours"]]],
   ["Organisation pédagogique", [["sections", "Sections"], ["classes", "Classes"], ["matieres", "Matières"], ["coefficients", "Matières par classe"], ["parcours", "Parcours et orientation", "parcours"]]],
   ["Évaluation et vie scolaire", [["discipline", "Discipline"], ["decisions", "Décisions de fin de période", "decisions"], ["distinctions", "Récompenses et distinctions", "distinctions"]]],
   ["Documents", [["cartes", "Cartes scolaires", "cartes"]]],
@@ -54,6 +55,7 @@ export default function Parametres() {
         <Route path="discipline" element={<ParametresDiscipline />} />
         <Route path="decisions" element={<Verrou fonction="decisions"><ParametresDecisions /></Verrou>} />
         <Route path="distinctions" element={<Verrou fonction="distinctions"><Suspense fallback={<Chargement />}><ParametresDistinctions /></Suspense></Verrou>} />
+        <Route path="transition" element={<Verrou fonction="parcours"><Suspense fallback={<Chargement />}><ParametresTransition /></Suspense></Verrou>} />
         <Route path="parcours" element={<Verrou fonction="parcours"><Suspense fallback={<Chargement />}><ParametresParcours /></Suspense></Verrou>} />
         <Route path="cartes" element={<Verrou fonction="cartes"><Suspense fallback={<Chargement />}><ParametresCartes /></Suspense></Verrou>} />
         <Route path="emploi-du-temps" element={<Verrou fonction="edt"><Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense></Verrou>} />

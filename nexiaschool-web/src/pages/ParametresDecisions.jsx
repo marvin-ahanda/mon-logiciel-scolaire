@@ -10,11 +10,27 @@ const PERIODES = [["t1", "Trimestre 1"], ["t2", "Trimestre 2"], ["t3", "Trimestr
 const TITRES = { exclu: "Critères d'exclusion", redouble: "Critères de redoublement", rattrapage: "Critères de passage au rattrapage", admis: "Critères d'admission" }
 const TITRES_TRIMESTRE = { exclu: "Critères d'exclusion", redouble: "Critères d'alerte de redoublement", admis: "Critères de travail satisfaisant" }
 const COULEURS = { exclu: "danger", redouble: "warning", rattrapage: "info", admis: "success" }
-const CHAMPS = ["moyenne_min", "moyenne_max", "discipline_min", "discipline_max", "heures_nj_min", "heures_nj_max", "retards_min", "sanction_id", "sanctions_min", "libelle"]
-const vide = (decision) => ({ cle: Math.random().toString(36).slice(2), decision, ...Object.fromEntries(CHAMPS.map((c) => [c, ""])) })
-const versFormulaire = (c) => ({ cle: c.id, decision: c.decision, ...Object.fromEntries(CHAMPS.map((k) => [k, c[k] === null || c[k] === undefined ? "" : String(c[k])])) })
-const versBase = (c) => ({ decision: c.decision, libelle: c.libelle.trim(), sanction_id: c.sanction_id || null,
+const CHAMPS = ["moyenne_min", "moyenne_max", "discipline_min", "discipline_max", "heures_nj_min", "heures_nj_max", "retards_min", "sanction_id", "sanctions_min", "libelle",
+  "note_min_matieres", "matieres_echec_max"]
+const vide = (decision) => ({ cle: Math.random().toString(36).slice(2), decision, portee: {}, ...Object.fromEntries(CHAMPS.map((c) => [c, ""])) })
+const versFormulaire = (c) => ({ cle: c.id, decision: c.decision, portee: c.portee || {}, ...Object.fromEntries(CHAMPS.map((k) => [k, c[k] === null || c[k] === undefined ? "" : String(c[k])])) })
+const versBase = (c) => ({ decision: c.decision, libelle: c.libelle.trim(), sanction_id: c.sanction_id || null, portee: c.portee || {},
   ...Object.fromEntries(CHAMPS.filter((k) => !["sanction_id", "libelle"].includes(k)).map((k) => [k, c[k] === "" ? null : Number(String(c[k]).replace(",", "."))])) })
+
+/** Portée d'un critère : cycles, niveaux, sections (aucune case : toutes les classes). */
+function Portee({ c, structure, onChange }) {
+  const listes = [["cycles", t("Cycles"), structure.cycles], ["niveaux", t("Niveaux"), structure.niveaux], ["sections", t("Sections"), structure.sections]].filter(([, , l]) => l.length)
+  if (!listes.length) return null
+  const n = ["cycles", "niveaux", "sections"].reduce((a, k) => a + (c.portee?.[k]?.length || 0), 0)
+  return (
+    <details className="small mt-1 portee-critere"><summary>{n ? t("S'applique à une partie des classes ({v0} choix)", { v0: n }) : t("S'applique à toutes les classes")}</summary>
+      {listes.map(([k, lib, liste]) => (
+        <div key={k} className="d-flex flex-wrap gap-2 mt-1"><span className="text-muted">{lib} :</span>{liste.map((x) => (
+          <label key={x.id} className="form-check form-check-inline mb-0"><input type="checkbox" className="form-check-input" checked={(c.portee?.[k] || []).includes(x.id)}
+            onChange={(e) => onChange({ ...c, portee: { ...c.portee, [k]: e.target.checked ? [...(c.portee?.[k] || []), x.id] : (c.portee?.[k] || []).filter((y) => y !== x.id) } })} /> {x.libelle}</label>))}</div>))}
+    </details>
+  )
+}
 
 function Champ({ id, libelle, valeur, onChange, pas = "0.01", max = 20 }) {
   return (
@@ -23,7 +39,7 @@ function Champ({ id, libelle, valeur, onChange, pas = "0.01", max = 20 }) {
   )
 }
 
-function Critere({ c, periode, sanctions, onChange, onRetirer }) {
+function Critere({ c, periode, sanctions, structure, onChange, onRetirer }) {
   const maj = (k) => (v) => onChange({ ...c, [k]: v })
   const id = (k) => `${c.cle}-${k}`
   return (
@@ -38,6 +54,8 @@ function Critere({ c, periode, sanctions, onChange, onRetirer }) {
       </div>
       <div className="row g-2 align-items-end mt-1">
         <Champ id={id("rmin")} libelle={t("Retards ≥")} valeur={c.retards_min} onChange={maj("retards_min")} pas="1" max={1000} />
+        <Champ id={id("nmm")} libelle={t("Aucune matière sous")} valeur={c.note_min_matieres} onChange={maj("note_min_matieres")} />
+        <Champ id={id("mem")} libelle={t("Matières en échec ≤")} valeur={c.matieres_echec_max} onChange={maj("matieres_echec_max")} pas="1" max={30} />
         <div className="col-6 col-md-3"><label className="form-label small mb-0" htmlFor={id("san")}>{t("Sanction reçue")}</label>
           <select id={id("san")} className="form-select form-select-sm" value={c.sanction_id} onChange={(e) => onChange({ ...c, sanction_id: e.target.value, sanctions_min: e.target.value ? c.sanctions_min || "1" : "" })}>
             <option value="">{t("— aucune —")}</option>{sanctions.map((s) => <option key={s.id} value={s.id}>{s.libelle}</option>)}</select></div>
@@ -47,6 +65,7 @@ function Critere({ c, periode, sanctions, onChange, onRetirer }) {
         <div className="col-auto"><button type="button" className="btn btn-sm btn-outline-danger" onClick={onRetirer} title={t("Retirer ce critère")}>{t("Retirer")}</button></div>
       </div>
       <div className="small text-muted mt-1">→ {t("Si")} {resumeCritere(versBase(c), (sid) => sanctions.find((s) => s.id === sid)?.libelle || "?", t)}</div>
+      <Portee c={c} structure={structure} onChange={onChange} />
     </div>
   )
 }
@@ -55,6 +74,11 @@ export default function ParametresDecisions() {
   const [d, erreur, recharger] = useDonnees(async () => ({
     criteres: verifier(await supabase.from("criteres_decision").select("*").order("ordre")),
     sanctions: verifier(await supabase.from("sanctions").select("id, libelle").order("points_perdus").order("libelle")),
+    structure: {
+      cycles: await supabase.from("cycles").select("id, libelle").order("ordre").then(verifier).catch(() => []),
+      niveaux: await supabase.from("niveaux").select("id, libelle").order("ordre").then(verifier).catch(() => []),
+      sections: await supabase.from("sections").select("id, libelle").order("libelle").then(verifier).catch(() => []),
+    },
   }), [])
   const [periode, setPeriode] = useState("a")
   const [liste, setListe] = useState(null), [msg, setMsg] = useState({}), [occupe, setOccupe] = useState(false)
@@ -98,7 +122,7 @@ export default function ParametresDecisions() {
           </div>
           {liste.filter((c) => c.decision === dec).map((c, k) => (
             <div key={c.cle}>{k > 0 && <div className="text-center small fw-semibold text-muted my-1">{t("OU")}</div>}
-              <Critere c={c} periode={periode} sanctions={d.sanctions} onChange={(x) => setListe(liste.map((y) => (y.cle === c.cle ? x : y)))}
+              <Critere c={c} periode={periode} sanctions={d.sanctions} structure={d.structure} onChange={(x) => setListe(liste.map((y) => (y.cle === c.cle ? x : y)))}
                        onRetirer={() => setListe(liste.filter((y) => y.cle !== c.cle))} /></div>))}
           {!liste.some((c) => c.decision === dec) && <div className="small text-muted">{t("Aucun critère.")}</div>}
         </div></div>))}

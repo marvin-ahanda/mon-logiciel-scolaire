@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { critereRempli, decisionProposee, resumeCritere, sanctionsParEleve } from "./decisions.js"
+import { critereRempli, dansPortee, decisionProposee, resumeCritere, sanctionsParEleve } from "./decisions.js"
 
 const criteres = [
   { periode: "a", decision: "admis", ordre: 1, moyenne_min: 10, heures_nj_max: 30 },
@@ -46,5 +46,28 @@ describe("décisions de fin de période", () => {
     expect(m.get("i1").get("blame")).toBe(2)
     expect(resumeCritere(criteres[0])).toBe("moyenne ≥ 10 et absences non justifiées < 30 h")
     expect(resumeCritere({ sanction_id: "b", sanctions_min: 3 }, () => "Blâme")).toBe("« Blâme » reçu(e) au moins 3 fois")
+  })
+})
+
+describe("règles de promotion étendues", () => {
+  const regles = [
+    { periode: "a", decision: "admis", ordre: 1, moyenne_min: 12, matieres_echec_max: 1, portee: { niveaux: ["3e"] } },
+    { periode: "a", decision: "admis", ordre: 2, moyenne_min: 10, note_min_matieres: 7, portee: { cycles: ["c1"] } },
+    { periode: "a", decision: "redouble", ordre: 3, moyenne_max: 10 },
+  ]
+  const s = (moyenne, notes, classe) => ({ moyenne, notes, classe, conduite: { nj: 0, retards: 0, note: 18 }, sanctions: new Map() })
+  it("portée : critère propre à un niveau ou à un cycle", () => {
+    expect(dansPortee({ niveaux: ["3e"] }, { niveau_id: "3e" })).toBe(true)
+    expect(dansPortee({ niveaux: ["3e"] }, { niveau_id: "4e" })).toBe(false)
+    expect(dansPortee({}, null)).toBe(true)
+    expect(dansPortee({ cycles: ["c1"] }, null)).toBe(false)
+  })
+  it("matières en échec et note minimale dans chaque matière", () => {
+    expect(decisionProposee(regles, "a", s(13, [14, 9, 15], { niveau_id: "3e", cycle_id: "c1" })).decision).toBe("admis")
+    expect(decisionProposee(regles, "a", s(13, [14, 9, 8], { niveau_id: "3e", cycle_id: "c2" })).decision).toBe(null)        // aucun critère rempli : conseil de classe
+    expect(decisionProposee(regles, "a", s(11, [12, 7.5, 13], { niveau_id: "4e", cycle_id: "c1" })).decision).toBe("admis")
+    expect(decisionProposee(regles, "a", s(11, [12, 6, 15], { niveau_id: "4e", cycle_id: "c1" })).decision).toBe(null)
+    expect(decisionProposee(regles, "a", s(9, [12, 6, 8], { niveau_id: "4e", cycle_id: "c1" })).decision).toBe("redouble")
+    expect(critereRempli({ note_min_matieres: 8 }, s(12, [], null))).toBe(false)
   })
 })

@@ -110,11 +110,14 @@ function Bulletins({ classe, periode }) {
   const [donnees, erreur] = useDonnees(async () => {
     const d = await chargerClasse(classe, exercice)
     const ids = d.eleves.map((x) => x.inscriptionId)
-    const [photos, discipline, criteres, passages] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(ids, exercice),
+    const [photos, discipline, criteres, passages, niveaux] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(ids, exercice),
       supabase.from("criteres_decision").select("*").order("ordre").then(verifier).catch(() => []),
       // décisions de passage validées (Paramètres → Parcours et orientation) : leur mention remplace la décision proposée sur le bulletin annuel
-      ids.length ? supabase.from("decisions_passage").select("inscription_id, decision, mention").in("inscription_id", ids).eq("statut", "validee").then(verifier).catch(() => []) : []])
-    return { ...d, photos, discipline, criteres, passages }
+      ids.length ? supabase.from("decisions_passage").select("inscription_id, decision, mention").in("inscription_id", ids).eq("statut", "validee").then(verifier).catch(() => []) : [],
+      classe.niveau_id ? supabase.from("niveaux").select("id, cycle_id").then(verifier).catch(() => []) : []])
+    // contexte de la classe pour les critères propres à un cycle, un niveau ou une section
+    const contexte = { niveau_id: classe.niveau_id || null, section_id: classe.section_id || null, cycle_id: niveaux.find((n) => n.id === classe.niveau_id)?.cycle_id || null }
+    return { ...d, photos, discipline, criteres, passages, contexte }
   }, [classe.id])
   const [pdf, setPdf] = useState(null), [erreurPdf, setErreurPdf] = useState("")      // pdf : "classe" ou inscriptionId en cours
   const titre = t("Bulletins {v0} {v1} {v2}", { v0: classe.libelle, v1: periode.libelle, v2: exercice.libelle })
@@ -154,7 +157,7 @@ function Bulletins({ classe, periode }) {
     const passage = periode.type === "annee" && donnees.passages?.find((p) => p.inscription_id === r.inscriptionId)
     if (passage?.mention) return { decision: passage.decision, libelle: passage.mention, validee: true }
     return !aOffre("decisions") ? null : decisionProposee(donnees.criteres, periode.code, { moyenne: r.moyenne ?? r.moyenneNonClassee,
-      conduite: conduite.get(r.inscriptionId), sanctions: sanctions.get(r.inscriptionId) })
+      conduite: conduite.get(r.inscriptionId), sanctions: sanctions.get(r.inscriptionId), notes: r.lignes.map((l) => l.note), classe: donnees.contexte })
   }
 
   async function exporter(liste, cle, nom) {
