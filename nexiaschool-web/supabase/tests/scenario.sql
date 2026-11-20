@@ -362,4 +362,5 @@ reset role;
 \ir scenario_parcours.sql
 \ir scenario_transition.sql
 \ir scenario_pv.sql
+\ir scenario_relances.sql
 \echo SCÉNARIO TERMINÉ

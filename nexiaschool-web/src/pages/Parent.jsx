@@ -107,6 +107,11 @@ export default function PortailParent() {
     if (d?.reponses_non_lues) { await rpcParent("parent_marquer_reponses_lues").catch(() => {}); setD({ ...d, reponses_non_lues: 0 }) }
   }
   async function deconnexion() { await rpcParent("parent_deconnexion").catch(() => {}); quitter() }
+  // Courriers envoyés par l'école (relances, décisions) : seuls ceux de l'enfant ; badge des courriers non lus
+  const [courriersEcole, setCourriersEcole] = useState(null)
+  const chargerCourriersEcole = useCallback(() => rpcParent("parent_courriers_ecole").then(setCourriersEcole).catch((e) => (e.expiree ? quitter() : setCourriersEcole([]))), [quitter])
+  useEffect(() => { if (session) chargerCourriersEcole() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  const nonLus = (courriersEcole || []).filter((c) => !c.lu_le).length
   if (!session) return null
   if (!d) return <div className="container py-4"><Alerte>{erreur}</Alerte>{!erreur && <Chargement />}</div>
   const e = d.eleve, nomEleve = `${e.nom.toUpperCase()} ${e.prenom}`.trim()
@@ -125,6 +130,8 @@ export default function PortailParent() {
         <ul className="nav nav-pills mb-3 gap-1 no-print onglets-parent">
           <li className="nav-item"><button className={`nav-link${onglet === "discipline" ? " active" : ""}`} onClick={() => setOnglet("discipline")}>{t("Bilan disciplinaire")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "bulletins" ? " active" : ""}`} onClick={() => setOnglet("bulletins")}>{t("Bulletins de {v0}", { v0: `${e.prenom} ${e.nom.toUpperCase()}`.trim() })}</button></li>
+          <li className="nav-item"><button className={`nav-link${onglet === "ecole" ? " active" : ""}`} onClick={() => setOnglet("ecole")}>{t("Courriers de l'école")}
+            {nonLus > 0 && <span className="badge text-bg-danger ms-1">{nonLus}</span>}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "pv" ? " active" : ""}`} onClick={() => setOnglet("pv")}>{t("PV de performances")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "distinctions" ? " active" : ""}`} onClick={() => setOnglet("distinctions")}>{t("Distinctions")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "orientation" ? " active" : ""}`} onClick={() => setOnglet("orientation")}>{t("Orientation")}</button></li>
@@ -134,6 +141,7 @@ export default function PortailParent() {
         <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte>
         {onglet === "discipline" && <BilanDisciplinaire d={d} />}
         {onglet === "bulletins" && <BulletinsParent d={d} quitter={quitter} />}
+        {onglet === "ecole" && <CourriersEcoleParent liste={courriersEcole} recharger={chargerCourriersEcole} quitter={quitter} />}
         {onglet === "pv" && <PvParent quitter={quitter} />}
         {onglet === "distinctions" && <DistinctionsParent d={d} quitter={quitter} />}
         {onglet === "orientation" && <OrientationParent quitter={quitter} />}
@@ -229,6 +237,48 @@ function BulletinsParent({ d, quitter }) {
         entetes={b.commun.entetes || []} etablissement={b.commun.etablissement} logo={b.commun.logo} filigrane={fond} exercice={b.commun.exercice}
         photo={b.contenu.photo} conduite={b.contenu.conduite} decision={b.contenu.decision} code={b.contenu.code} enCours={pdf ? "x" : null} onPdf={telecharger} />
         <p className="small text-muted no-print">{t("Publié par l'établissement le {v0}.", { v0: dateHeure(b.publie_le) })}</p></div>}
+    </>
+  )
+}
+
+// --- Courriers de l'école : lecture, accusé de réception, réponse ------------------------------------------------------
+function CourriersEcoleParent({ liste, recharger, quitter }) {
+  const [ouvert, setOuvert] = useState(null), [reponse, setReponse] = useState(""), [erreur, setErreur] = useState(""), [enCours, setEnCours] = useState(false)
+  if (!liste) return <Chargement />
+  if (!liste.length) return <div className="alert alert-info">{t("Aucun courrier de l'établissement pour le moment.")}</div>
+  async function faire(nom, params) {
+    setEnCours(true); setErreur("")
+    try { await rpcParent(nom, params); await recharger(); return true } catch (e) { if (e.expiree) quitter(); else setErreur(e.message); return false } finally { setEnCours(false) }
+  }
+  async function ouvrir(c) {
+    setOuvert(ouvert === c.id ? null : c.id); setReponse("")
+    if (!c.lu_le) await faire("parent_courrier_ecole_marquer", { p_id: c.id, p_accuse: false })
+  }
+  return (
+    <>
+      <Alerte>{erreur}</Alerte>
+      <div className="list-group">{liste.map((c) => (
+        <div key={c.id} className="list-group-item">
+          <button type="button" className="btn btn-link text-start text-decoration-none p-0 w-100 d-flex justify-content-between gap-2" onClick={() => ouvrir(c)} aria-expanded={ouvert === c.id}>
+            <span className={c.lu_le ? "" : "fw-bold"}>{c.objet}</span>
+            <span className="small text-muted text-nowrap">{date(c.envoye_le)} {!c.lu_le && <span className="badge text-bg-danger">{t("nouveau")}</span>}</span>
+          </button>
+          {ouvert === c.id && (
+            <div className="mt-2">
+              <div className="small text-muted mb-1">{t("Réf. {v0}", { v0: c.reference })}</div>
+              <div className="border rounded p-2 mb-2" style={{ whiteSpace: "pre-wrap" }}>{c.corps}</div>
+              {c.accuse_le
+                ? <p className="small text-success">{t("Vous avez accusé réception le {v0}.", { v0: dateHeure(c.accuse_le) })}</p>
+                : <button type="button" className="btn btn-sm btn-success mb-2" disabled={enCours} onClick={() => faire("parent_courrier_ecole_marquer", { p_id: c.id, p_accuse: true })}>{t("J'ai pris connaissance")}</button>}
+              {c.reponses.map((r, k) => (
+                <div key={k} className={`small p-2 mb-1 rounded ${r.auteur === "parent" ? "bg-body-tertiary" : "border"}`}>
+                  <strong>{r.auteur === "parent" ? t("Vous") : r.auteur_nom || t("L'établissement")}</strong> · {dateHeure(r.envoye_le)}<div style={{ whiteSpace: "pre-wrap" }}>{r.message}</div></div>))}
+              <textarea className="form-control form-control-sm mb-1" rows={3} maxLength={4000} placeholder={t("Votre réponse à l'établissement…")} value={reponse} onChange={(e) => setReponse(e.target.value)} />
+              <button type="button" className="btn btn-sm btn-primary" disabled={enCours || reponse.trim().length < 2}
+                onClick={async () => { if (await faire("parent_courrier_ecole_repondre", { p_id: c.id, p_message: reponse })) setReponse("") }}>{t("Répondre")}</button>
+            </div>)}
+        </div>))}
+      </div>
     </>
   )
 }

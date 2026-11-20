@@ -8,6 +8,7 @@ import { fcfa, fichier, jour, listePdf, MODES, modePaiement, recuPdf } from "../
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
+import Relances from "./Relances.jsx"
 
 const CYCLES = { 1: "Premier cycle", 2: "Second cycle" }
 const LIGNES = ["Inscription", "Tranche 1", "Tranche 2", "Tranche 3", "Tranche 4"]
@@ -380,6 +381,7 @@ function Parcours() {
         <h1 className="h3 m-0">{t("Finances")}</h1>
         <div className="d-flex flex-wrap gap-2">
           <Link className="btn btn-sm btn-danger" to="/finance/insolvables">{t("Élèves non en règle (")}{d.s.eleves.filter((e) => !e.en_regle).length})</Link>
+          <Link className="btn btn-sm btn-warning" to="/finance/relances">{t("Relances et insolvabilité")}</Link>
           <Link className="btn btn-sm btn-outline-secondary" to="/finance/frais">{t("Frais et délais")}</Link>
         </div>
       </div>
@@ -448,6 +450,7 @@ export default function Finance() {
       <Route index element={<Parcours />} />
       <Route path="frais" element={<Frais />} />
       <Route path="insolvables" element={<Insolvables />} />
+      <Route path="relances" element={<Relances />} />
       <Route path="*" element={<Navigate to="/finance" replace />} />
     </Routes>
   )

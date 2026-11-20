@@ -24,10 +24,20 @@ async function rappels(env) {
   return r.status
 }
 
+/** Relances de paiement des établissements qui ont activé l'envoi automatique (fonction idempotente : une exécution par jour
+ *  et par établissement ; elle ne renvoie que des compteurs). */
+async function relances(env) {
+  const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/relances_quotidiennes`, {
+    method: "POST", headers: { apikey: env.SUPABASE_CLE_PUBLIQUE, "Content-Type": "application/json" }, body: "{}",
+  })
+  console.log("relances de paiement :", r.status, await r.text())
+  return r.status
+}
+
 export default {
   // déclenchement planifié (voir [triggers] dans wrangler.toml)
   async scheduled(evenement, env, contexte) {
-    contexte.waitUntil(Promise.allSettled([ping(env), rappels(env)]))
+    contexte.waitUntil(Promise.allSettled([ping(env), rappels(env), relances(env)]))
   },
   // appel manuel : renvoie seulement l'état du dernier ping (aucune donnée)
   async fetch(requete, env) {
