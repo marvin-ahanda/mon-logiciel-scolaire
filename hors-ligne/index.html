@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b46e5">
+<title>NexIA School — hors ligne</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: #f4f6fa; color: #212529;
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 440px; width: 100%; background: #fff; border: 1px solid #dee2e6; border-radius: 12px; padding: 28px 24px; text-align: center; }
+  img { width: 56px; height: 56px; border-radius: 12px; }
+  h1 { font-size: 1.3rem; margin: 14px 0 6px; }
+  p { margin: 0 0 12px; color: #495057; }
+  .en { font-size: .9rem; color: #6c757d; }
+  .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+  a, button { font: inherit; border-radius: 8px; padding: 8px 16px; cursor: pointer; text-decoration: none; }
+  button { background: #0b46e5; color: #fff; border: 0; }
+  a { border: 1px solid #0b46e5; color: #0b46e5; }
+  #etat { font-size: .85rem; color: #6c757d; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <img src="../logo-nexia-192.png" alt="" width="56" height="56">
+  <h1>Pas de connexion</h1>
+  <p>Cette page n'a pas encore été ouverte sur cet appareil : elle n'est pas disponible hors ligne.
+     Les pages déjà consultées et vos saisies restent accessibles depuis l'accueil.</p>
+  <p class="en" lang="en">You are offline. This page has not been opened on this device yet. Pages you have already visited remain available from the home page.</p>
+  <div class="actions">
+    <button type="button" id="reessayer">Réessayer / Retry</button>
+    <a href="../">Accueil / Home</a>
+  </div>
+  <div id="etat" role="status" aria-live="polite"></div>
+</main>
+<script src="offline.js"></script>
+</body>
+</html>
