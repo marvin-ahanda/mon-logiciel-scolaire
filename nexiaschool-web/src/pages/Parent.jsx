@@ -11,6 +11,7 @@ import { filigrane as faireFiligrane } from "../lib/bulletinVerif.js"
 import { calculerBilans } from "../lib/discipline.js"
 import { certificatsPdf, reglages } from "../lib/certificatPdf.js"
 import { pvIndividuelsPdf } from "../lib/pv/pdf.js"
+import { consommerRetour, URL_MCP } from "../lib/retour.js"
 import PvIndividuelVue from "./pv/PvIndividuelVue.jsx"
 import { OBJETS, QUALITES, SERVICES, dateLongue, libelleObjet, remerciement } from "../lib/courrier.js"
 import { date, dateHeure, note } from "../lib/format.js"
@@ -72,7 +73,7 @@ export function ConnexionParent() {
       if (r.erreur === "jeton") { oublierAppareil(); return naviguer("/etablissement") }
       if (r.erreur) return setErreur(traduireErreur(r.erreur))
       enregistrerSessionParent({ jeton: r.jeton, eleve: r.eleve, classe: r.classe, etablissement: r.etablissement })
-      naviguer("/parent")
+      naviguer(consommerRetour() || "/parent")         // retour à la page d'autorisation d'un assistant IA, le cas échéant
     } catch (x) { setErreur(x.message) } finally { setEnvoi(false) }
   }
   return (
@@ -133,6 +134,7 @@ export default function PortailParent() {
           <li className="nav-item"><button className={`nav-link${onglet === "ecole" ? " active" : ""}`} onClick={() => setOnglet("ecole")}>{t("Courriers de l'école")}
             {nonLus > 0 && <span className="badge text-bg-danger ms-1">{nonLus}</span>}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "pv" ? " active" : ""}`} onClick={() => setOnglet("pv")}>{t("PV de performances")}</button></li>
+          <li className="nav-item"><button className={`nav-link${onglet === "ia" ? " active" : ""}`} onClick={() => setOnglet("ia")}>{t("Mon assistant IA")} <span className="badge se-badge-ia">IA</span></button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "distinctions" ? " active" : ""}`} onClick={() => setOnglet("distinctions")}>{t("Distinctions")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "orientation" ? " active" : ""}`} onClick={() => setOnglet("orientation")}>{t("Orientation")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "courrier" ? " active" : ""}`} onClick={lireReponses}>{t("Écrire à l'école")}
@@ -143,6 +145,7 @@ export default function PortailParent() {
         {onglet === "bulletins" && <BulletinsParent d={d} quitter={quitter} />}
         {onglet === "ecole" && <CourriersEcoleParent liste={courriersEcole} recharger={chargerCourriersEcole} quitter={quitter} />}
         {onglet === "pv" && <PvParent quitter={quitter} />}
+        {onglet === "ia" && <AssistantIA quitter={quitter} eleve={nomEleve} />}
         {onglet === "distinctions" && <DistinctionsParent d={d} quitter={quitter} />}
         {onglet === "orientation" && <OrientationParent quitter={quitter} />}
         {onglet === "courrier" && <CourrierParent d={d} recharger={charger} />}
@@ -238,6 +241,102 @@ function BulletinsParent({ d, quitter }) {
         photo={b.contenu.photo} conduite={b.contenu.conduite} decision={b.contenu.decision} code={b.contenu.code} enCours={pdf ? "x" : null} onPdf={telecharger} />
         <p className="small text-muted no-print">{t("Publié par l'établissement le {v0}.", { v0: dateHeure(b.publie_le) })}</p></div>}
     </>
+  )
+}
+
+// --- Mon assistant IA : connecter Claude, Grok… aux données de l'enfant (offre Premium de l'établissement) ----------
+function AssistantIA({ quitter, eleve }) {
+  const [etat, setEtat] = useState(null), [erreur, setErreur] = useState(""), [cle, setCle] = useState(null), [libelle, setLibelle] = useState(""), [enCours, setEnCours] = useState(false)
+  const charger = useCallback(() => rpcParent("parent_ia_etat").then(setEtat).catch((e) => (e.expiree ? quitter() : setErreur(e.message))), [quitter])
+  useEffect(() => { charger() }, [charger])
+  if (erreur && !etat) return <Alerte>{erreur}</Alerte>
+  if (!etat) return <Chargement />
+  if (!etat.ouverte) return <div className="alert alert-info">{t("La connexion d'un assistant IA (Claude, Grok…) n'est pas proposée par votre établissement pour le moment.")}</div>
+  async function faire(nom, params) {
+    setEnCours(true); setErreur("")
+    try { const r = await rpcParent(nom, params); await charger(); return r } catch (e) { if (e.expiree) quitter(); else setErreur(e.message); return null } finally { setEnCours(false) }
+  }
+  async function creer(e) {
+    e.preventDefault()
+    const r = await faire("parent_ia_creer_cle", { p_libelle: libelle })
+    if (r?.cle) { setCle(r.cle); setLibelle("") }
+  }
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <p>{t("Posez vos questions à votre assistant IA : « Comment évolue mon enfant en mathématiques ? », « Quelle est sa prochaine échéance de paiement ? », « Quel est son emploi du temps demain ? »…")}</p>
+      <div className="alert alert-light border small">{t("L'assistant n'a accès qu'aux informations de {v0} et à celles de l'école que vous voyez dans cet espace. Avant d'écrire à l'école ou de répondre à un courrier en votre nom, il vous montre le texte et attend votre accord. Vous pouvez retirer l'accès à tout moment.", { v0: eleve })}</div>
+      <Alerte>{erreur}</Alerte>
+      <div className="row g-3 mb-3">
+        <div className="col-md-6"><div className="card h-100"><div className="card-body">
+          <h2 className="h6">{t("Claude (claude.ai)")}</h2>
+          <ol className="small mb-0">
+            <li>{t("Dans Claude : Paramètres → Connecteurs → Ajouter un connecteur personnalisé.")}</li>
+            <li>{t("Adresse du serveur :")} <code className="user-select-all">{URL_MCP}</code></li>
+            <li>{t("Cliquez « Se connecter », puis sur la page NexIA School « Autoriser pour mon enfant ». Ouvrez-la sur cet appareil, où l'espace parents est déjà ouvert.")}</li>
+          </ol>
+        </div></div></div>
+        <div className="col-md-6"><div className="card h-100"><div className="card-body">
+          <h2 className="h6">{t("Grok et autres assistants (clé personnelle)")}</h2>
+          <p className="small">{t("Créez une clé, puis indiquez à votre assistant l'adresse {v0} et la clé (en-tête « Authorization: Bearer … »).", { v0: URL_MCP })}</p>
+          <form className="d-flex gap-2" onSubmit={creer}>
+            <input className="form-control form-control-sm" maxLength={60} placeholder={t("Nom de l'accès (ex. Grok de papa)")} value={libelle} onChange={(e) => setLibelle(e.target.value)} />
+            <button className="btn btn-sm btn-primary text-nowrap" disabled={enCours}>{t("Créer une clé")}</button>
+          </form>
+        </div></div></div>
+      </div>
+      {cle && (
+        <div className="alert alert-warning">
+          <strong>{t("Votre clé (elle ne sera plus affichée) :")}</strong>
+          <div className="d-flex gap-2 align-items-center mt-1"><code className="user-select-all text-break">{cle}</code>
+            <button type="button" className="btn btn-sm btn-outline-dark" onClick={() => navigator.clipboard?.writeText(cle)}>{t("Copier")}</button></div>
+          <div className="small mt-1">{t("Gardez-la secrète : elle donne accès aux informations de votre enfant.")}</div>
+        </div>)}
+      {etat.brouillons.length > 0 && (
+        <div className="card border-warning mb-3"><div className="card-body">
+          <h2 className="h6">{t("Préparé par votre assistant : à valider ({v0})", { v0: etat.brouillons.length })}</h2>
+          <p className="small text-muted">{t("Rien n'est envoyé à l'école sans votre validation. Relisez chaque texte.")}</p>
+          {etat.brouillons.map((b) => <Brouillon key={b.id} b={b} faire={faire} enCours={enCours} />)}
+        </div></div>)}
+      <h2 className="h6">{t("Accès en cours")}</h2>
+      {!etat.acces.length ? <p className="small text-muted">{t("Aucun assistant connecté.")}</p> : (
+        <ul className="list-group">{etat.acces.map((a) => (
+          <li key={a.id} className="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2 small">
+            <span><strong>{a.libelle || (a.type === "oauth" ? t("Application connectée") : t("Clé personnelle"))}</strong> · {a.type === "oauth" ? t("connecteur") : t("clé")}
+              <span className="text-muted"> · {t("créé le {v0}", { v0: date(a.cree_le) })}{a.expire_le && ` · ${t("expire le {v0}", { v0: date(a.expire_le) })}`}
+                {a.derniere_utilisation && ` · ${t("utilisé le {v0}", { v0: dateHeure(a.derniere_utilisation) })}`}</span></span>
+            <button type="button" className="btn btn-sm btn-outline-danger" disabled={enCours}
+              onClick={() => confirm(t("Retirer cet accès ? L'assistant ne pourra plus consulter les informations de votre enfant.")) && faire("parent_ia_revoquer", { p_id: a.id })}>{t("Retirer l'accès")}</button>
+          </li>))}
+        </ul>)}
+    </div>
+  )
+}
+
+const ACTIONS_BROUILLON = { ecrire_ecole: "Courrier à l'école", repondre_courrier: "Réponse à un courrier de l'école", accuser_reception: "« J'ai pris connaissance »" }
+
+/** Brouillon préparé par l'assistant : le parent le relit, complète son identité si besoin, puis l'envoie ou le rejette. */
+function Brouillon({ b, faire, enCours }) {
+  const c = b.contenu
+  const [nom, setNom] = useState(c.parent_nom || ""), [qualite, setQualite] = useState(c.parent_qualite || "")
+  const incomplet = b.action === "ecrire_ecole" && (nom.trim().length < 2 || !qualite)
+  return (
+    <div className="border rounded p-2 mb-2 small">
+      <div className="d-flex flex-wrap justify-content-between gap-2"><strong>{t(ACTIONS_BROUILLON[b.action])}</strong><span className="text-muted">{dateHeure(b.cree_le)}</span></div>
+      {c.objet_courrier && <div className="text-muted">{t("Courrier : {v0}", { v0: c.objet_courrier })}</div>}
+      {b.action === "ecrire_ecole" && <div>{t("Objet : {v0}", { v0: libelleObjet(c.objet) })}{c.precision_objet ? ` — ${c.precision_objet}` : ""}</div>}
+      {c.message && <div className="border rounded p-2 my-1 bg-body" style={{ whiteSpace: "pre-wrap" }}>{c.message}</div>}
+      {b.action === "ecrire_ecole" && (
+        <div className="row g-2 my-1">
+          <div className="col-sm-7"><input className="form-control form-control-sm" maxLength={120} placeholder={t("Votre nom et prénom")} aria-label={t("Votre nom et prénom")} value={nom} onChange={(e) => setNom(e.target.value)} /></div>
+          <div className="col-sm-5"><select className="form-select form-select-sm" value={qualite} onChange={(e) => setQualite(e.target.value)} aria-label={t("Votre lien avec l'élève")}>
+            <option value="">{t("Votre lien avec l'élève…")}</option>{QUALITES.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}</select></div>
+        </div>)}
+      <div className="d-flex gap-2 mt-1">
+        <button type="button" className="btn btn-sm btn-success" disabled={enCours || incomplet}
+          onClick={() => faire("parent_ia_brouillon", { p_id: b.id, p_envoyer: true, p_parent_nom: nom || null, p_parent_qualite: qualite || null })}>{t("Envoyer à l'école")}</button>
+        <button type="button" className="btn btn-sm btn-outline-danger" disabled={enCours} onClick={() => faire("parent_ia_brouillon", { p_id: b.id, p_envoyer: false })}>{t("Rejeter")}</button>
+      </div>
+    </div>
   )
 }
 

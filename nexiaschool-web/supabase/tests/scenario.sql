@@ -364,4 +364,5 @@ reset role;
 \ir scenario_pv.sql
 \ir scenario_relances.sql
 \ir scenario_courriers_admin.sql
+\ir scenario_ia_parents.sql
 \echo SCÉNARIO TERMINÉ

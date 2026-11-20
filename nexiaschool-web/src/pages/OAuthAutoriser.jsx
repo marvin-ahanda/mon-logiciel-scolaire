@@ -5,6 +5,7 @@ import { LIBELLES_ROLES } from "../composants/MiseEnPage.jsx"
 import { lireAppareil } from "../lib/appareil.js"
 import { nomComplet } from "../lib/format.js"
 import { memoriserRetour } from "../lib/retour.js"
+import { lireSessionParent, oublierSessionParent, rpcParent } from "../lib/parent.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase } from "../supabase.js"
 import { BoutonGoogle } from "./Acces.jsx"
@@ -62,6 +63,41 @@ export default function OAuthAutoriser() {
     memoriserRetour(pathname + search)
     naviguer(lireAppareil() ? "/connexion" : "/etablissement")
   }
+  // Parent : l'assistant IA n'aura accès qu'aux données de son enfant (session de l'espace parents de cet appareil)
+  const sessionParent = lireSessionParent()
+  // hôte de retour : affiché au parent, et refusé s'il ne s'agit pas d'une application d'IA reconnue
+  const [hote, setHote] = useState(null)
+  useEffect(() => {
+    if (invalide) return
+    rpc("oauth_info_client_parent", { p_client_id: q.client_id, p_redirect_uri: q.redirect_uri }).then(setHote).catch(() => setHote(null))
+  }, [invalide, q.client_id, q.redirect_uri])
+  async function autoriserParent() {
+    setEnvoi(true); setErreur("")
+    try {
+      const r = await rpcParent("oauth_autoriser_parent", { p_client_id: q.client_id, p_redirect_uri: q.redirect_uri, p_code_challenge: q.code_challenge,
+                                                             p_methode: q.code_challenge_method })
+      retour({ code: r.code })
+    } catch (e) { if (e.expiree) oublierSessionParent(); setErreur(e.message); setEnvoi(false) }
+  }
+  function seConnecterParent() {
+    memoriserRetour(pathname + search)
+    naviguer(lireAppareil() ? "/parent/connexion" : "/etablissement")
+  }
+  const blocParent = (
+    <div className="border rounded p-3 mb-3 bg-body-tertiary">
+      <h2 className="h6">{t("Vous êtes parent d'élève ?")}</h2>
+      {hote && <p className="small mb-2">{t("Retour vers : {v0}", { v0: hote.hote })}{" "}
+        {hote.reconnu ? <span className="badge text-bg-success">{t("application reconnue")}</span> : <span className="badge text-bg-danger">{t("application non reconnue")}</span>}</p>}
+      {hote && !hote.reconnu ? (
+        <div className="alert alert-danger small mb-0">{t("Par sécurité, cette application ne peut pas accéder à l'espace de votre enfant. Pour un autre assistant, créez une clé personnelle dans l'espace parents (onglet « Mon assistant IA »).")}</div>
+      ) : sessionParent ? (
+        <>
+          <p className="small mb-2">{t("{v0} n'aura accès qu'aux informations de votre enfant {v1} et à celles de l'école que vous voyez dans votre espace.", { v0: client?.nom || "", v1: sessionParent.eleve })}</p>
+          <button className="btn btn-success w-100" disabled={envoi} onClick={autoriserParent}>{envoi ? t("Autorisation…") : t("Autoriser pour mon enfant {v0}", { v0: sessionParent.eleve })}</button>
+        </>
+      ) : <button className="btn btn-outline-success w-100" onClick={seConnecterParent}>{t("Me connecter à l'espace parents")}</button>}
+    </div>
+  )
 
   if (invalide || (erreur && !client)) return (
     <Cadre><Alerte>{invalide || erreur}</Alerte><p className="small text-muted mb-0">{t(
@@ -73,6 +109,9 @@ export default function OAuthAutoriser() {
   if (!session || (!profil && !sansEtablissement)) return (
     <Cadre>
       <p><strong>{client.nom}</strong>{t(" souhaite accéder à votre espace NexIA School. Connectez-vous d'abord.")}</p>
+      <Alerte>{erreur}</Alerte>
+      {blocParent}
+      <h2 className="h6">{t("Personnel de l'établissement")}</h2>
       <button className="btn btn-primary w-100 mb-2" onClick={seConnecterParCode}>{t("Se connecter avec le code de mon établissement")}</button>
       <BoutonGoogle chemin={pathname + search} texte={t("Fondateur : se connecter avec Google")} />
     </Cadre>
