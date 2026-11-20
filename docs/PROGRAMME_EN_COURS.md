@@ -34,8 +34,16 @@ Décisions déjà prises avec l'utilisateur : périodes personnalisées (semestr
 - Mineurs : activer la protection contre les mots de passe compromis (Supabase Auth, action de l'utilisateur) ; certificat de `www.nexiaschool.com`.
 
 ## État de la production
-- **Déployé** : fonction MCP v9 et migrations jusqu'à `0040`.
-- **Pas encore déployé** (commits locaux/branche seulement) : migrations `0041` à `0049`, toute l'interface des tâches 1 à 12, la fonction `mcp` (outils des parents : redéployer ses 5 fichiers ensemble) et le Worker `workers/maintien` (il appelle désormais `relances_quotidiennes` chaque matin : à redéployer avec la migration 0046). Un déploiement unique (migrations, puis site) se fera sur demande de l'utilisateur.
+- **Tout est déployé (20/11/2026)**, sur demande de l'utilisateur (« Oui, publie tout ») :
+  - migrations `0041` à `0049` appliquées à la base `woxdqzocwqnrpfmxlsbq` ;
+  - fonction `mcp` v10 (5 fichiers, `verify_jwt` désactivé) ;
+  - branches `programme-jour` et `netlify-supabase` poussées (commit `837e620`) ;
+  - site sur Cloudflare Pages et sur GitHub Pages ;
+  - Worker `workers/maintien` (cron horaire `17 * * * *`).
+- Contrôles faits après publication :
+  - les seules alertes de sécurité Supabase sont celles attendues (fonctions publiques des parents, d'OAuth et des tâches planifiées ; tables réservées au serveur) ;
+  - MCP : métadonnées OAuth 200, appel sans clé 401, clé parent inconnue 401.
+- Correction faite pendant la publication : le test « synthèse lisible pour les parents » échouait sur la CI, dont la langue est l'anglais (9.50 au lieu de 9,50). Le test utilise désormais le même formateur que le code.
 
 ## Poser le terrain (tests)
 - Base de test : `PGHOST=127.0.0.1 PGUSER=postgres PGPASSWORD=banc sh nexiaschool-web/supabase/tests/lancer.sh` (démarrer avant : `service postgresql start`). Dernier résultat : 663 vérifications SQL (dont 36 pour les PV, 36 pour les relances, 29 pour les courriers administratifs, 28 pour les assistants IA des parents, 17 pour les automatisations), 159 tests vitest (`npx vitest run`).
