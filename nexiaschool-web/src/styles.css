@@ -326,3 +326,9 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 .zone-signature img { max-height: 110px; max-width: 100%; }
 .journal-cartes li { padding: 2px 0; border-bottom: 1px dashed var(--bs-border-color); }
 .onglets-parametres .nav-link { white-space: nowrap; }
+.groupes-parametres .nav-link { font-weight: 600; }
+.sous-onglets-parametres { border-bottom-style: dashed; }
+.sous-onglets-parametres .nav-link { font-size: .92rem; padding: .35rem .8rem; }
+.tableau-decisions td select { min-width: 92px; }
+.tableau-decisions td select[aria-label="Décision"], .tableau-decisions td select[aria-label="Decision"] { min-width: 190px; }
+.tableau-decisions .mention-bulletin { min-width: 230px; }

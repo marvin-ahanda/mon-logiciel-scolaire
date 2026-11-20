@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react"
-import { NavLink, Route, Routes } from "react-router-dom"
+import { NavLink, Route, Routes, useLocation } from "react-router-dom"
 import ParametresDecisions from "./ParametresDecisions.jsx"
 import PeriodesPersonnalisees from "./PeriodesPersonnalisees.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
@@ -12,30 +12,38 @@ import { t, locale } from "../i18n.jsx"
 import { Cadenas, Verrou } from "../composants/Offre.jsx"
 import { LIBELLES_FONCTIONS, NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
 
+const ParametresParcours = lazy(() => import("./ParametresParcours.jsx"))
 const ParametresCartes = lazy(() => import("./ParametresCartes.jsx"))           // modèles et PDF chargés à la demande
 const ParametresDistinctions = lazy(() => import("./ParametresDistinctions.jsx"))   // certificats PDF chargés à la demande
 const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
 
+// Rubriques des Paramètres, regroupées (le premier élément de chaque groupe est sa page d'arrivée)
+const GROUPES = [
+  ["Établissement", [["", "Établissement"], ["exercices", "Exercices et séquences"]]],
+  ["Organisation pédagogique", [["sections", "Sections"], ["classes", "Classes"], ["matieres", "Matières"], ["coefficients", "Matières par classe"], ["parcours", "Parcours et orientation", "parcours"]]],
+  ["Évaluation et vie scolaire", [["discipline", "Discipline"], ["decisions", "Décisions de fin de période", "decisions"], ["distinctions", "Récompenses et distinctions", "distinctions"]]],
+  ["Documents", [["cartes", "Cartes scolaires", "cartes"]]],
+  ["Emploi du temps", [["emploi-du-temps", "Emploi du temps", "edt"]]],
+]
+
 export default function Parametres() {
   const { aOffre } = useSession()
+  const { pathname } = useLocation()
   const onglet = ({ isActive }) => "nav-link" + (isActive ? " active" : "")
-  const cadenas = (f) => !aOffre(f) && <> <Cadenas /></>
+  const cadenas = (f) => f && !aOffre(f) && <> <Cadenas /></>
+  const actuel = (pathname.replace(/\/+$/, "").split("/parametres")[1] || "").split("/")[1] || ""
+  const groupe = GROUPES.find(([, items]) => items.some(([k]) => k === actuel)) || GROUPES[0]
+  const lien = (k) => (k ? `/parametres/${k}` : "/parametres")
   return (
     <>
       <h1 className="h3 mb-3">{t("Paramètres")}</h1>
-      <ul className="nav nav-tabs mb-3 flex-nowrap overflow-auto onglets-parametres">
-        <li className="nav-item"><NavLink className={onglet} to="/parametres" end>{t("Établissement")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/exercices">{t("Exercices et séquences")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/sections">{t("Sections")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/classes">{t("Classes")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/matieres">{t("Matières")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/coefficients">{t("Matières par classe")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">{t("Discipline")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}{cadenas("decisions")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/distinctions">{t("Récompenses et distinctions")}{cadenas("distinctions")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/cartes">{t("Cartes scolaires")}{cadenas("cartes")}</NavLink></li>
-        <li className="nav-item"><NavLink className={onglet} to="/parametres/emploi-du-temps">{t("Emploi du temps")}{cadenas("edt")}</NavLink></li>
+      <ul className="nav nav-tabs mb-2 flex-nowrap overflow-auto onglets-parametres groupes-parametres">
+        {GROUPES.map(([nom, items]) => (
+          <li className="nav-item" key={nom}><NavLink className={() => "nav-link" + (groupe[0] === nom ? " active" : "")} to={lien(items[0][0])} end>{t(nom)}</NavLink></li>))}
       </ul>
+      {(groupe[1].length > 1 || groupe[1][0][1] !== groupe[0]) && <ul className="nav nav-tabs mb-3 flex-nowrap overflow-auto onglets-parametres sous-onglets-parametres">
+        {groupe[1].map(([k, l, f]) => <li className="nav-item" key={k}><NavLink className={onglet} to={lien(k)} end>{t(l)}{cadenas(f)}</NavLink></li>)}
+      </ul>}
       <Routes>
         <Route index element={<Etablissement />} />
         <Route path="exercices" element={<Exercices />} />
@@ -46,6 +54,7 @@ export default function Parametres() {
         <Route path="discipline" element={<ParametresDiscipline />} />
         <Route path="decisions" element={<Verrou fonction="decisions"><ParametresDecisions /></Verrou>} />
         <Route path="distinctions" element={<Verrou fonction="distinctions"><Suspense fallback={<Chargement />}><ParametresDistinctions /></Suspense></Verrou>} />
+        <Route path="parcours" element={<Verrou fonction="parcours"><Suspense fallback={<Chargement />}><ParametresParcours /></Suspense></Verrou>} />
         <Route path="cartes" element={<Verrou fonction="cartes"><Suspense fallback={<Chargement />}><ParametresCartes /></Suspense></Verrou>} />
         <Route path="emploi-du-temps" element={<Verrou fonction="edt"><Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense></Verrou>} />
       </Routes>

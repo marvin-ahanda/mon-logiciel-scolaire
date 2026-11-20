@@ -359,4 +359,5 @@ reset role;
 \ir scenario_mcp.sql
 \ir scenario_distinctions.sql
 \ir scenario_cartes.sql
+\ir scenario_parcours.sql
 \echo SCÉNARIO TERMINÉ

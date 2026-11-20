@@ -124,6 +124,7 @@ export default function PortailParent() {
           <li className="nav-item"><button className={`nav-link${onglet === "discipline" ? " active" : ""}`} onClick={() => setOnglet("discipline")}>{t("Bilan disciplinaire")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "bulletins" ? " active" : ""}`} onClick={() => setOnglet("bulletins")}>{t("Bulletins de {v0}", { v0: `${e.prenom} ${e.nom.toUpperCase()}`.trim() })}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "distinctions" ? " active" : ""}`} onClick={() => setOnglet("distinctions")}>{t("Distinctions")}</button></li>
+          <li className="nav-item"><button className={`nav-link${onglet === "orientation" ? " active" : ""}`} onClick={() => setOnglet("orientation")}>{t("Orientation")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "courrier" ? " active" : ""}`} onClick={lireReponses}>{t("Écrire à l'école")}
             {d.reponses_non_lues > 0 && <span className="badge text-bg-danger ms-1">{d.reponses_non_lues}</span>}</button></li>
         </ul>
@@ -131,6 +132,7 @@ export default function PortailParent() {
         {onglet === "discipline" && <BilanDisciplinaire d={d} />}
         {onglet === "bulletins" && <BulletinsParent d={d} quitter={quitter} />}
         {onglet === "distinctions" && <DistinctionsParent d={d} quitter={quitter} />}
+        {onglet === "orientation" && <OrientationParent quitter={quitter} />}
         {onglet === "courrier" && <CourrierParent d={d} recharger={charger} />}
       </main>
       {d.reponses_non_lues > 0 && onglet !== "courrier" && (
@@ -253,6 +255,64 @@ function DistinctionsParent({ d, quitter }) {
         <div className="small text-muted mt-1">{t("Délivrée le {v0}", { v0: date(x.emis_le) })} · <code>{x.code}</code></div>
         {x.imprimable && <button className="btn btn-sm btn-success mt-2" disabled={pdf !== null} onClick={() => certificat(x, k)}>{pdf === k ? t("Préparation du PDF…") : t("Télécharger le certificat")}</button>}
       </div></div></div>))}
+    </div>
+  )
+}
+
+// --- Orientation : série actuelle, destinations possibles, demande, réponse de l'établissement ------------------
+const STATUTS_DEMANDE = { en_attente: ["En cours d'examen", "warning"], acceptee: ["Acceptée", "success"], refusee: ["Refusée", "danger"], remplacee: ["Remplacée", "secondary"] }
+function OrientationParent({ quitter }) {
+  const [o, setO] = useState(null), [erreur, setErreur] = useState(""), [f, setF] = useState({ destination: "", type: "demande_orientation", parent_nom: "", motif: "" })
+  const [envoi, setEnvoi] = useState(false), [ok, setOk] = useState("")
+  const charger = useCallback(() => rpcParent("parent_orientation").then(setO).catch((e) => (e.expiree ? quitter() : setErreur(e.message))), [quitter])
+  useEffect(() => { charger() }, [charger])
+  if (!o) return erreur ? <Alerte>{erreur}</Alerte> : <Chargement />
+  const enAttente = o.demandes.some((x) => x.statut === "en_attente" && x.origine === "parent")
+  async function envoyer(e) {
+    e.preventDefault(); setErreur(""); setOk(""); setEnvoi(true)
+    const dest = o.destinations[Number(f.destination)] || {}
+    try {
+      await rpcParent("parent_demander_orientation", { p: { type: f.type, serie_id: dest.serie_id || null, niveau_id: dest.niveau_id || null, parent_nom: f.parent_nom, motif: f.motif } })
+      setOk(t("Votre demande a été transmise à l'établissement. Vous verrez sa réponse ici.")); setF({ ...f, destination: "", motif: "" }); charger()
+    } catch (x) { setErreur(x.message) } finally { setEnvoi(false) }
+  }
+  return (
+    <div className="orientation-parent">
+      <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte><Alerte type="success" onFermer={() => setOk("")}>{ok}</Alerte>
+      <div className="card mb-3"><div className="card-body">
+        <div className="small text-muted">{t("Situation actuelle")}</div>
+        <div className="fs-5 fw-semibold">{o.classe}{o.serie && <span className="badge text-bg-primary ms-2">{t("Série {v0}", { v0: o.serie.code })}</span>}</div>
+        {o.niveau && <div className="small">{t("Niveau : {v0}", { v0: o.niveau })}</div>}
+        {o.destinations.length > 0 && <div className="small mt-2">{t("Poursuites d'études possibles l'an prochain :")} {o.destinations.map((x) => x.libelle).join(" · ")}</div>}
+      </div></div>
+      {o.destinations.length > 0 && !enAttente && <form className="card mb-3" onSubmit={envoyer}><div className="card-body">
+        <h2 className="h6">{t("Faire une demande d'orientation")}</h2>
+        <div className="row g-2">
+          <div className="col-md-6"><label className="form-label small mb-0" htmlFor="or-dest">{t("Série ou filière souhaitée")}</label>
+            <select id="or-dest" className="form-select" required value={f.destination} onChange={(e) => setF({ ...f, destination: e.target.value })}>
+              <option value="">{t("Choisir…")}</option>{o.destinations.map((x, k) => <option key={k} value={k}>{x.libelle}{x.serie ? ` — ${x.serie}` : ""}{x.filiere ? ` (${x.filiere})` : ""}</option>)}</select></div>
+          <div className="col-md-6"><label className="form-label small mb-0" htmlFor="or-type">{t("Type de demande")}</label>
+            <select id="or-type" className="form-select" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
+              <option value="demande_orientation">{t("Orientation pour l'année prochaine")}</option><option value="changement_serie">{t("Changement de série dès cette année")}</option></select></div>
+          <div className="col-md-6"><label className="form-label small mb-0" htmlFor="or-nom">{t("Votre nom")}</label>
+            <input id="or-nom" className="form-control" required maxLength={120} value={f.parent_nom} onChange={(e) => setF({ ...f, parent_nom: e.target.value })} /></div>
+          <div className="col-12"><label className="form-label small mb-0" htmlFor="or-motif">{t("Motivation")}</label>
+            <textarea id="or-motif" className="form-control" rows={3} required minLength={10} maxLength={1000} value={f.motif} onChange={(e) => setF({ ...f, motif: e.target.value })} /></div>
+        </div>
+        <button className="btn btn-primary mt-2" disabled={envoi}>{envoi ? t("Envoi…") : t("Envoyer la demande")}</button>
+      </div></form>}
+      {enAttente && <div className="alert alert-info small">{t("Une demande est en cours d'examen par l'établissement.")}</div>}
+      <h2 className="h6">{t("Demandes et décisions d'orientation")}</h2>
+      {!o.demandes.length && <p className="text-muted small">{t("Aucune demande pour le moment.")}</p>}
+      {o.demandes.map((x) => (
+        <div className="card mb-2 demande-orientation" key={x.id}><div className="card-body py-2">
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <strong>{[x.niveau, x.serie, x.filiere].filter(Boolean).join(" · ") || "—"}</strong>
+            <span className={`badge text-bg-${(STATUTS_DEMANDE[x.statut] || STATUTS_DEMANDE.remplacee)[1]}`}>{t((STATUTS_DEMANDE[x.statut] || STATUTS_DEMANDE.remplacee)[0])}</span>
+            <span className="small text-muted ms-auto">{x.origine === "parent" ? t("Votre demande du {v0}", { v0: date(x.cree_le) }) : t("Décision de l'établissement du {v0}", { v0: date(x.decide_le || x.cree_le) })}</span></div>
+          {x.motif && <div className="small mt-1">{x.motif}</div>}
+          {x.reponse && <div className="small mt-1 text-primary-emphasis">↳ {x.reponse}</div>}
+        </div></div>))}
     </div>
   )
 }

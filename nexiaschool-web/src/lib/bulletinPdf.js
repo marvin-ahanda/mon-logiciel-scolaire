@@ -183,7 +183,7 @@ function bulletin(doc, autoTable, { etablissement, logo, filigrane, exercice, pe
   ]
   if (periode.type === "annee") synthese.push([
     { content: pdf(t("Moyennes trimestrielles : ") + (r.moyennesTrimestres || []).map((m, k) => `T${k + 1} : ${m === null ? "—" : note(m)}`).join(" · ")), colSpan: 2 },
-    lv(t("Décision proposée : "), decision ? t(decision.libelle) : "—")])
+    lv(decision?.validee ? t("Décision : ") : t("Décision proposée : "), decision ? t(decision.libelle) : "—")])
   else if (periode.type === "trimestre" && decision) synthese.push([lv(t("Décision proposée : "), t(decision.libelle), "", { colSpan: 3 })])
   y = tableau(doc, autoTable, y, { body: synthese, styles: { ...STYLES, fontSize: 8.5, valign: "middle" }, columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 62 } } }) + 2
 
