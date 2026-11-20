@@ -70,7 +70,7 @@ export function variables(laureat, distinction, etablissement) {
 }
 
 /** Dessine un certificat sur la page courante (A4 paysage 297 × 210 mm). */
-function certificat(doc, laureat, distinction, etablissement, logo) {
+function certificat(doc, laureat, distinction, etablissement, logo, signatures = {}) {
   const r = reglages(distinction, etablissement), W = 297, H = 210
   const c1 = rgb(r.couleur), c2 = rgb(r.couleur2), police = r.police === "serif" ? "times" : "helvetica"
   const vars = variables(laureat, distinction, etablissement)
@@ -146,12 +146,23 @@ function certificat(doc, laureat, distinction, etablissement, logo) {
   doc.text(lignes, centre, y, { align: "center", lineHeightFactor: 1.4 })
 
   // --- Pied : lieu et date, signature, QR code
-  const yb = H - 48
+  const avecSignatures = !!(signatures.cachet || signatures.signature)
+  const yb = H - (avecSignatures ? 57 : 48)
   doc.setFont(police, "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 40)
   const xs = r.modele === "moderne" ? W - 70 : W - 82
   doc.text(pdf(`${t("Fait à")} ${r.lieu || "……………"}, ${t("le")} ${vars.date}`), xs, yb, { align: "center" })
   doc.setFont(police, "bold"); doc.text(pdf(r.signataire), xs, yb + 7, { align: "center" })
-  doc.setFont(police, "normal"); if (r.nomSignataire) doc.text(pdf(r.nomSignataire), xs, yb + 23, { align: "center" })
+  if (signatures.cachet) logoDans(doc, signatures.cachet, xs - 12, yb + 9.5, 21, 24)
+  if (signatures.signature) logoDans(doc, signatures.signature, xs + 5, yb + 13, 14, 32)
+  if ((signatures.cachet || signatures.signature) && laureat.code) {      // filigrane : code du certificat sur le cachet et la signature
+    try {
+      doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.18 })); doc.setFont("helvetica", "normal"); doc.setFontSize(5); doc.setTextColor(...rgb(r.couleur))
+      for (let k = 0; k < 3; k++) doc.text(laureat.code, xs - 20 + (k % 2) * 6, yb + 15 + k * 5, { charSpace: 0.4 })
+      doc.restoreGraphicsState()
+    } catch { /* filigrane facultatif */ }
+  }
+  doc.setFont(police, "normal"); doc.setFontSize(11); doc.setTextColor(40, 40, 40)
+  if (r.nomSignataire) doc.text(pdf(r.nomSignataire), xs, yb + (avecSignatures ? 35 : 23), { align: "center" })
   if (laureat.code) {
     const xq = r.modele === "moderne" ? gauche + 14 : 26, taille = 24
     qr(doc, urlVerificationDistinction(laureat.code), xq, yb - 8, taille)
@@ -177,11 +188,11 @@ function sortie(doc, nom, mode) {
  * Certificats individuels. laureats = [{ eleve, matricule, classe, periode, annee, valeurs, code, emis_le }].
  * mode : "telecharger" | "imprimer" | "url" (aperçu : renvoie l'adresse du PDF) | "octets" (contenu du PDF).
  */
-export async function certificatsPdf(laureats, { distinction, etablissement, logo, nom = "certificats", mode = "telecharger" }) {
+export async function certificatsPdf(laureats, { distinction, etablissement, logo, signatures = {}, nom = "certificats", mode = "telecharger" }) {
   const { jsPDF } = await import("jspdf")
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true })
   doc.setProperties({ title: pdf(`${distinction.nom} — ${etablissement.nom}`), author: pdf(etablissement.nom), creator: "NexIA School" })
-  laureats.forEach((l, k) => { if (k) doc.addPage("a4", "landscape"); certificat(doc, l, distinction, etablissement, logo) })
+  laureats.forEach((l, k) => { if (k) doc.addPage("a4", "landscape"); certificat(doc, l, distinction, etablissement, logo, signatures) })
   return sortie(doc, nom, mode)
 }
 

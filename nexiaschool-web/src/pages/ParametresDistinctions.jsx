@@ -9,6 +9,7 @@ import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { CATEGORIES, MODELES, PERIODICITES, PORTEES, preselection, resumeCriteres } from "../lib/distinctions.js"
 import { DEFAUTS_MODELES, certificatsPdf, reglages, tableauHonneurPdf, texteParDefaut, urlVerificationDistinction } from "../lib/certificatPdf.js"
 import { situationsEleves } from "../lib/donneesDistinctions.js"
+import { signaturesEnService } from "../lib/signatures.js"
 import { image, nomDeFichier } from "../lib/bulletinPdf.js"
 import { periodes as listePeriodes } from "../lib/periodes.js"
 import { comparerNoms, date, dateHeure, nomComplet, note } from "../lib/format.js"
@@ -321,7 +322,7 @@ function Attribuer({ reference }) {
   async function pdfCertificats(liste) {
     const r = reglages(distinction, etablissement)
     await certificatsPdf(liste.map((l) => ({ ...l, periode: periode.libelle, annee: exercice.libelle })), { distinction, etablissement,
-      logo: r.afficherLogo ? await image(logoUrl) : null, nom: nomDeFichier(t("certificats"), distinction.nom, liste.length === 1 ? liste[0].eleve : periode.libelle) })
+      logo: r.afficherLogo ? await image(logoUrl) : null, signatures: await signaturesEnService(), nom: nomDeFichier(t("certificats"), distinction.nom, liste.length === 1 ? liste[0].eleve : periode.libelle) })
   }
 
   if (!actives.length) return <div className="alert alert-info">{t("Créez d'abord une distinction dans l'onglet « Distinctions ».")}</div>
@@ -461,7 +462,7 @@ function Historique() {
               {a.retenu && !a.revoque_le && a.distinction.imprimable && <button className="btn btn-sm btn-outline-secondary py-0" onClick={async () => {
                 const r = reglages(a.distinction, etablissement)
                 await certificatsPdf([{ ...a, periode: a.session.periode_libelle, annee: a.annee }], { distinction: { ...a.distinction, nom: a.session.configuration?.nom || a.distinction.nom }, etablissement,
-                  logo: r.afficherLogo ? await image(logoUrl) : null, nom: nomDeFichier(t("certificat"), a.eleve, a.session.periode_libelle) })
+                  logo: r.afficherLogo ? await image(logoUrl) : null, signatures: await signaturesEnService(), nom: nomDeFichier(t("certificat"), a.eleve, a.session.periode_libelle) })
               }}>{t("Certificat")}</button>}
             </li>))}</ul>
         </div></div>))}

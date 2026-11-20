@@ -12,6 +12,7 @@ import { t, locale } from "../i18n.jsx"
 import { Cadenas, Verrou } from "../composants/Offre.jsx"
 import { LIBELLES_FONCTIONS, NOMS_OFFRES, PLAFONDS } from "../lib/offres.js"
 
+const ParametresCartes = lazy(() => import("./ParametresCartes.jsx"))           // modèles et PDF chargés à la demande
 const ParametresDistinctions = lazy(() => import("./ParametresDistinctions.jsx"))   // certificats PDF chargés à la demande
 const EmploiDuTemps = lazy(() => import("./edt/EmploiDuTemps.jsx"))     // module chargé à la demande (moteur, exports)
 
@@ -22,7 +23,7 @@ export default function Parametres() {
   return (
     <>
       <h1 className="h3 mb-3">{t("Paramètres")}</h1>
-      <ul className="nav nav-tabs mb-3 flex-nowrap overflow-auto">
+      <ul className="nav nav-tabs mb-3 flex-nowrap overflow-auto onglets-parametres">
         <li className="nav-item"><NavLink className={onglet} to="/parametres" end>{t("Établissement")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/exercices">{t("Exercices et séquences")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/sections">{t("Sections")}</NavLink></li>
@@ -32,6 +33,7 @@ export default function Parametres() {
         <li className="nav-item"><NavLink className={onglet} to="/parametres/discipline">{t("Discipline")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/decisions">{t("Décisions de fin de période")}{cadenas("decisions")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/distinctions">{t("Récompenses et distinctions")}{cadenas("distinctions")}</NavLink></li>
+        <li className="nav-item"><NavLink className={onglet} to="/parametres/cartes">{t("Cartes scolaires")}{cadenas("cartes")}</NavLink></li>
         <li className="nav-item"><NavLink className={onglet} to="/parametres/emploi-du-temps">{t("Emploi du temps")}{cadenas("edt")}</NavLink></li>
       </ul>
       <Routes>
@@ -44,6 +46,7 @@ export default function Parametres() {
         <Route path="discipline" element={<ParametresDiscipline />} />
         <Route path="decisions" element={<Verrou fonction="decisions"><ParametresDecisions /></Verrou>} />
         <Route path="distinctions" element={<Verrou fonction="distinctions"><Suspense fallback={<Chargement />}><ParametresDistinctions /></Suspense></Verrou>} />
+        <Route path="cartes" element={<Verrou fonction="cartes"><Suspense fallback={<Chargement />}><ParametresCartes /></Suspense></Verrou>} />
         <Route path="emploi-du-temps" element={<Verrou fonction="edt"><Suspense fallback={<Chargement />}><EmploiDuTemps /></Suspense></Verrou>} />
       </Routes>
     </>

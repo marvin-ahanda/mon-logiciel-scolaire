@@ -19,6 +19,7 @@ const OAuthAutoriser = page(() => import("./pages/OAuthAutoriser.jsx"))
 const Verifier = page(() => import("./pages/Verifier.jsx"))
 const VerifierRecu = page(() => import("./pages/VerifierRecu.jsx"))
 const VerifierDistinction = page(() => import("./pages/VerifierDistinction.jsx"))
+const VerifierCarte = page(() => import("./pages/VerifierCarte.jsx"))
 const EvaluationEleve = page(() => import("./pages/EvaluationEleve.jsx"))
 const Courrier = page(() => import("./pages/Courrier.jsx"))
 const PageBulletins = page(() => import("./pages/Bulletins.jsx"))
@@ -110,6 +111,7 @@ export default function App() {
           <Route path="/verifier/:code" element={<Verifier />} />
           <Route path="/recu/:code" element={<VerifierRecu />} />
           <Route path="/distinction/:code" element={<VerifierDistinction />} />
+          <Route path="/carte/:code" element={<VerifierCarte />} />
           <Route path="/e/:jeton" element={<EvaluationEleve />} />
           <Route path="/acces" element={<ChoixProfil />} />
           <Route path="/parent/connexion" element={<ConnexionParent />} />
