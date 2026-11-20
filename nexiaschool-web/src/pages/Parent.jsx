@@ -10,6 +10,8 @@ import { image, nomDeFichier, telechargerBulletinsPdf } from "../lib/bulletinPdf
 import { filigrane as faireFiligrane } from "../lib/bulletinVerif.js"
 import { calculerBilans } from "../lib/discipline.js"
 import { certificatsPdf, reglages } from "../lib/certificatPdf.js"
+import { pvIndividuelsPdf } from "../lib/pv/pdf.js"
+import PvIndividuelVue from "./pv/PvIndividuelVue.jsx"
 import { OBJETS, QUALITES, SERVICES, dateLongue, libelleObjet, remerciement } from "../lib/courrier.js"
 import { date, dateHeure, note } from "../lib/format.js"
 import { enregistrerSessionParent, lireSessionParent, oublierSessionParent, rpcParent } from "../lib/parent.js"
@@ -123,6 +125,7 @@ export default function PortailParent() {
         <ul className="nav nav-pills mb-3 gap-1 no-print onglets-parent">
           <li className="nav-item"><button className={`nav-link${onglet === "discipline" ? " active" : ""}`} onClick={() => setOnglet("discipline")}>{t("Bilan disciplinaire")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "bulletins" ? " active" : ""}`} onClick={() => setOnglet("bulletins")}>{t("Bulletins de {v0}", { v0: `${e.prenom} ${e.nom.toUpperCase()}`.trim() })}</button></li>
+          <li className="nav-item"><button className={`nav-link${onglet === "pv" ? " active" : ""}`} onClick={() => setOnglet("pv")}>{t("PV de performances")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "distinctions" ? " active" : ""}`} onClick={() => setOnglet("distinctions")}>{t("Distinctions")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "orientation" ? " active" : ""}`} onClick={() => setOnglet("orientation")}>{t("Orientation")}</button></li>
           <li className="nav-item"><button className={`nav-link${onglet === "courrier" ? " active" : ""}`} onClick={lireReponses}>{t("Écrire à l'école")}
@@ -131,6 +134,7 @@ export default function PortailParent() {
         <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte>
         {onglet === "discipline" && <BilanDisciplinaire d={d} />}
         {onglet === "bulletins" && <BulletinsParent d={d} quitter={quitter} />}
+        {onglet === "pv" && <PvParent quitter={quitter} />}
         {onglet === "distinctions" && <DistinctionsParent d={d} quitter={quitter} />}
         {onglet === "orientation" && <OrientationParent quitter={quitter} />}
         {onglet === "courrier" && <CourrierParent d={d} recharger={charger} />}
@@ -225,6 +229,37 @@ function BulletinsParent({ d, quitter }) {
         entetes={b.commun.entetes || []} etablissement={b.commun.etablissement} logo={b.commun.logo} filigrane={fond} exercice={b.commun.exercice}
         photo={b.contenu.photo} conduite={b.contenu.conduite} decision={b.contenu.decision} code={b.contenu.code} enCours={pdf ? "x" : null} onPdf={telecharger} />
         <p className="small text-muted no-print">{t("Publié par l'établissement le {v0}.", { v0: dateHeure(b.publie_le) })}</p></div>}
+    </>
+  )
+}
+
+// --- PV de performances publiés (toutes années) : uniquement ceux de l'enfant, PDF téléchargeable ---------------------
+function PvParent({ quitter }) {
+  const [liste, setListe] = useState(null), [erreur, setErreur] = useState(""), [choisi, setChoisi] = useState(0), [pdf, setPdf] = useState(false)
+  useEffect(() => { rpcParent("parent_pv").then(setListe).catch((e) => (e.expiree ? quitter() : setErreur(e.message))) }, [quitter])
+  if (erreur) return <Alerte>{erreur}</Alerte>
+  if (!liste) return <Chargement />
+  if (!liste.length) return <div className="alert alert-info">{t("Aucun PV de performances publié pour le moment. Il apparaîtra ici dès que l'établissement l'aura publié.")}</div>
+  const x = liste[Math.min(choisi, liste.length - 1)]
+  async function telecharger() {
+    setPdf(true); setErreur("")
+    try {
+      const c = x.commun || {}
+      await pvIndividuelsPdf([x.contenu], { etablissement: c.etablissement || {}, logo: await image(c.logo), signataires: c.signataires || [],
+        lieu: c.etablissement?.ville || "", titre: t("PV de performances individuelles"), sousTitre: `${x.periode_libelle} · ${x.annee}`, reference: x.contenu.reference },
+      nomDeFichier(t("pv"), `${x.contenu.eleve.nom} ${x.contenu.eleve.prenom}`, x.periode_libelle, x.annee))
+    } catch (e) { setErreur(e.message) } finally { setPdf(false) }
+  }
+  return (
+    <>
+      <div className="d-flex flex-wrap gap-2 mb-3 no-print">{liste.map((p, k) => (
+        <button key={`${p.annee}-${p.periode}`} className={`btn btn-sm ${k === choisi ? "btn-primary" : "btn-outline-primary"}`} onClick={() => setChoisi(k)}>
+          {p.periode_libelle} · {p.annee}</button>))}
+        <span className="ms-auto d-flex gap-2"><button className="btn btn-sm btn-success" disabled={pdf} onClick={telecharger}>{pdf ? t("Préparation du PDF…") : t("Télécharger en PDF")}</button>
+          <button className="btn btn-sm btn-outline-secondary" onClick={() => window.print()}>{t("Imprimer")}</button></span>
+      </div>
+      <PvIndividuelVue c={x.contenu} />
+      <p className="small text-muted no-print mt-2">{t("Publié par l'établissement le {v0}.", { v0: dateHeure(x.publie_le) })}</p>
     </>
   )
 }

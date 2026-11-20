@@ -81,7 +81,7 @@ function Compte({ nom, role, onDeconnecter, estAdmin }) {
 }
 
 export default function MiseEnPage() {
-  const { profil, etablissement, exercice, logoUrl, estAdmin, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire, aOffre } = useSession()
+  const { profil, etablissement, exercice, logoUrl, estAdmin, estEnseignant, peutNoter, peutExcel, peutBulletins, peutDiscipline, peutFinance, peutCourrier, proprietaire, aOffre } = useSession()
   const etatConnexion = useEtatConnexion()
   const [ouvert, setOuvert] = useState(false)
   const { pathname } = useLocation()
@@ -119,7 +119,7 @@ export default function MiseEnPage() {
             <ul className="navbar-nav me-auto">
               <li className="nav-item"><NavLink className={lien} to="/" end>{t("Accueil")}</NavLink></li>
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/eleves">{t("Élèves")}</NavLink></li>}
-              {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ...(peutBulletins ? [["/notes/bulletins", t("Bulletins")]] : []), ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
+              {peutNoter && <Menu titre={t("Notes")} liens={[["/notes/saisie", t("Saisie des notes")], ["/notes/resultats", t("Résultats et classements")], ...(peutBulletins ? [["/notes/bulletins", t("Bulletins")]] : []), ...(estAdmin || estEnseignant ? [["/notes/pv", t("PV et rapports")]] : []), ...(estAdmin ? [["/notes/retards", t("Retards de saisie")]] : [])]} />}
               {peutDiscipline && <Menu titre={t("Discipline")} liens={[["/discipline/appel", t("Appel du jour (absences, retards)")], ["/discipline/infractions", t("Infractions")], ["/discipline/suivi", t("Suivi disciplinaire")], ["/discipline/alertes", t("Alertes et seuils")]]} />}
               {peutFinance && rubrique("/finance", t("Finances"))}
               {peutCourrier && rubrique("/courrier", t("Courrier"))}

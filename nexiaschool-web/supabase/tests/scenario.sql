@@ -361,4 +361,5 @@ reset role;
 \ir scenario_cartes.sql
 \ir scenario_parcours.sql
 \ir scenario_transition.sql
+\ir scenario_pv.sql
 \echo SCÉNARIO TERMINÉ

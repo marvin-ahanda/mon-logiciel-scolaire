@@ -332,3 +332,25 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 .tableau-decisions td select { min-width: 92px; }
 .tableau-decisions td select[aria-label="Décision"], .tableau-decisions td select[aria-label="Decision"] { min-width: 190px; }
 .tableau-decisions .mention-bulletin { min-width: 230px; }
+
+/* --- PV et rapports (Notes) --------------------------------------------------------------------------- */
+.pv-carte { transition: transform .15s ease, box-shadow .15s ease; border-top: 3px solid var(--bs-primary); }
+.pv-carte:hover, .pv-carte:focus-visible { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .08); }
+.pv-tuile { border: 1px solid var(--bs-border-color); border-left: 4px solid var(--bs-primary); border-radius: 8px; padding: .55rem .7rem; background: var(--bs-body-bg); }
+.pv-tuile-succes { border-left-color: var(--bs-success); }
+.pv-tuile-danger { border-left-color: var(--bs-danger); }
+.pv-tuile-alerte { border-left-color: var(--bs-warning); }
+.pv-tuile-valeur { font-size: 1.35rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.pv-tuile-libelle { font-size: .78rem; color: var(--bs-secondary-color); text-transform: uppercase; letter-spacing: .03em; }
+.pv-tuile-aide { font-size: .75rem; color: var(--bs-secondary-color); }
+.pv-barre-libelle { width: 9.5rem; flex: 0 0 auto; }
+.pv-barre-piste { height: .7rem; background: var(--bs-tertiary-bg); border-radius: 999px; overflow: hidden; display: block; }
+.pv-barre { display: block; height: 100%; border-radius: 999px; }
+.pv-barre-valeur { width: 4.2rem; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.pv-legende { display: inline-block; width: .8rem; height: .5rem; border-radius: 2px; vertical-align: middle; }
+.pv-synthese { border-left: 3px solid var(--bs-info); padding: .5rem .8rem; background: var(--bs-tertiary-bg); border-radius: 0 6px 6px 0; }
+.pv-commentaire { border-left: 3px solid var(--bs-secondary); padding-left: .8rem; }
+.pv-tableau { max-height: 70vh; }
+.pv-tableau thead th { position: sticky; top: 0; z-index: 1; }
+.pv-coches .form-check { margin-bottom: .1rem; }
+@media (max-width: 575.98px) { .pv-barre-libelle { width: 6.5rem; } }

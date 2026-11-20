@@ -18,11 +18,8 @@
 | 2 | F2 Cartes scolaires (Paramètres) | ✅ fait — commit `cc7db33` (migration 0042) |
 | 3 | F4 Parcours, séries et orientation (Paramètres) | ✅ fait — commit `7c645ce` (migration 0043) |
 | 4 | F3 Transition d'année scolaire (Paramètres) | ✅ fait — commit `abe04ef` (migration 0044) |
-| 5 | F5 PV de classe sans moyennes (rubrique **Notes**) | ⏭ **PROCHAINE** (attend l'autorisation de l'utilisateur) |
-| 6 | F6 PV par cycle avec pourcentages (Notes) | à faire |
-| 7 | F7 PV général de l'établissement (Notes) | à faire |
-| 8 | F8 PV de performances individuelles + publication aux parents (Notes) | à faire |
-| 9 | F10 Courriers administratifs aux parents (Courrier) + confirmation de lecture | à faire (avant F9) |
+| 5-8 | F5 + F6 + F7 + F8 : **moteur unifié « PV et rapports »** (Notes → PV et rapports : PV de classe, PV par cycle, PV général, PV individuels + publication aux parents, registre numéroté, réglages) | ✅ fait — migration 0045 (demande de l'utilisateur : un seul moteur, un volet par PV) |
+| 9 | F10 Courriers administratifs aux parents (Courrier) + confirmation de lecture | ⏭ **PROCHAINE** (attend l'autorisation de l'utilisateur ; avant F9) |
 | 10 | F9 Relances automatiques d'insolvabilité (Finances) | à faire |
 | 11 | F11 MCP pour les parents (Claude / Grok, données de leur enfant uniquement) | à faire |
 | 12 | F12 Automatisations personnelles en langage naturel (Paramètres) | à faire |
@@ -36,16 +33,18 @@ Décisions déjà prises avec l'utilisateur : périodes personnalisées (semestr
 
 ## État de la production
 - **Déployé** : fonction MCP v9 et migrations jusqu'à `0040`.
-- **Pas encore déployé** (commits locaux/branche seulement) : migrations `0041` à `0044` et toute l'interface des tâches 1 à 4. Un déploiement unique (migrations, puis site) se fera sur demande de l'utilisateur.
+- **Pas encore déployé** (commits locaux/branche seulement) : migrations `0041` à `0045` et toute l'interface des tâches 1 à 8. Un déploiement unique (migrations, puis site) se fera sur demande de l'utilisateur.
 
 ## Poser le terrain (tests)
-- Base de test : `PGHOST=127.0.0.1 PGUSER=postgres PGPASSWORD=banc sh nexiaschool-web/supabase/tests/lancer.sh` (démarrer avant : `service postgresql start`). Dernier résultat : 517 vérifications SQL, 121 tests vitest (`npx vitest run`).
+- Base de test : `PGHOST=127.0.0.1 PGUSER=postgres PGPASSWORD=banc sh nexiaschool-web/supabase/tests/lancer.sh` (démarrer avant : `service postgresql start`). Dernier résultat : 553 vérifications SQL (dont 36 pour les PV), 141 tests vitest (`npx vitest run`).
+- Poste Windows de l'utilisateur (`C:\Users\user\Downloads\Nexiaschool`, sans PostgreSQL ni Docker utilisable) : scénario rejoué sur PGlite (PostgreSQL 17 en WebAssembly) avec un mini-interpréteur psql hors dépôt (`…/scratchpad/banc-sql/psql.mjs`, `@electric-sql/pglite@0.5.15`). Sous PostgreSQL 17, `ON DELETE RESTRICT` lève `restrict_violation` : l'interpréteur l'accepte là où le scénario attend `foreign_key_violation`. Le test vitest `zip.test.js` échoue sous Windows (encodage de la commande `unzip`), sans lien avec l'application.
 - Parcours navigateur (banc d'essai) : dossier `…/scratchpad/banc/` de la session (scripts `parcours_*.cjs`, `relancer.sh`, `demarrer.sh`). **Il vit hors dépôt et peut avoir disparu** : le recréer au besoin (faux Supabase `serveur.mjs` sur Postgres, `vite preview` port 4173, Playwright déjà installé).
 - Note : `parcours_en.cjs` (anglais) échoue depuis le 8/11 sur la recherche du compte de test du fondateur, sans lien avec l'application.
 
 ## Acquis techniques utiles
 - Navigation des Paramètres regroupée en 5 rubriques (`src/pages/Parametres.jsx`, constante `GROUPES`).
-- Fonctionnalités réglables par école : liste `_fonctions_reglables()` / `offre_requise()` (migrations) et `src/lib/offres.js` ; nouvelles : `distinctions`, `cartes`, `parcours`.
+- Fonctionnalités réglables par école : liste `_fonctions_reglables()` / `offre_requise()` (migrations) et `src/lib/offres.js` ; nouvelles : `distinctions`, `cartes`, `parcours`, `pv`.
+- PV et rapports : moteur pur `src/lib/pv/moteur.js` (pvClasse, pvGroupe, pvIndividuel, comparer), textes `textes.js` (synthèses tirées des seules données), chargement `donnees.js` / `individuels.js`, sorties `pdf.js` / `export.js` ; écrans `src/pages/pv/` (route `/notes/pv/*`). Les PV individuels publiés sont des copies figées (aucune note d'un autre élève, seulement des moyennes de groupe) ; `parent_pv` ne rend que celles de l'enfant.
 - Moteurs : `src/lib/distinctions.js`, `parcours.js`, `donneesParcours.js` (propositions), `decisions.js` (critères étendus), `cartePdf.js`, `certificatPdf.js`, `zip.js`, `periodes.js` (périodes personnalisées prêtes pour les PV).
 - Pièges SQL : `:'variable'` psql non interpolé dans `do $$ … $$` (passer par `set_config`) ; une fonction qui modifie des données ne se vérifie pas dans la même instruction `select`.
 - Les messages d'erreur d'un outil de sécurité peuvent bloquer un script shell qui contient des suppressions ; préférer les outils d'édition de fichiers.

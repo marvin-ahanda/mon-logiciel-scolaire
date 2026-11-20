@@ -12,7 +12,7 @@ export const OFFRE_REQUISE = {
   notes: "decouverte", appel: "decouverte", bulletins: "decouverte", excel_base: "decouverte", plafonds: "pro",
   discipline: "essentiel", finances: "essentiel", decisions: "essentiel", qr: "essentiel", excel: "essentiel",
   smarteval: "pro", edt: "pro", parents: "pro", statistiques: "pro",
-  ia: "premium", distinctions: "decouverte", cartes: "decouverte", parcours: "decouverte",
+  ia: "premium", distinctions: "decouverte", cartes: "decouverte", parcours: "decouverte", pv: "decouverte",
 }
 
 /** Libellé de chaque fonction (fenêtre « passer à une offre supérieure »). */
@@ -35,11 +35,12 @@ export const LIBELLES_FONCTIONS = {
   distinctions: "Récompenses et distinctions (tableaux d'honneur, certificats)",
   cartes: "Cartes scolaires (modèles, cachet et signature, QR code)",
   parcours: "Parcours, séries, orientation et décisions de passage",
+  pv: "PV et rapports (classe, cycle, établissement, performances individuelles)",
 }
 
 /** Rubriques de l'application réservées à une fonction (le chemin le plus précis l'emporte). */
 const RUBRIQUES = [
-  ["/notes/saisie", "notes"], ["/notes/bulletins", "bulletins"], ["/discipline/appel", "appel"],
+  ["/notes/saisie", "notes"], ["/notes/pv", "pv"], ["/notes/bulletins", "bulletins"], ["/discipline/appel", "appel"],
   ["/discipline/infractions", "discipline"], ["/discipline/suivi", "discipline"], ["/discipline/alertes", "discipline"],
   ["/finance", "finances"], ["/courrier", "parents"], ["/smarteval", "smarteval"], ["/emploi-du-temps", "edt"],
   ["/statistiques", "statistiques"], ["/notes/retards", "statistiques"], ["/developpeur", "ia"],
@@ -71,7 +72,7 @@ export const PLAFONDS = { decouverte: { eleves: 50, personnels: 10 }, essentiel:
 
 /** Toutes les fonctionnalités réglables, dans l'ordre d'affichage de la console. */
 export const FONCTIONS = ["notes", "appel", "bulletins", "excel_base", "plafonds", "discipline", "finances", "decisions", "qr", "excel",
-  "smarteval", "edt", "parents", "statistiques", "ia", "distinctions", "cartes", "parcours"]
+  "smarteval", "edt", "parents", "statistiques", "ia", "distinctions", "cartes", "parcours", "pv"]
 
 /** Droit effectif : celui lu sur le serveur (dérogations comprises) s'il est connu, sinon celui de l'offre. */
 export function droitEffectif(fonctions, offre, fonction) {

@@ -34,6 +34,7 @@ const Resultats = page(() => import("./pages/Resultats.jsx"))
 const Saisie = page(() => import("./pages/Saisie.jsx"))
 const AlertesDiscipline = page(() => import("./pages/AlertesDiscipline.jsx"))
 const RetardsNotes = page(() => import("./pages/RetardsNotes.jsx"))
+const Pv = page(() => import("./pages/pv/Pv.jsx"))
 const Conditions = page(() => import("./pages/Legal.jsx"), "Conditions")
 const Confidentialite = page(() => import("./pages/Legal.jsx"), "Confidentialite")
 const PortailParent = page(() => import("./pages/Parent.jsx"))
@@ -132,6 +133,7 @@ export default function App() {
           <Route element={<Protege droit="peutNoter" />}>
             <Route path="/notes/saisie" element={<Saisie />} />
             <Route path="/notes/resultats" element={<Resultats />} />
+            <Route path="/notes/pv/*" element={<Pv />} />
           </Route>
           <Route element={<Protege droit="peutExcel" />}>
             <Route path="/excel" element={<Excel />} />
