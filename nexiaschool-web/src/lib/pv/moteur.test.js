@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { bilanValeurs, comparer, completude, moyennesMatieres, pvClasse, pvGroupe, pvIndividuel, reglagesPv, taux } from "./moteur.js"
 import { celluleCsv, texteCsv } from "./export.js"
+import { note } from "../format.js"
 import { syntheseClasse, syntheseGroupe, syntheseIndividuelle, texteControle, texteRecommandation } from "./textes.js"
 
 const eleve = (nom, sexe = "M") => ({ nom, prenom: "", matricule: nom.toUpperCase(), sexe })
@@ -153,7 +154,7 @@ describe("PV individuel", () => {
   })
   it("synthèse lisible pour les parents", () => {
     const s = syntheseIndividuelle(c).join(" ")
-    expect(s).toContain("9,5")
+    expect(s).toContain(`Moyenne de la période : ${note(9.5)}/20`)       // format de la langue de l'environnement (9,50 ou 9.50)
     expect(s).toContain("Encouragements")
   })
   it("moyennes par matière d'un groupe d'élèves", () => {
