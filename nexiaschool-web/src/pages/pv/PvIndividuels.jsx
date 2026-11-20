@@ -203,7 +203,7 @@ function Liste({ d }) {
           </div>
           {action.message && <div className="alert alert-success small py-2">{action.message}</div>}
           <Alerte>{action.erreur}</Alerte>
-          <Generation desactive={!selection.length} produire={produire} libelle={t("Générer les PV sélectionnés")}
+          <Generation desactive={!selection.length} raison={t("Sélectionnez au moins un élève.")} produire={produire} libelle={t("Générer les PV sélectionnés")}
             document={{ type: "individuel", titre: `${titre} · ${sousTitre}`, commentaire: "", partiel: false, avertissements: [],
               perimetre: { periode: d.periode.code, portee: d.portee, eleves: selection.length } }} />
         </>)}

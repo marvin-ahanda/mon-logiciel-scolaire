@@ -56,6 +56,10 @@ const absencesDe = (bilans, inscriptionId) => {
  *   bilans?: Map inscriptionId -> { nj, j, retards }, reglages, incomplets (true : garder les élèves aux notes manquantes)
  * }
  */
+/** Matières les plus faibles : seulement celles qui ont des échecs, et s'il y a au moins deux matières notées (sinon « la plus faible » n'a pas de sens). */
+const faibles = (liste) => { const notees = liste.filter((m) => m.n > 0 && m.tauxReussite !== null && m.tauxReussite !== undefined)
+  return notees.length < 2 ? [] : notees.filter((m) => m.tauxReussite < 100).sort((a, b) => a.tauxReussite - b.tauxReussite).slice(0, 3) }
+
 export function pvClasse(entree) {
   const reg = reglagesPv(entree.reglages)
   const seuil = reg.seuil_reussite
@@ -100,7 +104,7 @@ export function pvClasse(entree) {
     },
     meilleures,
     enDifficulte: lignes.filter((l) => l.enDifficulte).sort((a, b) => b.partEchecs - a.partEchecs || b.echecs - a.echecs),
-    matieresFaibles: matieres.filter((m) => m.n > 0).sort((a, b) => a.tauxReussite - b.tauxReussite).slice(0, 3),
+    matieresFaibles: faibles(matieres),
     seuil,
   }
 }
@@ -200,7 +204,7 @@ export function pvGroupe(classes, reglages, options = {}) {
     meilleures: [...evalues].sort((a, b) => b.moyenne - a.moyenne).slice(0, 10).map(({ eleve, classe, moyenne }) => ({ eleve, classe, moyenne })),
     enDifficulte: evalues.filter((e) => e.moyenne < reg.seuil_difficulte).sort((a, b) => a.moyenne - b.moyenne)
       .map(({ eleve, classe, moyenne }) => ({ eleve, classe, moyenne })),
-    matieresFaibles: parMatiere.filter((m) => m.n > 0).sort((a, b) => a.tauxReussite - b.tauxReussite).slice(0, 3),
+    matieresFaibles: faibles(parMatiere),
     classesFaibles: parClasse.filter((c) => c.evalues > 0).sort((a, b) => a.tauxReussite - b.tauxReussite).slice(0, 3),
     aSuivre: {
       matieres: parMatiere.filter((m) => m.n > 0 && m.tauxReussite < seuilSuivi),

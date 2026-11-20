@@ -140,3 +140,18 @@ delete from public.pv_publications where not exists (select 1 from public.pv_ind
 delete from public.inscriptions where id = :'ins_z';
 delete from public.eleves where id = :'eleve_z';
 delete from public.classes where id = :'classe_z';
+
+-- Annulation tracée d'un PV du registre (le numéro reste pris)
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
+select (public.pv_enregistrer('{"type": "classe", "titre": "PV de test à annuler"}'::jsonb) ->> 'id') as pv_annule \gset
+select set_config('app.pv_annule', :'pv_annule', false) \g /dev/null
+do $$ begin perform public.pv_annuler(current_setting('app.pv_annule')::uuid, ''); raise exception 'annulation sans motif acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : motif d''annulation obligatoire'; end $$;
+select public.pv_annuler(:'pv_annule', 'Document de test') \g /dev/null
+select pg_temp.verifier((select annule_le is not null and annule_motif = 'Document de test' from public.pv_documents where id = :'pv_annule')
+  and (public.pv_enregistrer('{"type": "classe", "titre": "Suivant"}'::jsonb) ->> 'numero')::int
+      = (select numero from public.pv_documents where id = :'pv_annule') + 1,
+  'PV annulé : conservé au registre avec son motif ; son numéro n''est pas réutilisé');
+do $$ begin perform public.pv_annuler(current_setting('app.pv_annule')::uuid, 'encore'); raise exception 'double annulation acceptée';
+exception when sqlstate 'P0001' then raise notice 'ok : un PV déjà annulé ne se réannule pas'; end $$;

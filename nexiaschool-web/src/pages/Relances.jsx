@@ -136,7 +136,8 @@ function Envois({ onMessage }) {
   const [filtre, setFiltre] = useState({ statut: "", categorie: "", texte: "" })
   const [d, erreur, recharger] = useDonnees(async () => {
     const [courriers, reponses] = await Promise.all([
-      toutCharger(() => supabase.from("courriers_ecole").select("*").order("cree_le", { ascending: false })),
+      // seulement les relances et courriers finaux : les courriers administratifs (rubrique Courrier) n'ont pas de palier
+      toutCharger(() => supabase.from("courriers_ecole").select("*").in("categorie", ["relance", "final"]).order("cree_le", { ascending: false })),
       toutCharger(() => supabase.from("courriers_ecole_reponses").select("*").order("envoye_le"))])
     return { courriers, reponses }
   }, [])
@@ -172,7 +173,7 @@ function Envois({ onMessage }) {
           return (
             <tr key={c.id}>
               <td className="text-nowrap"><code>{c.reference}</code></td><td>{c.eleve}<div className="text-muted">{c.classe}</div></td>
-              <td>{c.categorie === "final" ? t("Courrier final") : t("Relance J-{v0}", { v0: c.palier })}{c.objet && <div className="text-muted text-truncate" style={{ maxWidth: 280 }}>{c.objet}</div>}</td>
+              <td>{c.categorie === "final" ? t("Courrier final") : (c.palier === null || c.palier === undefined ? t("Relance") : t("Relance J-{v0}", { v0: c.palier }))}{c.objet && <div className="text-muted text-truncate" style={{ maxWidth: 280 }}>{c.objet}</div>}</td>
               <td className="text-nowrap">{c.programme_pour ? jour(c.programme_pour) : "—"}{c.envoye_le && <div className="text-muted">{t("envoyé {v0}", { v0: dateHeure(c.envoye_le) })}</div>}</td>
               <td><Statut c={c} />{c.motif && <div className="text-muted">{c.motif}</div>}{c.erreur && <div className="text-danger">{c.erreur}</div>}</td>
               <td>{rep.length ? <span className="badge text-bg-info">{rep.length}</span> : ""}</td>
@@ -227,7 +228,7 @@ function DetailCourrier({ c, reponses, recharger, onMessage }) {
 function CourrierFinal({ config, onMessage }) {
   const { estAdmin, profil } = useSession()
   const [liste] = useDonnees(() => rpc("relances_insolvables", { p_date: aujourdhui() }), [])
-  const [attente, , rechargerAttente] = useDonnees(async () => verifier(await supabase.from("courriers_ecole").select("*").eq("statut", "a_valider").order("cree_le")), [])
+  const [attente, , rechargerAttente] = useDonnees(async () => verifier(await supabase.from("courriers_ecole").select("*").eq("statut", "a_valider").eq("categorie", "final").order("cree_le")), [])
   const [choisis, setChoisis] = useState(new Set()), [f, setF] = useState({ objet: "", corps: "" }), [enCours, setEnCours] = useState(false)
   const peutValider = estAdmin || config.validateurs === "admin_comptable"
   const echus = (liste || []).filter((e) => Number(e.echu) > 0 && !e.exclusion)   // la base refuse les élèves à jour ou exclus

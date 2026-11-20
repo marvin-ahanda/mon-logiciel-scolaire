@@ -26,6 +26,20 @@ do $$ begin perform public.automatisation_enregistrer('{"action": "rapport_absen
 exception when sqlstate '22023' then raise notice 'ok : fréquence hebdomadaire sans jour refusée'; end $$;
 do $$ begin perform public.automatisation_enregistrer('{"action": "rapport_absences", "frequence": {"type": "quotidien", "heure": "25:00"}}'); raise exception 'heure invalide';
 exception when sqlstate '22023' then raise notice 'ok : heure invalide refusée'; end $$;
+-- seuil d'heures non justifiées (« plus de 10 h ») : conservé, validé, appliqué au rapport
+select (public.automatisation_enregistrer('{"action": "rapport_absences", "parametres": {"periode": "mois", "seuil_heures": 10},
+  "frequence": {"type": "hebdo", "jours": [1], "heure": "08:00"}}')->>'id') as auto_seuil \gset
+do $$ begin perform public.automatisation_enregistrer('{"action": "rapport_absences", "parametres": {"seuil_heures": 0}, "frequence": {"type": "quotidien", "heure": "08:00"}}'); raise exception 'seuil nul';
+exception when sqlstate '22023' then raise notice 'ok : seuil d''heures hors limites refusé'; end $$;
+reset role;
+select pg_temp.verifier((select (parametres->>'seuil_heures')::int = 10 from public.automatisations where id = :'auto_seuil')
+  and (select (public._auto_contenu(a, 'surveillant')->>'seuil_heures')::int = 10
+         and not exists (select 1 from jsonb_array_elements(public._auto_contenu(a, 'surveillant')->'eleves') e where (e->>'heures_nj')::int < 10)
+       from public.automatisations a where a.id = :'auto_seuil'),
+  'seuil d''heures conservé et appliqué : seuls les élèves ayant au moins 10 h non justifiées sont listés');
+delete from public.automatisations where id = :'auto_seuil';
+set role authenticated;
+select set_config('request.jwt.claim.sub', :'surv_a', false) \g /dev/null
 
 -- 2. Exécution : la direction reçoit le rapport, avec les absences de la période
 select public.automatisation_executer_maintenant(:'auto_s') as recus_s \gset

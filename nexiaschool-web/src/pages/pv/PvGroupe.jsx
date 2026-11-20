@@ -70,7 +70,7 @@ export default function PvGroupe({ mode }) {
         ? t("Performances globales d'un cycle : par classe, par matière et, si vous le souhaitez, par enseignant ; pourcentages, graphiques, comparaisons.")
         : t("Vision globale pour la direction : effectifs, présence, réussite, difficultés, progression, pensions, évolution et comparaisons entre classes, cycles et périodes.")}</p>
       <div className="row g-2 mb-2">
-        <Filtres valeur={filtres} onChange={setFiltres} champs={mode === "cycle" ? ["cycle", "section", "niveau"] : ["section"]} />
+        <Filtres valeur={filtres} onChange={setFiltres} champs={mode === "cycle" ? ["cycle", "section", "niveau"] : ["section"]} cycleObligatoire={mode === "cycle"} />
         <ChoixPeriode valeur={periodeCode} onChange={setPeriodeCode} />
       </div>
       {mode === "cycle" && !ref.cycles.length && <div className="alert alert-info small">{t("Aucun cycle défini : créez vos cycles dans Paramètres → Parcours, ou indiquez le cycle des classes dans Paramètres.")}</div>}
@@ -146,7 +146,7 @@ function Resultat({ mode, r, titre }) {
         <thead className="table-light"><tr><th>{t("Classe")}</th><th className="text-end">{t("Effectif")}</th>{r.options.sexe && <><th className="text-end">{t("G")}</th><th className="text-end">{t("F")}</th></>}
           <th className="text-end">{t("Moyenne")}</th><th className="text-end">{t("Réussite")}</th><th className="text-end">{t("Échec")}</th>
           {r.options.sexe && <><th className="text-end">{t("Réussite G")}</th><th className="text-end">{t("Réussite F")}</th></>}
-          <th className="text-end">{t("Absentéisme")}</th>{g.financeConnue > 0 && <th className="text-end">{t("À jour")}</th>}
+          <th className="text-end" title={t("Part des élèves ayant au moins une absence sur la période")}>{t("Élèves absents (%)")}</th>{g.financeConnue > 0 && <th className="text-end">{t("À jour")}</th>}
           {r.comparaison && <th className="text-end">{t("Écart")}</th>}</tr></thead>
         <tbody>{pv.parClasse.map((c) => {
           const comp = r.comparaison?.classes.find((x) => x.classe.id === c.classe.id)
@@ -198,4 +198,4 @@ function Resultat({ mode, r, titre }) {
 }
 
 const LIBELLES_INDICATEURS = { effectif: "Effectif", moyenne: "Moyenne générale", tauxReussite: "Réussite (%)", tauxEchec: "Échec (%)", tauxDifficulte: "En difficulté (%)",
-  tauxAbsenteisme: "Absentéisme (%)", tauxProgression: "Progression (%)", tauxAJour: "À jour de pension (%)" }
+  tauxAbsenteisme: "Élèves absents au moins une fois (%)", tauxProgression: "Progression (%)", tauxAJour: "À jour de pension (%)" }

@@ -135,6 +135,7 @@ function Etablissement() {
                           consignes={[t("Communiquez ce code au personnel de l'établissement uniquement."), t("Chacun garde son code personnel.")]} />}
       <form className="card card-body mb-3" onSubmit={enregistrer} style={{ maxWidth: 820 }}>
         <h2 className="h6">{etablissement.nom}</h2>
+        {/^\S+@\S+\.\S+$/.test(String(f.adresse || "").trim()) && <div className="alert alert-warning small py-2">{t("Le champ « Adresse » contient une adresse e-mail : indiquez l'adresse postale (quartier, rue, boîte postale), qui s'imprime sur les bulletins, cartes et courriers.")}</div>}
         <div className="row">{champ("ville", "Ville", 100)}{champ("telephone", t("Téléphone"), 50)}{champ("adresse", "Adresse", 200)}
           {champ("nom_chef", t("Chef d'établissement"), 150)}{champ("devise", t("Devise"), 200)}
           <div className="col-md-6 mb-3"><label className="form-label" htmlFor="site_web">{t("Site web")}</label>

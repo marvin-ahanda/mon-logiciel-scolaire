@@ -69,6 +69,15 @@ export function lirePeriode(t, frequence) {
   return frequence.type === "mensuel" ? "mois" : frequence.type === "hebdo" ? "semaine" : "jour"
 }
 
+/** Seuil d'heures d'absence non justifiées (« plus de 10 h », « au moins 8 heures », « more than 5 hours ») ; null si absent. */
+export function lireSeuilHeures(t) {
+  const m = t.match(/\b(?:plus de|au moins|au-dela de|au dela de|depassant|superieur(?:e|es|s)? a|more than|at least|over)\s*(\d{1,3})\s*(?:h\b|heures?\b|hours?\b)/)
+    || t.match(/(?:>=?|≥)\s*(\d{1,3})\s*(?:h\b|heures?\b)/)
+  if (!m) return null
+  const n = Number(m[1])
+  return n >= 1 && n <= 500 ? n : null
+}
+
 /** Destinataire : la direction (directeur, proviseur, principal, administration) ou soi-même. */
 export function lireDestinataire(t) {
   return /\b(directeur|directrice|direction|proviseur|principal|principale|administration|chef d etablissement|censeur|head ?teacher|principal|management)\b/.test(t) ? "direction" : "moi"
@@ -87,9 +96,11 @@ export function interpreter(texte, role = "admin") {
   else if (!ACTIONS[action].roles.includes(role)) manquants.push("droit")
   if (!lireHeure(t)) remarques.push("heure_defaut")
   const destinataire = action === "rappel" ? "moi" : lireDestinataire(t)
+  // l'heure du rapport (« à 16 h ») n'est pas un seuil : on ne cherche le seuil que dans les expressions « plus de N h », « au moins N h »…
+  const seuil = action === "rapport_absences" ? lireSeuilHeures(t) : null
   return {
     action, frequence, destinataire, manquants, remarques,
-    parametres: action === "rappel" ? { texte: rappel || "" } : { periode: lirePeriode(t, frequence) },
+    parametres: action === "rappel" ? { texte: rappel || "" } : { periode: lirePeriode(t, frequence), ...(seuil ? { seuil_heures: seuil } : {}) },
   }
 }
 
@@ -102,5 +113,6 @@ export function resumer(r, t = (x, v) => x.replace(/\{(\w+)\}/g, (_, k) => v?.[k
       : t("Chaque jour à {v0}", { v0: f.heure })
   const quoi = r.action === "rappel" ? t("rappel : « {v0} »", { v0: r.parametres.texte })
     : `${t(ACTIONS[r.action]?.libelle || "")} — ${t(PERIODES[r.parametres.periode] || "").toLowerCase()}`
+      + (r.parametres.seuil_heures ? ` (${t("élèves ayant au moins {v0} h non justifiée(s)", { v0: r.parametres.seuil_heures })})` : "")
   return `${quand} : ${quoi}, ${t("envoyé à")} ${t(DESTINATAIRES[r.destinataire]).toLowerCase()}.`
 }

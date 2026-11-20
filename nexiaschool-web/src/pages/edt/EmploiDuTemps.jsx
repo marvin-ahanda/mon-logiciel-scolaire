@@ -155,13 +155,17 @@ function Resultat({ etat, maj, config, exercice, etablissement, versVersions }) 
   const [msg, setMsg] = useState({}), [envoi, setEnvoi] = useState(false)
   const violations = useMemo(() => verifierGrille(config, r.grille), [config, r.grille])
   const entete = { etablissement: etablissement.nom, annee: exercice.libelle, periode, version: nom }
+  // grille déjà enregistrée telle quelle : un second clic créerait un doublon, on demande confirmation
+  const [derniere, setDerniere] = useState(null)
   async function enregistrerVersion() {
+    if (derniere && derniere.grille === r.grille && !confirm(t("Cette grille est déjà enregistrée (version n° {v0}). Enregistrer une nouvelle version identique ?", { v0: derniere.numero }))) return
     setMsg({}); setEnvoi(true)
     try {
       const source = { horaires: etat.horaires, periodesPerso: etat.periodesPerso, fichier: etat.fichier, lignes: etat.lignes, reglagesEnseignants: etat.reglagesEnseignants, classes: etat.classes, generales: etat.generales }
       const v = await rpc("edt_enregistrer", { p: { exercice_id: exercice.id, periode, nom: nom.trim(), config: { ...config, source }, grille: r.grille,
         bilan: { criteres: r.criteres, cout: Math.round(r.cout), graine: r.graine, duree: r.duree, heures: r.grille.length } } })
       maj((e) => ({ ...e, nom: nom.trim(), periode }))
+      setDerniere({ grille: r.grille, numero: v.numero })
       setMsg({ ok: t("Version n° {v0} enregistrée (provisoire). Rendez-la officielle depuis « Versions enregistrées ».", { v0: v.numero }) })
     } catch (e) { setMsg({ erreur: e.message }) } finally { setEnvoi(false) }
   }

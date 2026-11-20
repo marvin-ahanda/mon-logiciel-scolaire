@@ -13,7 +13,7 @@ export const ContextePv = createContext(null)
 export const useReferencePv = () => useContext(ContextePv)
 
 /** Filtres en cascade : cycle → section → niveau → classe(s). valeur = { cycle, section, niveau } */
-export function Filtres({ valeur, onChange, champs = ["cycle", "section", "niveau"] }) {
+export function Filtres({ valeur, onChange, champs = ["cycle", "section", "niveau"], cycleObligatoire = false }) {
   const ref = useReferencePv()
   const classes = ref.classes.filter((c) => (!valeur.cycle || c.cycleId === valeur.cycle) && (!valeur.section || c.section_id === valeur.section))
   const niveaux = [...new Set(classes.map((c) => c.niveauLibelle).filter(Boolean))]
@@ -23,7 +23,7 @@ export function Filtres({ valeur, onChange, champs = ["cycle", "section", "nivea
       {champs.includes("cycle") && ref.cycles.length > 0 && (
         <div className="col-sm-6 col-lg-3"><label className="form-label small mb-1">{t("Cycle")}</label>
           <select className="form-select form-select-sm" value={valeur.cycle || ""} onChange={(e) => choisir("cycle", e.target.value)}>
-            <option value="">{t("Tous les cycles")}</option>{ref.cycles.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>)}
+            <option value="">{cycleObligatoire ? t("Choisir un cycle…") : t("Tous les cycles")}</option>{ref.cycles.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select></div>)}
       {champs.includes("section") && ref.sections.length > 0 && (
         <div className="col-sm-6 col-lg-3"><label className="form-label small mb-1">{t("Section")}</label>
           <select className="form-select form-select-sm" value={valeur.section || ""} onChange={(e) => choisir("section", e.target.value)}>
@@ -113,7 +113,7 @@ export async function ressourcesDocument(session, reglages) {
  * Barre de génération : choix du format puis génération numérotée (registre) et production du fichier.
  * produire({ format, reference, genereLe, ressources }) fabrique le fichier ; document = { type, titre, perimetre, partiel, avertissements, commentaire }.
  */
-export function Generation({ document, produire, desactive = false, formats = ["pdf", "xlsx", "csv"], libelle = t("Générer le PV") }) {
+export function Generation({ document, produire, desactive = false, raison = "", formats = ["pdf", "xlsx", "csv"], libelle = t("Générer le PV") }) {
   const session = useSession()
   const ref = useReferencePv()
   const [format, setFormat] = useState(formats[0])
@@ -136,9 +136,11 @@ export function Generation({ document, produire, desactive = false, formats = ["
         </div>
         <button type="button" className="btn btn-success" disabled={desactive || etat.enCours} onClick={generer}>
           {etat.enCours ? t("Génération…") : libelle}</button>
-        {etat.fait && <span className="small text-success">{t("Document n° {v0} généré et inscrit au registre.", { v0: etat.fait })}</span>}
+        {desactive && raison && <span className="small text-muted">{raison}</span>}
       </div>
-      <Alerte>{etat.erreur}</Alerte>
+      {/* retour toujours visible : succès (fichier téléchargé) ou erreur */}
+      <Alerte type="success" onFermer={() => setEtat((e) => ({ ...e, fait: null }))}>{etat.fait && t("Document n° {v0} généré et inscrit au registre : le fichier ({v1}) a été téléchargé — vérifiez vos téléchargements.", { v0: etat.fait, v1: format.toUpperCase() })}</Alerte>
+      <Alerte onFermer={() => setEtat((e) => ({ ...e, erreur: "" }))}>{etat.erreur && t("Document non produit : {v0}", { v0: etat.erreur })}</Alerte>
     </div>
   )
 }

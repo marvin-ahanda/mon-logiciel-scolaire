@@ -102,12 +102,19 @@ function adresseReouverture(d) {
 
 function Registre() {
   const naviguer = useNavigate()
-  const [filtre, setFiltre] = useState({ type: "", texte: "" })
+  const [filtre, setFiltre] = useState({ type: "", texte: "", annules: false })
   const [liste, erreur, recharger] = useDonnees(async () => verifier(await supabase.from("pv_documents").select("*").order("genere_le", { ascending: false }).limit(500)), [])
   const [edition, setEdition] = useState(null), [message, setMessage] = useState({ ok: "", erreur: "" })
   if (!liste) return <><Alerte>{erreur}</Alerte>{!erreur && <Chargement />}</>
   const q = filtre.texte.trim().toLowerCase()
-  const visibles = liste.filter((d) => (!filtre.type || d.type === filtre.type) && (!q || `${d.reference} ${d.titre} ${d.genere_par_nom}`.toLowerCase().includes(q)))
+  const visibles = liste.filter((d) => (filtre.annules || !d.annule_le) && (!filtre.type || d.type === filtre.type) && (!q || `${d.reference} ${d.titre} ${d.genere_par_nom}`.toLowerCase().includes(q)))
+  // annulation tracée (document de test ou erroné) : le PV reste au registre, barré, et son numéro n'est jamais réutilisé
+  async function annuler(d) {
+    const motif = prompt(t("Motif de l'annulation de {v0} (ex. document de test) :", { v0: d.reference }))
+    if (!motif) return
+    try { await rpc("pv_annuler", { p_id: d.id, p_motif: motif }); setMessage({ ok: t("{v0} annulé : il reste au registre, barré, avec votre motif.", { v0: d.reference }), erreur: "" }); recharger() }
+    catch (e) { setMessage({ ok: "", erreur: e.message }) }
+  }
   async function enregistrer() {
     try { await rpc("pv_commenter", { p_id: edition.id, p_commentaire: edition.commentaire }); setEdition(null); setMessage({ ok: t("Commentaire enregistré."), erreur: "" }); recharger() }
     catch (e) { setMessage({ ok: "", erreur: e.message }) }
@@ -121,19 +128,23 @@ function Registre() {
           <option value="">{t("Tous les types")}</option>{Object.entries(TYPES_PV).map(([k, l]) => <option key={k} value={k}>{t(l)}</option>)}</select></div>
         <div className="col-sm-8 col-lg-4"><input type="search" className="form-control form-control-sm" placeholder={t("Numéro, titre ou auteur…")} value={filtre.texte}
           onChange={(e) => setFiltre({ ...filtre, texte: e.target.value })} /></div>
+        {liste.some((d) => d.annule_le) && <div className="col-auto form-check ms-2 align-self-center"><input type="checkbox" className="form-check-input" id="pv-annules" checked={filtre.annules}
+          onChange={(e) => setFiltre({ ...filtre, annules: e.target.checked })} /><label className="form-check-label small" htmlFor="pv-annules">{t("Afficher les PV annulés ({v0})", { v0: liste.filter((d) => d.annule_le).length })}</label></div>}
       </div>
       {message.ok && <div className="alert alert-success small py-2">{message.ok}</div>}
       <Alerte>{message.erreur}</Alerte>
       <div className="table-responsive"><table className="table table-sm small align-middle">
         <thead className="table-light"><tr><th>{t("Numéro")}</th><th>{t("Type")}</th><th>{t("Titre")}</th><th>{t("Format")}</th><th>{t("Généré le")}</th><th>{t("Par")}</th><th></th></tr></thead>
         <tbody>{visibles.map((d) => (
-          <tr key={d.id}>
-            <td className="text-nowrap"><code>{d.reference}</code>{d.partiel && <span className="badge text-bg-warning ms-1">{t("partiel")}</span>}</td>
+          <tr key={d.id} className={d.annule_le ? "text-muted" : ""}>
+            <td className="text-nowrap"><code className={d.annule_le ? "text-decoration-line-through" : ""}>{d.reference}</code>{d.annule_le && <span className="badge text-bg-secondary ms-1" title={d.annule_motif}>{t("annulé")}</span>}{d.partiel && <span className="badge text-bg-warning ms-1">{t("partiel")}</span>}</td>
             <td>{t(TYPES_PV[d.type] || d.type)}</td><td>{d.titre}{d.commentaire && <div className="text-muted text-truncate" style={{ maxWidth: 360 }}>{d.commentaire}</div>}</td>
             <td className="text-uppercase">{d.format}</td><td className="text-nowrap">{dateHeure(d.genere_le)}</td><td>{d.genere_par_nom}</td>
             <td className="text-nowrap">
               <button type="button" className="btn btn-sm btn-outline-secondary me-1" onClick={() => setEdition({ id: d.id, commentaire: d.commentaire })}>{t("Commenter")}</button>
-              {d.type !== "publication" && <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => naviguer(adresseReouverture(d))}>{t("Rouvrir")}</button>}
+              {d.type !== "publication" && <button type="button" className="btn btn-sm btn-outline-primary me-1" onClick={() => naviguer(adresseReouverture(d))}>{t("Rouvrir")}</button>}
+              {!d.annule_le && <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => annuler(d)}>{t("Annuler le PV")}</button>}
+              {d.annule_le && <div className="small">{t("Annulé le {v0} : {v1}", { v0: dateHeure(d.annule_le), v1: d.annule_motif })}</div>}
             </td>
           </tr>))}
           {!visibles.length && <tr><td colSpan={7} className="text-muted">{t("Aucun document.")}</td></tr>}

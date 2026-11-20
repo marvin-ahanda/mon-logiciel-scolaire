@@ -158,8 +158,10 @@ export function EtapeImport({ etat, maj, ctx, validation }) {
             <span className={`badge ${validation.nbErreurs ? "text-bg-danger" : "text-bg-success"}`}>{t("{v0} erreur(s)", { v0: validation.nbErreurs })}</span>
             <span className={`badge ${validation.nbAvertissements ? "text-bg-warning" : "text-bg-light"}`}>{t("{v0} avertissement(s)", { v0: validation.nbAvertissements })}</span>
           </div>
+          {/* affectations reprises du brouillon (aucun fichier choisi dans cette session) : on ne parle pas de « fichier » */}
+          {!etat.fichier && <div className="alert alert-light border small mb-2">{t("Aucun fichier choisi dans cette session : ces affectations proviennent du brouillon enregistré sur cet appareil.")}</div>}
           {validation.ok
-            ? <div className="alert alert-success small mb-2">{t("Fichier conforme : toutes les lignes sont valides.")}{validation.nbAvertissements ? " " + t("Vérifiez les avertissements ci-dessous.") : ""}</div>
+            ? <div className="alert alert-success small mb-2">{etat.fichier ? t("Fichier conforme : toutes les lignes sont valides.") : t("Affectations conformes : toutes les lignes sont valides.")}{validation.nbAvertissements ? " " + t("Vérifiez les avertissements ci-dessous.") : ""}</div>
             : <div className="alert alert-danger small mb-2">{t("Le fichier contient des erreurs : aucune donnée n'est retenue tant qu'elles ne sont pas corrigées (ici à l'étape suivante, ou dans le fichier puis en le remplaçant).")}</div>}
           {(validation.global || []).map((g, i) => <div key={i} className="alert alert-danger small">{tr(g)}</div>)}
           <RapportLignes lignes={avecSouci} />

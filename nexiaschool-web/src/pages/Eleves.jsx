@@ -11,8 +11,12 @@ import { t } from "../i18n.jsx"
 
 /** Élève dont une information est à compléter (souvent après un import incomplet). */
 const aCompleter = (e, exercice) => !e.sexe || e.matricule.startsWith("PROV-") || e.nom === "À COMPLÉTER" || (exercice && !e.inscription)
+/** Recherche sans tenir compte des accents ni de la casse (« noelle » trouve « Noëlle »). */
+const sansAccents = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+const PAR_PAGE = 100
 
-const VIDE = { matricule: "", nom: "", prenom: "", sexe: "F", date_naissance: "", lieu_naissance: "", telephone_parent: "", classe_id: "", redoublant: false, nouveau: true }
+// sexe vide par défaut : choix obligatoire (aucune présélection « Fille »)
+const VIDE = { matricule: "", nom: "", prenom: "", sexe: "", date_naissance: "", lieu_naissance: "", telephone_parent: "", classe_id: "", redoublant: false, nouveau: true }
 
 export default function Eleves() {
   const { exercice, etablissement } = useSession()
@@ -20,29 +24,39 @@ export default function Eleves() {
   const [filtre, setFiltre] = useState(() => parametres.get("filtre") || ""), [recherche, setRecherche] = useState("")
   const [edition, setEdition] = useState(null), [photo, setPhoto] = useState(null)
   const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false), [info, setInfo] = useState("")
-  const [, setVersionFile] = useState(0)
+  const [, setVersionFile] = useState(0), [limite, setLimite] = useState(PAR_PAGE), [photos, setPhotos] = useState({})
   useEffect(() => { const f = () => setVersionFile((v) => v + 1); window.addEventListener(EVENEMENT_HORS_LIGNE, f); return () => window.removeEventListener(EVENEMENT_HORS_LIGNE, f) }, [])
 
   const [donnees, erreurChargement, rafraichir] = useDonnees(async () => {
     const classes = verifier(await supabase.from("classes").select("id, libelle").order("ordre").order("libelle"))
     const eleves = await toutCharger(() => supabase.from("eleves").select("*").order("nom"))
     const inscriptions = exercice ? await toutCharger(() => supabase.from("inscriptions").select("*").eq("exercice_id", exercice.id)) : []
-    return { classes, eleves, inscriptions, photos: await adressesPhotos(eleves.map((e) => e.photo)) }
+    return { classes, eleves, inscriptions }
   }, [exercice?.id])
 
   const lignes = useMemo(() => {
     if (!donnees) return []
     const parEleve = new Map(donnees.inscriptions.map((i) => [i.eleve_id, i]))
     const classe = new Map(donnees.classes.map((c) => [c.id, c.libelle]))
-    const r = recherche.trim().toLowerCase()
+    const r = sansAccents(recherche.trim())
     return donnees.eleves.map((e) => ({ ...e, inscription: parEleve.get(e.id), classe: classe.get(parEleve.get(e.id)?.classe_id) || "" }))
       .filter((e) => (filtre === "" || (filtre === "-" ? !e.inscription : filtre === "a-completer" ? aCompleter(e, exercice) : e.inscription?.classe_id === filtre))
-        && (!r || `${e.nom} ${e.prenom} ${e.matricule}`.toLowerCase().includes(r)))
+        && (!r || sansAccents(`${e.nom} ${e.prenom} ${e.matricule}`).includes(r)))
       .sort((a, b) => comparerNoms(a.classe, b.classe) || comparerNoms(nomComplet(a), nomComplet(b)))
   }, [donnees, filtre, recherche, exercice])
+  // liste longue affichée par pages ; adresses des photos demandées seulement pour les lignes affichées
+  useEffect(() => { setLimite(PAR_PAGE) }, [filtre, recherche])
+  const affichees = useMemo(() => lignes.slice(0, limite), [lignes, limite])
+  useEffect(() => {
+    const manquantes = [...new Set(affichees.map((e) => e.photo).filter((p) => p && !(p in photos)))]
+    if (!manquantes.length) return
+    let actif = true
+    adressesPhotos(manquantes).then((r) => { if (actif) setPhotos((x) => ({ ...x, ...Object.fromEntries(manquantes.map((p) => [p, r[p] || null])) })) })
+    return () => { actif = false }
+  }, [affichees, photos])
 
   function ouvrir(e) {
-    setErreur(""); setPhoto(null)
+    setErreur(""); setInfo(""); setPhoto(null)
     setEdition(e ? { ...VIDE, ...e, date_naissance: e.date_naissance || "", classe_id: e.inscription?.classe_id || "", redoublant: !!e.inscription?.redoublant, nouveau: e.inscription ? e.inscription.nouveau !== false : true }
                  : { ...VIDE, classe_id: filtre && filtre !== "-" && filtre !== "a-completer" ? filtre : "" })
   }
@@ -53,6 +67,9 @@ export default function Eleves() {
     try {
       const valeurs = { matricule: edition.matricule.trim(), nom: edition.nom.trim().toUpperCase(), prenom: edition.prenom.trim(), sexe: edition.sexe || null,
         date_naissance: edition.date_naissance || null, lieu_naissance: edition.lieu_naissance.trim(), telephone_parent: edition.telephone_parent.trim() }
+      if (!valeurs.sexe) throw new Error(t("Précisez le sexe de l'élève."))
+      const doublon = donnees.eleves.find((x) => x.id !== edition.id && sansAccents(x.matricule) === sansAccents(valeurs.matricule))
+      if (doublon) throw new Error(t("Le matricule {v0} est déjà attribué à {v1}.", { v0: valeurs.matricule, v1: nomComplet(doublon) }))
       const nouveau = !edition.id, id = edition.id || nouvelIdentifiant()
       // modification : seuls les champs changés partent, avec leur valeur de départ (conflits détectés à l'envoi différé)
       const avant = donnees.eleves.find((x) => x.id === id)
@@ -71,17 +88,23 @@ export default function Eleves() {
         }
       }
       if (r.enAttente && !photo) setInfo(t("Pas de connexion : {v0} est gardé sur cet appareil et sera envoyé automatiquement au retour de la connexion.", { v0: nomComplet(valeurs) }))
+      if (!r.enAttente) setInfo(nouveau ? t("Élève {v0} ajouté(e).", { v0: nomComplet(valeurs) }) : t("Fiche de {v0} enregistrée.", { v0: nomComplet(valeurs) }))
       setEdition(null); rafraichir()
-    } catch (err) { setErreur(err.message) } finally { setEnvoi(false) }
+    } catch (err) {
+      // le serveur refuse un doublon de matricule (élève créé entre-temps ailleurs) : message clair plutôt que l'erreur technique
+      setErreur(/valeur existe déjà|duplicate key|unique constraint/i.test(err.message) ? t("Ce matricule est déjà attribué à un autre élève.") : err.message)
+    } finally { setEnvoi(false) }
   }
 
   async function supprimer(e) {
     if (!confirm(t("Supprimer définitivement {v0} et toutes ses notes ?", {
       v0: nomComplet(e)
     }))) return
+    setErreur(""); setInfo("")
     try {
       if (e.photo) await supabase.storage.from("photos").remove([e.photo])
       verifier(await supabase.from("eleves").delete().eq("id", e.id)); rafraichir()
+      setInfo(t("Élève {v0} supprimé(e).", { v0: nomComplet(e) }))
     } catch (err) { setErreur(err.message) }
   }
 
@@ -92,7 +115,7 @@ export default function Eleves() {
         <h1 className="h3 m-0">{t("Élèves")}</h1>
         {!edition && <button className="btn btn-primary" onClick={() => ouvrir(null)}>{t("+ Nouvel élève")}</button>}
       </div>
-      <Alerte>{erreur}</Alerte><Alerte type="info" onFermer={() => setInfo("")}>{info}</Alerte>
+      <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte><Alerte type="info" onFermer={() => setInfo("")}>{info}</Alerte>
       {(() => { const att = enAttente(null, (x) => x.type === "eleve" && !x.erreur && !x.conflits); return att.length > 0 && (
         <div className="alert alert-warning small">{t("En attente d'envoi (saisi hors ligne) :")} {att.map((x) => x.description).join(" ; ")}</div>) })()}
       {!exercice && <div className="alert alert-warning">{t(
@@ -106,7 +129,7 @@ export default function Eleves() {
             <div className="col-md-5"><label className="form-label" htmlFor="en">{t("Nom")}</label><input className="form-control" id="en" required maxLength={100} {...champ("nom")} /></div>
             <div className="col-md-4"><label className="form-label" htmlFor="ep">{t("Prénom")}</label><input className="form-control" id="ep" maxLength={100} {...champ("prenom")} /></div>
             <div className="col-md-2"><label className="form-label" htmlFor="es">{t("Sexe")}</label>
-              <select className={`form-select ${edition.sexe ? "" : "is-invalid"}`} id="es" {...champ("sexe")}>
+              <select className={`form-select ${edition.sexe ? "" : "is-invalid"}`} id="es" required {...champ("sexe")}>
                 {!edition.sexe && <option value="">{t("À préciser")}</option>}<option value="F">{t("Fille")}</option><option value="M">{t("Garçon")}</option></select></div>
             <div className="col-md-3"><label className="form-label" htmlFor="ed">{t("Date de naissance")}</label><input className="form-control" id="ed" type="date" {...champ("date_naissance")} /></div>
             <div className="col-md-3"><label className="form-label" htmlFor="el">{t("Lieu de naissance")}</label><input className="form-control" id="el" maxLength={100} {...champ("lieu_naissance")} /></div>
@@ -138,8 +161,8 @@ export default function Eleves() {
       </div>
       <div className="card"><div className="table-responsive"><table className="table table-hover align-middle mb-0">
         <thead className="table-light"><tr><th /><th>{t("Matricule")}</th><th>{t("Nom")}</th><th>{t("Sexe")}</th><th>{t("Naissance")}</th><th>{t("Classe")}</th><th /></tr></thead>
-        <tbody>{lignes.map((e) => (
-          <tr key={e.id}><td style={{ width: 48 }}>{donnees.photos[e.photo] ? <img src={imageOptimisee(donnees.photos[e.photo], 36)} alt="" className="vignette" width="36" height="36" {...differee} /> : <span className="vignette vide" />}</td>
+        <tbody>{affichees.map((e) => (
+          <tr key={e.id}><td style={{ width: 48 }}>{photos[e.photo] ? <img src={imageOptimisee(photos[e.photo], 36)} alt="" className="vignette" width="36" height="36" {...differee} /> : <span className="vignette vide" />}</td>
             <td>{e.matricule}{aCompleter(e, exercice) && <span className="badge text-bg-warning ms-1">{t("À compléter")}</span>}</td>
             <td>{nomComplet(e)}</td><td>{e.sexe || <span className="text-danger">?</span>}</td><td>{date(e.date_naissance)}</td>
             <td>{e.classe || <span className="text-muted">—</span>}{e.inscription?.redoublant && <span className="badge text-bg-light ms-1">{t("R")}</span>}</td>
@@ -147,6 +170,8 @@ export default function Eleves() {
               <button className="btn btn-sm btn-outline-danger" onClick={() => supprimer(e)}>{t("Supprimer")}</button></td></tr>))}
           {!lignes.length && <tr><td colSpan={7} className="text-center text-muted py-4">{t("Aucun élève.")}</td></tr>}</tbody>
       </table></div></div>
+      {lignes.length > limite && <div className="text-center my-3"><button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setLimite((l) => l + PAR_PAGE * 2)}>
+        {t("Afficher plus ({v0} sur {v1})", { v0: limite, v1: lignes.length })}</button></div>}
     </>
   );
 }

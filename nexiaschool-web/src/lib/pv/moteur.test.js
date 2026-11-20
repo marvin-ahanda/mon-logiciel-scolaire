@@ -48,6 +48,7 @@ describe("PV de classe (notes brutes)", () => {
     expect(pv.meilleures[0]).toMatchObject({ note: 15, matiere: "Mathématiques" })
     expect(pv.enDifficulte.map((l) => l.inscriptionId)).toEqual(["i2"])
     expect(pv.matieresFaibles[0]).toMatchObject({ matiere: "Français", tauxReussite: 50 })
+    expect(pv.matieresFaibles.every((m) => m.tauxReussite < 100)).toBe(true)      // jamais une matière réussie à 100 % comme « plus faible »
     expect(pv.matieres[0].meilleure.note).toBe(15)
   })
   it("seuils configurables : réussite à 12", () => {

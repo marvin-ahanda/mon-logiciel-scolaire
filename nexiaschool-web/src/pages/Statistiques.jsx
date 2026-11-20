@@ -19,6 +19,7 @@ function CellulesResume({ r }) {
     <td className="text-end">{n2(r.max)}</td><td className="text-end">{r.reussite}</td><td className="text-end">{pct(r.taux)}</td></>
 }
 const ENTETES_RESUME = ["Nombre", "Moyenne", "Min", "Max", "≥ 10", "Réussite"]
+const PARALLELE_COMPARAISON = 4
 
 export default function Statistiques() {
   const onglet = ({ isActive }) => "nav-link" + (isActive ? " active" : "")
@@ -47,6 +48,8 @@ function ParClasse({ classe, periode }) {
   const { resultats, stats } = resultatsPeriode(donnees, periode)
   const s = statistiquesClasse(resultats, donnees.attributions)
   const maxi = Math.max(1, ...s.repartition.map((l) => l.total))
+  // élèves au sexe non renseigné : colonne et ligne à part, pour que les colonnes fassent toujours le total (histogramme = tableau)
+  const sexes = s.sexeNonPrecise || s.matieres.some((m) => m.parSexe.X.n) ? [...SEXES, ["X", "Non précisé"]] : SEXES
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-2">
@@ -78,14 +81,15 @@ function ParClasse({ classe, periode }) {
             </div>) : <p className="text-muted">{t("Aucune moyenne calculée pour cette période.")}</p>}
         </div></div></div>
         <div className="col-lg-6"><div className="card h-100"><div className="table-responsive"><table className="table table-sm mb-0">
-          <thead className="table-light"><tr><th>{t("Moyenne")}</th>{SEXES.map(([k, l]) => <th key={k} className="text-end">{t(l)}</th>)}<th className="text-end">{t("Total")}</th><th className="text-end">%</th></tr></thead>
-          <tbody>{s.repartition.map((l) => <tr key={l.libelle}><td>{l.libelle}</td>{SEXES.map(([k]) => <td key={k} className="text-end">{l.parSexe[k]}</td>)}
+          <thead className="table-light"><tr><th>{t("Moyenne")}</th>{sexes.map(([k, l]) => <th key={k} className="text-end">{t(l)}</th>)}<th className="text-end">{t("Total")}</th><th className="text-end">%</th></tr></thead>
+          <tbody>{s.repartition.map((l) => <tr key={l.libelle}><td>{l.libelle}</td>{sexes.map(([k]) => <td key={k} className="text-end">{l.parSexe[k]}</td>)}
             <td className="text-end fw-semibold">{l.total}</td><td className="text-end">{l.pourcentage === null ? "—" : note(l.pourcentage)}</td></tr>)}</tbody>
         </table></div></div></div>
       </div>
+      {s.sexeNonPrecise > 0 && <div className="alert alert-warning small py-2">{t("{v0} élève(s) classé(s) sans sexe renseigné : complétez leur fiche (rubrique Élèves) pour une répartition exacte par sexe.", { v0: s.sexeNonPrecise })}</div>}
       <div className="card mb-3"><div className="card-header fw-semibold">{t("Résultats par sexe")}</div><div className="table-responsive"><table className="table table-sm mb-0">
         <thead className="table-light"><tr><th />{ENTETES_RESUME.map((e) => <th key={e} className="text-end">{t(e)}</th>)}</tr></thead>
-        <tbody>{SEXES.map(([k, l]) => <tr key={k}><td>{t(l)}</td><CellulesResume r={s.parSexe[k]} /></tr>)}
+        <tbody>{sexes.map(([k, l]) => <tr key={k}><td>{t(l)}</td><CellulesResume r={s.parSexe[k]} /></tr>)}
           <tr className="fw-semibold"><td>{t("Ensemble")}</td><CellulesResume r={s.global} /></tr></tbody>
       </table></div></div>
       <div className="card"><div className="card-header fw-semibold">{t("Statistiques par matière")}</div><div className="table-responsive"><table className="table table-sm table-hover mb-0">
@@ -115,15 +119,22 @@ function Comparaison() {
   const [resultat, erreur] = useDonnees(async () => {
     if (!ref_ || !periode) return null
     const lignes = [], parNiveau = new Map()
-    for (const classe of ref_.classes) {                       // une classe après l'autre : charge modérée pour le plan Free
-      const d = await chargerClasse(classe, exercice)
-      if (!d.eleves.length) continue
+    // 4 classes chargées à la fois (charge modérée pour le plan Free, environ 4 fois plus rapide qu'une par une) ; ordre des classes conservé
+    const donnees = new Array(ref_.classes.length)
+    for (let k = 0; k < ref_.classes.length; k += PARALLELE_COMPARAISON) {
+      const lot = ref_.classes.slice(k, k + PARALLELE_COMPARAISON)
+      const lus = await Promise.all(lot.map((classe) => chargerClasse(classe, exercice)))
+      lus.forEach((d, i) => { donnees[k + i] = d })
+    }
+    ref_.classes.forEach((classe, k) => {
+      const d = donnees[k]
+      if (!d.eleves.length) return
       const { resultats } = resultatsPeriode(d, periode)
       const moyennes = resultats.map((r) => r.moyenne).filter((m) => m !== null)
       lignes.push({ classe, effectif: resultats.length, ...resume(moyennes) })
       const niveau = classe.niveau || t("Sans niveau")
       parNiveau.set(niveau, [...(parNiveau.get(niveau) || []), ...moyennes])
-    }
+    })
     const niveaux = [...parNiveau].map(([niveau, m]) => ({ niveau, ...resume(m) }))
     return { lignes, niveaux, etablissement: resume([...parNiveau.values()].flat()) }
   }, [ref_, periode?.code])

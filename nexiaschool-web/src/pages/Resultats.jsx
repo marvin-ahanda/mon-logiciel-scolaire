@@ -30,7 +30,7 @@ function Tableau({ classe, periode }) {
       </div>
       <div className="card"><div className="table-responsive"><table className="table table-sm table-hover align-middle mb-0">
         <thead className="table-light"><tr><th>{t("Rang")}</th><th>{t("Élève")}</th>
-          {donnees.attributions.map((a) => <th key={a.id} className="text-end small" title={`${a.matiere} (coef. ${a.coefficient})`}>{a.code}</th>)}
+          {donnees.attributions.map((a) => <th key={a.id} className="text-end small" title={`${a.matiere} (coef. ${a.coefficient})`}>{/[a-zà-ÿ]/i.test(a.code || "") ? a.code : a.matiere}</th>)}
           <th className="text-end">{t("Moyenne")}</th><th>{t("Appréciation")}</th></tr></thead>
         <tbody>{classement.map((r) => (
           <tr key={r.inscriptionId}><td>{rang(r.rang, r.exAequo)}</td><td>{nomComplet(r.eleve)}</td>

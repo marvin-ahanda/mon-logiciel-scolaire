@@ -92,15 +92,60 @@ function Liste({ titre, table, lignes, champs, vide, recharger, aide }) {
   )
 }
 
+/** Cycles et niveaux déduits des classes existantes (champ « cycle » 1/2 et libellé « niveau » des classes). */
+export function structureDepuisClasses(classes, cycles, niveaux) {
+  const libelleCycle = (n) => (n === 1 ? "Premier cycle" : n === 2 ? "Second cycle" : `Cycle ${n}`)
+  const cyclesExistants = new Set(cycles.map((c) => c.libelle.trim().toLowerCase()))
+  const nouveauxCycles = [...new Set(classes.map((c) => c.cycle).filter((n) => Number.isInteger(n)))].sort((a, b) => a - b)
+    .map((n) => ({ libelle: libelleCycle(n), ordre: n })).filter((c) => !cyclesExistants.has(c.libelle.toLowerCase()))
+  const niveauxExistants = new Set(niveaux.map((x) => x.libelle.trim().toLowerCase()))
+  const parNiveau = new Map()
+  for (const c of classes) {
+    const l = String(c.niveau || "").trim()
+    if (l && !niveauxExistants.has(l.toLowerCase()) && !parNiveau.has(l.toLowerCase())) parNiveau.set(l.toLowerCase(), { libelle: l, cycle: c.cycle, ordre: c.ordre ?? 0 })
+  }
+  return { nouveauxCycles, nouveauxNiveaux: [...parNiveau.values()], libelleCycle, sansNiveau: classes.filter((c) => !c.niveau_id && String(c.niveau || "").trim()) }
+}
+
 function Structure({ reference: r, recharger }) {
-  const [msg, setMsg] = useState("")
+  const [msg, setMsg] = useState(""), [ok, setOk] = useState(""), [enCours, setEnCours] = useState(false)
   const sousSystemes = Object.entries(SOUS_SYSTEMES).map(([k, l]) => [k, t(l)])
   async function rattacher(classe, champ, valeur) {
     setMsg("")
     try { verifier(await supabase.from("classes").update({ [champ]: valeur || null }).eq("id", classe.id)); recharger() } catch (e) { setMsg(e.message) }
   }
+  const proposition = structureDepuisClasses(r.classes, r.cycles, r.niveaux)
+  const aCreer = proposition.nouveauxCycles.length + proposition.nouveauxNiveaux.length + proposition.sansNiveau.length
+  // crée les cycles et niveaux manquants à partir des classes, puis rattache chaque classe à son niveau (rien n'est supprimé)
+  async function depuisClasses() {
+    if (!confirm(t("Créer {v0} cycle(s) et {v1} niveau(x) à partir des classes existantes, puis rattacher {v2} classe(s) à leur niveau ?",
+      { v0: proposition.nouveauxCycles.length, v1: proposition.nouveauxNiveaux.length, v2: proposition.sansNiveau.length }))) return
+    setMsg(""); setOk(""); setEnCours(true)
+    try {
+      const cyclesCrees = proposition.nouveauxCycles.length ? verifier(await supabase.from("cycles").insert(proposition.nouveauxCycles.map((c) => ({ libelle: c.libelle, ordre: c.ordre }))).select()) : []
+      const tousCycles = [...r.cycles, ...cyclesCrees]
+      const cycleDe = (n) => tousCycles.find((c) => c.libelle.toLowerCase() === proposition.libelleCycle(n).toLowerCase())?.id || null
+      const niveauxCrees = proposition.nouveauxNiveaux.length ? verifier(await supabase.from("niveaux").insert(proposition.nouveauxNiveaux.map((n) => ({
+        libelle: n.libelle, ordre: n.ordre, cycle_id: Number.isInteger(n.cycle) ? cycleDe(n.cycle) : null }))).select()) : []
+      const tousNiveaux = new Map([...r.niveaux, ...niveauxCrees].map((n) => [n.libelle.trim().toLowerCase(), n.id]))
+      let rattachees = 0
+      for (const c of proposition.sansNiveau) {
+        const id = tousNiveaux.get(String(c.niveau).trim().toLowerCase())
+        if (id) { verifier(await supabase.from("classes").update({ niveau_id: id }).eq("id", c.id)); rattachees++ }
+      }
+      setOk(t("{v0} cycle(s) et {v1} niveau(x) créés ; {v2} classe(s) rattachée(s) à leur niveau. Vérifiez l'ordre des niveaux et cochez « fin de cycle » si nécessaire.",
+        { v0: cyclesCrees.length, v1: niveauxCrees.length, v2: rattachees }))
+      recharger()
+    } catch (e) { setMsg(e.message) } finally { setEnCours(false) }
+  }
   return (
     <>
+      <Alerte type="success" onFermer={() => setOk("")}>{ok}</Alerte><Alerte onFermer={() => setMsg("")}>{msg}</Alerte>
+      {aCreer > 0 && <div className="alert alert-info d-flex flex-wrap gap-2 align-items-center small">
+        <span className="me-auto">{t("Vos classes indiquent déjà des cycles et des niveaux qui ne figurent pas encore ici ({v0} cycle(s), {v1} niveau(x), {v2} classe(s) à rattacher). Les filtres des PV les utilisent, mais la transition d'année et les règles de passage ont besoin de cette structure.",
+          { v0: proposition.nouveauxCycles.length, v1: proposition.nouveauxNiveaux.length, v2: proposition.sansNiveau.length })}</span>
+        <button type="button" className="btn btn-sm btn-primary" disabled={enCours} onClick={depuisClasses}>{enCours ? t("Création…") : t("Créer à partir des classes")}</button>
+      </div>}
       <div className="row g-3 mb-3">
         <div className="col-lg-6"><Liste titre={t("Cycles")} table="cycles" lignes={r.cycles} recharger={recharger} vide={{ libelle: "", ordre: "" }}
           aide={t("Ex. Premier cycle, Second cycle, Cycle d'observation…")}
@@ -122,7 +167,6 @@ function Structure({ reference: r, recharger }) {
       </div>
       <div className="card mb-4"><div className="card-body">
         <h2 className="h6">{t("Rattachement des classes")}</h2>
-        <Alerte onFermer={() => setMsg("")}>{msg}</Alerte>
         <div className="table-responsive"><table className="table table-sm align-middle mb-0 rattachement-classes">
           <thead className="table-light"><tr><th>{t("Classe")}</th><th>{t("Niveau")}</th><th>{t("Filière")}</th><th>{t("Série")}</th><th>{t("Section")}</th></tr></thead>
           <tbody>{r.classes.map((c) => (

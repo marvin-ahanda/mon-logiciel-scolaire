@@ -95,6 +95,10 @@ function Nouvelle({ onEnregistre, onErreur }) {
               : <div className="col-md-3"><label className="form-label small mb-1">{t("Période couverte")}</label>
                   <select className="form-select form-select-sm" value={regle.parametres.periode || "jour"} onChange={(e) => majP("periode", e.target.value)}>
                     {Object.entries(PERIODES).map(([k, l]) => <option key={k} value={k}>{t(l)}</option>)}</select></div>}
+            {regle.action === "rapport_absences" && (
+              <div className="col-md-3"><label className="form-label small mb-1" htmlFor="auto-seuil">{t("Seulement les élèves ayant au moins (h non justifiées)")}</label>
+                <input id="auto-seuil" type="number" min={1} max={500} className="form-control form-control-sm" placeholder={t("tous")} value={regle.parametres.seuil_heures ?? ""}
+                  onChange={(e) => majP("seuil_heures", e.target.value === "" ? undefined : Math.max(1, Math.min(500, Math.round(Number(e.target.value)))))} /></div>)}
             {regle.action !== "rappel" && (
               <div className="col-md-3"><label className="form-label small mb-1">{t("Envoyer à")}</label>
                 <select className="form-select form-select-sm" value={regle.destinataire} onChange={(e) => maj("destinataire", e.target.value)}>
@@ -197,7 +201,8 @@ export function ContenuRapport({ r }) {
     case "rapport_absences": return <>{periode}
       <p className="small">{t("{v0} h non justifiée(s), {v1} h justifiée(s), {v2} élève(s) absent(s), {v3} retard(s).", { v0: c.heures_non_justifiees, v1: c.heures_justifiees, v2: c.eleves_absents, v3: c.retards })}</p>
       <Tableau entetes={[t("Classe"), t("Heures NJ"), t("Heures J"), t("Élèves")]} lignes={(c.par_classe || []).map((x) => [x.classe, x.heures_nj, x.heures_j, x.eleves])} />
-      {(c.eleves || []).length > 0 && <><h4 className="h6 mt-2">{t("Élèves les plus absents")}</h4>
+      {c.seuil_heures > 0 && <p className="small mb-1">{t("Élèves ayant au moins {v0} h non justifiée(s) sur la période : {v1}.", { v0: c.seuil_heures, v1: (c.eleves || []).length })}</p>}
+      {(c.eleves || []).length > 0 && <><h4 className="h6 mt-2">{c.seuil_heures > 0 ? t("Élèves au-dessus du seuil") : t("Élèves les plus absents")}</h4>
         <Tableau entetes={[t("Élève"), t("Classe"), t("Heures NJ"), t("Heures J")]} lignes={c.eleves.map((x) => [x.eleve, x.classe, x.heures_nj, x.heures_j])} /></>}</>
     case "rapport_saisie": return <>
       <p className="small">{c.sequence ? t("Séquence {v0} : {v1} note(s) manquante(s).", { v0: c.sequence, v1: c.total_manquantes }) : t("Aucune séquence ouverte.")}</p>

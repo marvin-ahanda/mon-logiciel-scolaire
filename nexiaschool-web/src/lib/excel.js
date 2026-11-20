@@ -29,10 +29,17 @@ export async function telechargerClasseur(feuilles, nom) {
   const colonnes = feuilles.map((f) => f.entetes.map((e, k) => ({
     width: f.largeurs?.[k] ?? Math.min(45, Math.max(10, String(e).length + 2, ...f.lignes.slice(0, 300).map((l) => String(l[k] ?? "").length + 2))) })))
   const jour = new Date().toISOString().slice(0, 10).replaceAll("-", "")
-  await ecrire(feuilles.map((f, k) => ({ data: donnees[k], sheet: f.titre.replace(/[\\/?*[\]:]/g, " ").slice(0, 31), columns: colonnes[k],
-                                         stickyRowsCount: f.intitule ? 3 : 1 })))
-    .toFile(`${nom}-${jour}.xlsx`)
+  // la compression des gros classeurs passe par un « worker » : s'il ne démarre pas (politique de sécurité, navigateur
+  // restreint), la promesse ne se résoudrait jamais. Délai maximal : l'utilisateur reçoit alors un message au lieu d'une attente sans fin.
+  let minuteur
+  const delai = new Promise((_, ko) => { minuteur = setTimeout(() => ko(new Error(t("La préparation du fichier n'a pas abouti. Réessayez ; si le problème persiste, filtrez par classe pour un fichier plus léger."))), DELAI_CLASSEUR) })
+  try {
+    await Promise.race([ecrire(feuilles.map((f, k) => ({ data: donnees[k], sheet: f.titre.replace(/[\\/?*[\]:]/g, " ").slice(0, 31), columns: colonnes[k],
+                                                          stickyRowsCount: f.intitule ? 3 : 1 })))
+      .toFile(`${nom}-${jour}.xlsx`), delai])
+  } finally { clearTimeout(minuteur) }
 }
+const DELAI_CLASSEUR = 90000
 
 /** Lit toutes les feuilles d'un classeur .xlsx : [{ nom, data }] (contrôles de format et de taille). */
 export async function lireFeuilles(fichier, tailleMax = TAILLE_MAX) {

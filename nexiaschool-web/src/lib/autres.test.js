@@ -35,6 +35,16 @@ describe("statistiques", () => {
     expect(s.parSexe.F).toMatchObject({ n: 1, moyenne: 6 })
     expect(s.matieres[0].tous).toMatchObject({ n: 2, taux: 50 })
   })
+  it("élève sans sexe renseigné : compté à part, les colonnes par sexe font le total", () => {
+    const attributions = [{ id: "m", matiere: "Maths", coefficient: 1, groupe: 1 }]
+    const eleves = [{ inscriptionId: "a", eleve: { sexe: "M" } }, { inscriptionId: "b", eleve: { sexe: null } }, { inscriptionId: "c", eleve: { sexe: "f" } }]
+    const { resultats } = calculerResultats(eleves, attributions, new Map([["a|m", 14], ["b|m", 6], ["c|m", 12]]))
+    const s = statistiquesClasse(resultats, attributions)
+    expect(s.sexeNonPrecise).toBe(1)
+    for (const l of s.repartition) expect(l.parSexe.M + l.parSexe.F + l.parSexe.X).toBe(l.total)
+    expect(s.repartition.find((l) => l.libelle === "[5 ; 8[")).toMatchObject({ total: 1, parSexe: { M: 0, F: 0, X: 1 } })
+    expect(s.parSexe.F.n).toBe(1)                                   // « f » minuscule reconnue
+  })
   it("âge au 1er janvier et effectifs", () => {
     const ref = new Date(Date.UTC(2027, 0, 1))
     expect(age("2015-01-01", ref)).toBe(12)

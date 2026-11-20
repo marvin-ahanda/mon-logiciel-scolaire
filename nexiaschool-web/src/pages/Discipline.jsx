@@ -38,11 +38,13 @@ function Selecteurs({ ref_, classeId, setClasseId, sequenceId, setSequenceId, jo
   );
 }
 
-const heures = (brut) => {
+/** Heures d'absence : entier de 0 à 24 ; le message nomme le champ et la règle (pas de décimale ni de nombre négatif). */
+const heuresValides = (brut) => { const x = String(brut ?? "").trim(); return x === "" || (/^\d{1,2}$/.test(x) && Number(x) <= 24) }
+const heures = (brut, champ = "") => {
   const x = String(brut ?? "").trim()
   if (x === "") return 0
-  if (!/^\d{1,2}$/.test(x) || Number(x) > 24) throw new Error(t("« {v0} » : nombre d'heures entier entre 0 et 24", {
-    v0: brut
+  if (!heuresValides(x)) throw new Error(t("{v0} : « {v1} » n'est pas accepté. Indiquez un nombre entier d'heures entre 0 et 24 (pas de décimale ni de signe moins).", {
+    v0: champ || t("Heures"), v1: brut
   }))
   return Number(x)
 }
@@ -96,10 +98,10 @@ export function Appel() {
     ) });
     const err = {}, lus = {}
     for (const i of grille.eleves) {
-      try { lus[i.id] = { ...lignes[i.id], nj: heures(lignes[i.id].nj), j: heures(lignes[i.id].j) } } catch (x) { err[i.id] = x.message }
+      try { lus[i.id] = { ...lignes[i.id], nj: heures(lignes[i.id].nj, t("Abs. non justifiées")), j: heures(lignes[i.id].j, t("Abs. justifiées")) } } catch (x) { err[i.id] = x.message }
     }
     setErreurs(err)
-    if (Object.keys(err).length) return setMessage({ erreur: t("Certaines valeurs sont invalides : rien n'a été enregistré.") });
+    if (Object.keys(err).length) return setMessage({ erreur: t("{v0} ligne(s) contiennent une valeur invalide (en rouge ci-dessous) : rien n'a été enregistré.", { v0: Object.keys(err).length }) });
     const ecrireAbs = [], supprAbs = [], ajoutRet = [], supprRet = []
     for (const i of grille.eleves) {
       const l = lus[i.id], a = grille.absences.get(i.id), r = grille.retards.get(i.id)
@@ -141,10 +143,10 @@ export function Appel() {
               <tr key={i.id} className={erreurs[i.id] ? "table-danger" : ""}>
                 <td>{nomComplet(i.eleves)}{erreurs[i.id] && <div className="small text-danger">{erreurs[i.id]}</div>}
                   {grille.attente.has(i.id) && <div className="small text-warning-emphasis">{t("⏳ en attente d'envoi")}</div>}</td>
-                <td><input className="form-control form-control-sm" style={{ maxWidth: 90 }} inputMode="numeric" disabled={sequence?.verrouillee} value={l.nj ?? ""} onChange={(e) => maj(i.id, "nj", e.target.value)} aria-label={t("Heures non justifiées de {v0}", {
+                <td><input className={`form-control form-control-sm${heuresValides(l.nj) ? "" : " is-invalid"}`} style={{ maxWidth: 90 }} inputMode="numeric" disabled={sequence?.verrouillee} value={l.nj ?? ""} onChange={(e) => maj(i.id, "nj", e.target.value)} aria-label={t("Heures non justifiées de {v0}", {
                   v0: nomComplet(i.eleves)
                 })} /></td>
-                <td><input className="form-control form-control-sm" style={{ maxWidth: 90 }} inputMode="numeric" disabled={sequence?.verrouillee} value={l.j ?? ""} onChange={(e) => maj(i.id, "j", e.target.value)} aria-label={t("Heures justifiées de {v0}", {
+                <td><input className={`form-control form-control-sm${heuresValides(l.j) ? "" : " is-invalid"}`} style={{ maxWidth: 90 }} inputMode="numeric" disabled={sequence?.verrouillee} value={l.j ?? ""} onChange={(e) => maj(i.id, "j", e.target.value)} aria-label={t("Heures justifiées de {v0}", {
                   v0: nomComplet(i.eleves)
                 })} /></td>
                 <td><input className="form-control form-control-sm" maxLength={200} disabled={sequence?.verrouillee} value={l.motif ?? ""} onChange={(e) => maj(i.id, "motif", e.target.value)} aria-label={t("Motif pour {v0}", {
@@ -159,7 +161,10 @@ export function Appel() {
           </table></div>
           {!sequence?.verrouillee && grille.eleves.length > 0 && <div className="card-footer d-flex flex-wrap gap-2 align-items-center">
             <button className="btn btn-primary" disabled={envoi}>{envoi ? t("Enregistrement…") : t("Enregistrer l'appel")}</button>
-            <span className="small text-muted">{t("Laissez vide pour un élève présent et à l'heure.")}</span></div>}
+            <span className="small text-muted">{t("Laissez vide pour un élève présent et à l'heure.")}</span>
+            {/* résultat rappelé près du bouton : visible même après avoir fait défiler une longue liste */}
+            {message.ok && <span className="small text-success fw-semibold">✓ {message.ok}</span>}
+            {message.erreur && <span className="small text-danger">{message.erreur}</span>}</div>}
         </form>
       )}
     </>

@@ -292,6 +292,14 @@ function Attribuer({ reference }) {
   }, [distinction?.id, periode?.code, cle])
   const recharger = () => setCle((k) => k + 1)
   const agir = async (f, ok) => { setMsg({}); try { await f(); if (ok) setMsg({ ok }); recharger() } catch (e) { setMsg({ erreur: e.message }) } }
+  // certificat d'un seul lauréat : bouton occupé pendant la génération, puis message (succès ou erreur) — jamais un clic sans effet visible
+  const [pdfEnCours, setPdfEnCours] = useState("")
+  async function certificatEleve(l) {
+    setMsg({}); setPdfEnCours(l.id)
+    try { await pdfCertificats([l]); setMsg({ ok: t("Certificat de {v0} généré : vérifiez vos téléchargements.", { v0: l.eleve }) }) }
+    catch (e) { setMsg({ erreur: t("Certificat non généré : {v0}", { v0: e.message }) }) }
+    finally { setPdfEnCours("") }
+  }
 
   async function calculer() {
     setMsg({}); setCalcul({ fait: 0, total: 0 })
@@ -372,7 +380,7 @@ function Attribuer({ reference }) {
                 {brouillon && (l.retenu
                   ? <button className="btn btn-sm btn-outline-danger" onClick={() => { const m = motif(t("Motif du retrait de {v0} :", { v0: l.eleve })); if (m !== null) agir(() => rpc("distinctions_decider", { p_attribution: l.id, p_retenu: false, p_motif: m })) }}>{t("Retirer")}</button>
                   : <button className="btn btn-sm btn-outline-success" onClick={() => agir(() => rpc("distinctions_decider", { p_attribution: l.id, p_retenu: true, p_motif: "" }))}>{t("Rétablir")}</button>)}
-                {!brouillon && l.retenu && l.code && distinction.imprimable && <button className="btn btn-sm btn-outline-secondary" onClick={() => pdfCertificats([l])}>{t("Certificat")}</button>}
+                {!brouillon && l.retenu && l.code && distinction.imprimable && <button className="btn btn-sm btn-outline-secondary" disabled={!!pdfEnCours} onClick={() => certificatEleve(l)}>{pdfEnCours === l.id ? "PDF…" : t("Certificat")}</button>}
               </td></tr>))}
             {!d.laureats.length && <tr><td colSpan={8} className="text-center text-muted py-3">{t("Aucun élève ne remplit les critères pour cette période.")}</td></tr>}</tbody>
         </table></div>}
@@ -430,7 +438,7 @@ function Generation({ onTableau, onCertificats }) {
 // --- 3. Historique -------------------------------------------------------------------------------------------
 function Historique() {
   const { etablissement, logoUrl } = useSession()
-  const [q, setQ] = useState("")
+  const [q, setQ] = useState(""), [pdfEnCours, setPdfEnCours] = useState(""), [msgH, setMsgH] = useState({})
   const [d, erreur] = useDonnees(async () => {
     const [att, sessions, distinctions, exercices] = await Promise.all([
       toutCharger(() => supabase.from("distinctions_attribuees").select("*").not("code", "is", null)),
@@ -447,6 +455,7 @@ function Historique() {
   for (const a of liste) { if (!parEleve.has(a.eleve_id)) parEleve.set(a.eleve_id, []); parEleve.get(a.eleve_id).push(a) }
   return (
     <>
+      <Alerte onFermer={() => setMsgH({})}>{msgH.erreur}</Alerte><Alerte type="success" onFermer={() => setMsgH({})}>{msgH.ok}</Alerte>
       <input className="form-control mb-3" style={{ maxWidth: 420 }} placeholder={t("Rechercher un élève (nom, matricule, classe)…")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("Rechercher un élève")} />
       {!d.length && <p className="text-muted">{t("Aucune distinction validée pour le moment.")}</p>}
       {[...parEleve.values()].slice(0, 100).map((l) => (
@@ -459,11 +468,15 @@ function Historique() {
               {!a.retenu || a.revoque_le ? <span className="badge text-bg-danger">{t("révoquée")}</span> : <span className={`badge text-bg-${STATUTS[a.session.statut][1]}`}>{t(STATUTS[a.session.statut][0])}</span>}
               <span className="text-muted">{date(a.emis_le)}</span>
               <a className="ms-auto" href={urlVerificationDistinction(a.code)} target="_blank" rel="noopener noreferrer"><code>{a.code}</code></a>
-              {a.retenu && !a.revoque_le && a.distinction.imprimable && <button className="btn btn-sm btn-outline-secondary py-0" onClick={async () => {
-                const r = reglages(a.distinction, etablissement)
-                await certificatsPdf([{ ...a, periode: a.session.periode_libelle, annee: a.annee }], { distinction: { ...a.distinction, nom: a.session.configuration?.nom || a.distinction.nom }, etablissement,
-                  logo: r.afficherLogo ? await image(logoUrl) : null, signatures: await signaturesEnService(), nom: nomDeFichier(t("certificat"), a.eleve, a.session.periode_libelle) })
-              }}>{t("Certificat")}</button>}
+              {a.retenu && !a.revoque_le && a.distinction.imprimable && <button className="btn btn-sm btn-outline-secondary py-0" disabled={!!pdfEnCours} onClick={async () => {
+                setMsgH({}); setPdfEnCours(a.id)
+                try {
+                  const r = reglages(a.distinction, etablissement)
+                  await certificatsPdf([{ ...a, periode: a.session.periode_libelle, annee: a.annee }], { distinction: { ...a.distinction, nom: a.session.configuration?.nom || a.distinction.nom }, etablissement,
+                    logo: r.afficherLogo ? await image(logoUrl) : null, signatures: await signaturesEnService(), nom: nomDeFichier(t("certificat"), a.eleve, a.session.periode_libelle) })
+                  setMsgH({ ok: t("Certificat de {v0} généré : vérifiez vos téléchargements.", { v0: a.eleve }) })
+                } catch (e) { setMsgH({ erreur: t("Certificat non généré : {v0}", { v0: e.message }) }) } finally { setPdfEnCours("") }
+              }}>{pdfEnCours === a.id ? "PDF…" : t("Certificat")}</button>}
             </li>))}</ul>
         </div></div>))}
     </>

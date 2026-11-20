@@ -32,7 +32,7 @@ export function feuillesPvGroupe(pv, { titre, evolution = [], comparaison = null
       ...(g.financeConnue ? [[t("À jour de pension (%)"), v(g.tauxAJour)], [t("Non à jour (%)"), v(g.tauxInsolvables)]] : [])] },
     { titre: t("Classes"), intitule: titre,
       entetes: [t("Classe"), t("Cycle"), t("Niveau"), t("Section"), t("Effectif"), t("Garçons"), t("Filles"), t("Moyenne"), t("Réussite (%)"), t("Échec (%)"),
-        t("En difficulté"), t("Absentéisme (%)"), t("À jour (%)")],
+        t("En difficulté"), t("Élèves absents au moins une fois (%)"), t("À jour (%)")],
       lignes: pv.parClasse.map((c) => [c.classe.libelle, c.classe.cycleLibelle, c.classe.niveauLibelle, c.classe.sectionLibelle, c.effectif, c.garcons, c.filles,
         v(c.moyenne), v(c.tauxReussite), v(c.tauxEchec), c.enDifficulte, v(c.tauxAbsenteisme), v(c.tauxAJour)]) },
     { titre: t("Matières"), intitule: titre, entetes: [t("Matière"), t("Notes"), t("Moyenne"), t("Réussite (%)"), t("Échec (%)")],

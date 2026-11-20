@@ -19,22 +19,26 @@ export function repartition(parSexe) {
   return TRANCHES.map(([bas, haut, libelle]) => {
     const dans = (m) => m >= bas && m < haut
     const total = toutes.filter(dans).length
-    return { libelle, parSexe: Object.fromEntries(SEXES.map(([s]) => [s, (parSexe[s] || []).filter(dans).length])), total,
+    return { libelle, parSexe: Object.fromEntries([...SEXES.map(([s]) => s), "X"].map((s) => [s, (parSexe[s] || []).filter(dans).length])), total,
              pourcentage: toutes.length ? arrondi((100 * total) / toutes.length) : null }
   })
 }
 
-/** À partir du résultat de calculerResultats : statistiques complètes d'une classe. */
+/** Sexe normalisé : « M », « F », ou « X » (non précisé ou valeur inattendue) — jamais ignoré dans les comptes. */
+export const sexeDe = (e) => { const s = String(e?.sexe ?? "").trim().toUpperCase(); return s === "M" || s === "F" ? s : "X" }
+
+/** À partir du résultat de calculerResultats : statistiques complètes d'une classe. Les élèves dont le sexe n'est pas
+ *  renseigné sont comptés à part (« X ») : les colonnes par sexe font toujours le total affiché. */
 export function statistiquesClasse(resultats, attributions) {
-  const moyennes = { M: [], F: [] }
-  for (const r of resultats) if (r.moyenne !== null) (moyennes[r.eleve.sexe] ||= []).push(r.moyenne)
+  const moyennes = { M: [], F: [], X: [] }
+  for (const r of resultats) if (r.moyenne !== null) moyennes[sexeDe(r.eleve)].push(r.moyenne)
   const matieres = attributions.map((a, k) => {
-    const notes = { M: [], F: [] }
-    for (const r of resultats) { const n = r.lignes[k].note; if (n !== null) (notes[r.eleve.sexe] ||= []).push(n) }
-    return { attribution: a, tous: resume(Object.values(notes).flat()), parSexe: { M: resume(notes.M), F: resume(notes.F) } }
+    const notes = { M: [], F: [], X: [] }
+    for (const r of resultats) { const n = r.lignes[k].note; if (n !== null) notes[sexeDe(r.eleve)].push(n) }
+    return { attribution: a, tous: resume(Object.values(notes).flat()), parSexe: { M: resume(notes.M), F: resume(notes.F), X: resume(notes.X) } }
   })
-  return { global: resume(Object.values(moyennes).flat()), parSexe: { M: resume(moyennes.M), F: resume(moyennes.F) },
-           repartition: repartition(moyennes), matieres }
+  return { global: resume(Object.values(moyennes).flat()), parSexe: { M: resume(moyennes.M), F: resume(moyennes.F), X: resume(moyennes.X) },
+           repartition: repartition(moyennes), matieres, sexeNonPrecise: moyennes.X.length }
 }
 
 /** Âge au 1er janvier de la seconde année de l'exercice (« 2026-2027 » -> 1/1/2027). */

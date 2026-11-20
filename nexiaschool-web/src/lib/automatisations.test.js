@@ -7,6 +7,13 @@ describe("interpréteur des automatisations (catalogue guidé)", () => {
     expect(r).toMatchObject({ action: "rapport_absences", destinataire: "direction", parametres: { periode: "semaine" }, manquants: [] })
     expect(r.frequence).toEqual({ type: "hebdo", jours: [5], jour_mois: null, heure: "16:00" })
   })
+  it("seuil d'heures d'absence repris (« plus de 10 h ») sans confondre avec l'heure d'envoi", () => {
+    const r = interpreter("Chaque lundi à 8 h, envoie-moi les élèves qui ont plus de 10 h d'absence non justifiée", "surveillant")
+    expect(r).toMatchObject({ action: "rapport_absences", parametres: { seuil_heures: 10 } })
+    expect(r.frequence.heure).toBe("08:00")
+    expect(resumer(r)).toContain("au moins 10 h")
+    expect(interpreter("Chaque vendredi à 16 h, rapport des absences de la semaine", "surveillant").parametres.seuil_heures).toBeUndefined()
+  })
   it("heures écrites de plusieurs façons", () => {
     expect(lireHeure("a 16h30")).toBe("16:30")
     expect(lireHeure("a 7:45")).toBe("07:45")

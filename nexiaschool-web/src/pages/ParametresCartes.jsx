@@ -309,7 +309,9 @@ function Generer({ reference }) {
       const nouvelles = imprimer.filter((x) => codes.get(x.ins.id)?.nouvelle).length
       setMsg({ ok: [t("{v0} carte(s) générée(s) : {v1} nouvelle(s), {v2} réimprimée(s) à l'identique.", { v0: imprimer.length, v1: nouvelles, v2: imprimer.length - nouvelles }),
         suspendues ? t("{v0} carte(s) suspendue(s) non imprimée(s).", { v0: suspendues }) : "", exclus ? t("{v0} élève(s) non à jour de pension écarté(s).", { v0: exclus }) : ""].filter(Boolean).join(" ") })
-      if (!signatures.cachet && champActif(cfg, "cachet") || !signatures.signature && champActif(cfg, "signature")) setMsg((m) => ({ ...m, info: t("Aucun cachet ou aucune signature en service : importez-les dans l'onglet « Cachet et signature ».") }))
+      // préciser exactement ce qui manque (le cachet peut être en service sans la signature, ou l'inverse)
+      const manquants = [!signatures.cachet && champActif(cfg, "cachet") && t("le cachet"), !signatures.signature && champActif(cfg, "signature") && t("la signature")].filter(Boolean)
+      if (manquants.length) setMsg((m) => ({ ...m, info: t("Cartes générées sans {v0} : aucun(e) n'est en service ou l'image n'a pas pu être lue. Vérifiez l'onglet « Cachet et signature ».", { v0: manquants.join(t(" ni ")) }) }))
     } catch (e) { setMsg({ erreur: e.message }) } finally { setEtat(null) }
   }
   return (

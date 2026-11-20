@@ -12,6 +12,18 @@ import { ChoixLangue, t } from "./i18n.jsx"
 
 // Pages chargées à la demande : le démarrage ne télécharge que l'essentiel (connexions lentes) ;
 // le service worker précharge ensuite les autres pages en arrière-plan quand la connexion le permet.
+/** Adresse inconnue : page 404 explicite (au lieu d'une redirection silencieuse vers l'accueil). */
+function PageIntrouvable() {
+  return (
+    <main className="container py-5 text-center page-introuvable" style={{ maxWidth: 560 }}>
+      <div className="display-4 fw-bold text-muted">404</div>
+      <h1 className="h4 mt-2">{t("Page introuvable")}</h1>
+      <p className="text-muted">{t("L'adresse demandée n'existe pas ou n'est plus disponible. Vérifiez le lien, ou revenez à l'accueil.")}</p>
+      <Link className="btn btn-primary" to="/">{t("Retour à l'accueil")}</Link>
+    </main>
+  )
+}
+
 const page = (charger, nom = "default") => lazy(() => charger().then((m) => ({ default: m[nom] })))
 const Developpeur = page(() => import("./pages/Developpeur.jsx"))
 const Developpeurs = page(() => import("./pages/Developpeurs.jsx"))
@@ -163,7 +175,7 @@ export default function App() {
             <Route path="/abonnement" element={<Abonnement />} />
             <Route path="/statistiques/*" element={<Statistiques />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<PageIntrouvable />} />
         </Routes>
         </Suspense></LimiteChargement>
       </BrowserRouter>

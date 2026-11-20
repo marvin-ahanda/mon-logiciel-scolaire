@@ -265,7 +265,7 @@ export async function pvGroupePdf(pv, ctx, nomFichier) {
   y = titreSection(doc, y, t("Par classe"))
   y = tableau(doc, autoTable, y, {
     entetes: [t("Classe"), t("Effectif"), ...(ctx.sexe ? [t("G"), t("F")] : []), t("Moyenne"), t("Réussite"), t("Échec"), ...(ctx.sexe ? [t("Réussite G"), t("Réussite F")] : []),
-      t("Absentéisme"), ...(g.financeConnue ? [t("À jour")] : [])],
+      t("Élèves absents (%)"), ...(g.financeConnue ? [t("À jour")] : [])],
     lignes: pv.parClasse.map((c) => [c.classe.libelle, c.effectif, ...(ctx.sexe ? [c.garcons, c.filles] : []), n2(c.moyenne), pc(c.tauxReussite), pc(c.tauxEchec),
       ...(ctx.sexe ? [pc(c.reussiteGarcons), pc(c.reussiteFilles)] : []), pc(c.tauxAbsenteisme), ...(g.financeConnue ? [pc(c.tauxAJour)] : [])]),
     taille: 7,

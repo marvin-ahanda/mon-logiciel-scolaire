@@ -98,6 +98,11 @@ export function Frais() {
         "Chaque élève doit la pension de sa catégorie. Si la pension diffère du total saisi, l'écart est porté sur l'inscription (colonnes « Nouveaux » et « Anciens »). Un élève est « non en règle » dès qu'une échéance dont le délai est passé n'est pas entièrement payée."
       )}</p>
       {(inscription(f.nouveaux) < 0 || inscription(f.anciens) < 0) && <div className="alert alert-warning">{t("Les tranches dépassent la pension : l'inscription deviendrait négative.")}</div>}
+      {/* écart entre le total saisi et la pension : dit explicitement (il est porté sur l'inscription), et tranche à 0 signalée */}
+      {f.nouveaux !== "" && f.anciens !== "" && (Number(f.nouveaux) !== total || Number(f.anciens) !== total) && inscription(f.nouveaux) >= 0 && inscription(f.anciens) >= 0 && (
+        <div className="alert alert-info small py-2">{t("Total des échéances saisies : {v0}. Pension des nouveaux : {v1} ; des anciens : {v2}. L'écart ({v3} pour les nouveaux, {v4} pour les anciens) est ajouté à l'inscription.", {
+          v0: fcfa(total), v1: fcfa(f.nouveaux), v2: fcfa(f.anciens), v3: fcfa(Number(f.nouveaux) - total), v4: fcfa(Number(f.anciens) - total) })}</div>)}
+      {f.lignes.some((l, k) => k > 0 && l.montant !== "" && Number(l.montant) === 0) && <div className="alert alert-warning small py-2">{t("Une ou plusieurs tranches sont à 0 FCFA : vérifiez l'échéancier (une tranche à 0 n'est jamais due).")}</div>}
       <button className="btn btn-primary" disabled={envoi}>{envoi ? t("Enregistrement…") : t("Enregistrer")}</button>
     </form>
   );

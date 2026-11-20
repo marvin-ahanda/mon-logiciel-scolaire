@@ -80,7 +80,10 @@ function Preparation({ source, tr, agir }) {
         <label key={k} className="form-check small"><input type="checkbox" className="form-check-input" checked={o[k]} disabled={verrouillee} onChange={(e) => setO({ ...o, [k]: e.target.checked })} /> {t(l)}</label>))}
       <p className="small text-muted mb-2">{t("Cycles, niveaux, classes, sections, filières, séries, options et règles de passage sont communs à toutes les années : ils sont conservés tels quels. La nouvelle année est créée sans être activée.")}</p>
       <button className="btn btn-primary" disabled={verrouillee} onClick={() => agir(() => rpc("transition_preparer", { p_source: source.id, p_cible: cible, p_options: o }),
-        (r) => t("Année {v0} prête : {v1} matière(s) par classe et {v2} échéance(s) reprises.", { v0: r.cible, v1: r.programme, v2: r.echeances }))}>
+        (r) => [t("Année {v0} prête : {v1} matière(s) par classe et {v2} échéance(s) reprises.", { v0: r.cible, v1: r.programme, v2: r.echeances }),
+          r.sans_enseignant?.length ? t("{v0} matière(s) reprise(s) sans enseignant car confiée(s) à un membre du personnel désactivé : {v1}. Attribuez-les dans « Matières par classe » de l'année {v2}.", {
+            v0: r.sans_enseignant.length, v2: r.cible,
+            v1: r.sans_enseignant.slice(0, 12).map((x) => `${x.classe} — ${x.matiere} (${x.ancien_enseignant})`).join(" ; ") + (r.sans_enseignant.length > 12 ? " …" : "") }) : ""].filter(Boolean).join(" "))}>
         {tr ? t("Mettre à jour la préparation") : t("Préparer la transition")}</button>
       {verrouillee && <div className="small text-muted mt-2">{t("La transition a été appliquée : la préparation ne peut plus être modifiée.")}</div>}
     </div></div>
@@ -168,7 +171,7 @@ function Decisions({ tr, source, reference: r, avecCriteres, setMsg }) {
 
 // --- 3. Simulation --------------------------------------------------------------------------------------------------
 const TYPES_ANOMALIE = { sans_destination: "Sans classe de destination", contradictoire: "Décision contradictoire", deja_inscrit: "Déjà inscrit(e) ailleurs",
-  incomplet: "Information incomplète", non_analyse: "Non analysé(e)" }
+  incomplet: "Information incomplète", non_analyse: "Non analysé(e)", attente: "Décision en attente" }
 function Simulation({ tr }) {
   const [cle, setCle] = useState(0)
   const [s, erreur] = useDonnees(() => rpc("transition_simulation", { p_transition: tr.id }), [tr.id, tr.statut, cle])
@@ -180,9 +183,11 @@ function Simulation({ tr }) {
       <div className="row g-2 mb-3">{tuiles.map(([l, v]) => (
         <div className="col-6 col-md-3 col-xl" key={l}><div className="card h-100 tuile-simulation"><div className="card-body py-2">
           <div className="small text-muted">{t(l, { v0: s.cible })}</div><div className="fs-4 fw-semibold">{v}</div></div></div></div>))}</div>
-      <div className={`alert ${s.bloquantes ? "alert-danger" : "alert-success"} d-flex flex-wrap align-items-center gap-2`}>
+      <div className={`alert ${s.bloquantes ? "alert-danger" : s.avertissements ? "alert-warning" : "alert-success"} d-flex flex-wrap align-items-center gap-2`}>
         <span className="me-auto">{s.bloquantes ? t("{v0} anomalie(s) bloquante(s) : corrigez-les dans « Analyser et réviser » avant d'appliquer.", { v0: s.bloquantes })
-          : t("Aucune anomalie bloquante : la transition peut être appliquée.")}</span>
+          : s.avertissements ? t("Aucune anomalie bloquante, mais {v0} point(s) à vérifier ci-dessous avant d'appliquer.", { v0: s.avertissements })
+          : t("Aucune anomalie : la transition peut être appliquée.")}
+          {s.classes_sans_niveau > 0 && <span className="d-block small">{t("{v0} classe(s) sans niveau : rattachez-les à un niveau (Paramètres › Parcours et orientation) pour que les promotions et redoublements soient vérifiés.", { v0: s.classes_sans_niveau })}</span>}</span>
         <button className="btn btn-sm btn-outline-dark" onClick={() => setCle((k) => k + 1)}>{t("Relancer la simulation")}</button>
       </div>
       {s.anomalies.length > 0 && <div className="table-responsive"><table className="table table-sm anomalies-transition">

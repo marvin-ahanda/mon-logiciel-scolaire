@@ -154,7 +154,7 @@ function Apercu({ classe, donnees, periodes }) {
           </div>
           <div className="pv-synthese mb-3"><h3 className="h6">{t("Synthèse")}</h3><ul className="small mb-0">{syntheseClasse(pv).map((s, k) => <li key={k}>{s}</li>)}</ul></div>
           <Commentaire valeur={commentaire} onChange={setCommentaire} />
-          <Generation desactive={controle.partiel && !accepte} produire={produire}
+          <Generation desactive={controle.partiel && !accepte} raison={t("Données incomplètes : cochez l'acceptation ci-dessus pour générer quand même.")} produire={produire}
             document={{ type: "classe", titre: `${titre} · ${sousTitre}`, commentaire, partiel: controle.partiel, avertissements,
               perimetre: { classe_id: classe.id, classe: classe.libelle, periodes: periodes.map((p) => p.code), matieres: matieres.size, eleves: eleves.size, options } }} />
         </>)}

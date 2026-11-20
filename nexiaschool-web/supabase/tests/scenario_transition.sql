@@ -19,8 +19,20 @@ do $$ begin perform public.transition_preparer(null, '2025-2026', '{}'::jsonb); 
 exception when sqlstate 'P0001' then raise notice 'ok : l''année cible doit suivre l''année de départ'; end $$;
 do $$ begin perform public.transition_preparer(null, '2027-2029', '{}'::jsonb); raise exception 'format accepté';
 exception when sqlstate 'P0001' then raise notice 'ok : année cible au format AAAA-AAAA+1'; end $$;
+-- un enseignant désactivé ne bloque plus la préparation : sa matière est reprise sans enseignant et listée
+reset role; update public.personnels set actif = false where id = :'prof_a'; set role authenticated;
 select public.transition_preparer(null, '2027-2028', '{"programme": true, "bareme": true, "frais": true}'::jsonb) as prep \gset
 select set_config('app.prep', :'prep', false) \g /dev/null
+reset role; update public.personnels set actif = true where id = :'prof_a'; set role authenticated;
+select pg_temp.verifier(jsonb_array_length(current_setting('app.prep')::jsonb -> 'sans_enseignant') > 0
+  and (current_setting('app.prep')::jsonb -> 'sans_enseignant' -> 0 ->> 'matiere') is not null
+  and (select count(*) from public.attributions where exercice_id = (current_setting('app.prep')::jsonb ->> 'cible_id')::uuid and enseignant_id is null)
+      = jsonb_array_length(current_setting('app.prep')::jsonb -> 'sans_enseignant'),
+  'enseignant désactivé : préparation acceptée, matières reprises sans enseignant et nommées');
+reset role;
+update public.attributions c set enseignant_id = a.enseignant_id from public.attributions a
+ where c.exercice_id = (current_setting('app.prep')::jsonb ->> 'cible_id')::uuid and a.exercice_id = :'ex_a' and a.classe_id = c.classe_id and a.matiere_id = c.matiere_id;
+set role authenticated;
 select (:'prep'::jsonb ->> 'id') as tr \gset
 select (:'prep'::jsonb ->> 'cible_id') as ex_c \gset
 select pg_temp.verifier(not (select actif from public.exercices where id = :'ex_c') and (select actif from public.exercices where id = :'ex_a'),
@@ -64,6 +76,19 @@ select set_config('app.sim2', :'sim2', false) \g /dev/null
 select pg_temp.verifier((current_setting('app.sim2')::jsonb ->> 'bloquantes')::int = 0 and (current_setting('app.sim2')::jsonb ->> 'redoublants')::int = 2
   and (current_setting('app.sim2')::jsonb ->> 'promus')::int = 1 and (current_setting('app.sim2')::jsonb ->> 'a_inscrire')::int = 3,
   'simulation corrigée : 1 promu, 2 redoublants, 3 à inscrire, aucune anomalie bloquante');
+-- une décision « en attente du conseil » bloque l'application ; une réinscription en attente est seulement signalée
+select public.transition_enregistrer(:'tr', jsonb_build_array(jsonb_build_object('inscription_id', :'ins_a', 'decision', 'attente_conseil'))) \g /dev/null
+select public.transition_simulation(:'tr') as sim3 \gset
+select set_config('app.sim3', :'sim3', false) \g /dev/null
+select public.transition_enregistrer(:'tr', jsonb_build_array(jsonb_build_object('inscription_id', :'ins_a', 'decision', 'attente_reinscription'))) \g /dev/null
+select public.transition_simulation(:'tr') as sim4 \gset
+select set_config('app.sim4', :'sim4', false) \g /dev/null
+select pg_temp.verifier((current_setting('app.sim3')::jsonb ->> 'bloquantes')::int = 1
+  and exists (select 1 from jsonb_array_elements(current_setting('app.sim3')::jsonb -> 'anomalies') a where a ->> 'type' = 'attente' and (a ->> 'bloquante')::boolean)
+  and (current_setting('app.sim4')::jsonb ->> 'bloquantes')::int = 0 and (current_setting('app.sim4')::jsonb ->> 'avertissements')::int >= 1,
+  'décision du conseil en attente : bloquante ; réinscription en attente : avertissement');
+select public.transition_enregistrer(:'tr', jsonb_build_array(jsonb_build_object('inscription_id', :'ins_a', 'decision', 'redoublant',
+  'classe_destination_id', (select classe_id from public.inscriptions where id = :'ins_a'), 'mention', 'Redoublant(e)', 'source', 'manuel'))) \g /dev/null
 select pg_temp.verifier((select mention from public.decisions_passage where inscription_id = :'ins2') = 'Redoublant(e)',
   'décision de passage (mention du bulletin) mise à jour');
 
