@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react"
-import { NavLink, Route, Routes, useLocation } from "react-router-dom"
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom"
 import ParametresDecisions from "./ParametresDecisions.jsx"
 import PeriodesPersonnalisees from "./PeriodesPersonnalisees.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
@@ -71,19 +71,17 @@ export default function Parametres() {
 /** Offre souscrite par l'établissement (attribuée par NexIA après paiement). */
 function OffreActuelle() {
   const { etablissement, offre, offertes, aOffre } = useSession()
-  const echue = offre !== etablissement.offre
-  const plafond = aOffre("plafonds") ? null : PLAFONDS[offre]
+  const echue = offre === "expiree"
+  const plafond = offre === "decouverte" && !aOffre("plafonds") ? PLAFONDS.decouverte : null
   return (
     <div className={"card mb-3 carte-offre" + (echue ? " border-warning" : "")} data-offre={offre}><div className="card-body py-2 d-flex flex-wrap align-items-center gap-2">
       <span>{t("Offre actuelle :")}</span><span className="badge text-bg-primary fs-6">{t(NOMS_OFFRES[offre])}</span>
-      {etablissement.offre !== "decouverte" && !echue && <span className="small text-muted">
-        {t(etablissement.offre_periodicite === "annuel" ? "paiement annuel" : "paiement mensuel")}
-        {etablissement.offre_expire_le && <> · {t("jusqu'au {v0}", { v0: formatDate(etablissement.offre_expire_le) })}</>}</span>}
-      {echue && <span className="small text-warning-emphasis">{t("Votre offre {v0} est arrivée à échéance : les fonctions avancées sont en lecture seule.", { v0: t(NOMS_OFFRES[etablissement.offre]) })}</span>}
-      {plafond && <span className="small text-muted">{plafond.personnels
-        ? t("Jusqu'à {v0} élèves et {v1} comptes du personnel.", { v0: plafond.eleves, v1: plafond.personnels })
-        : t("Jusqu'à {v0} élèves.", { v0: plafond.eleves })}</span>}
-      <span className="small text-muted ms-auto">{t("Les rubriques marquées d'un cadenas sont comprises dans les offres supérieures.")}</span>
+      {offre === "premium" && etablissement.offre_expire_le && <span className="small text-muted">
+        {t("jusqu'au {v0}", { v0: formatDate(etablissement.offre_expire_le) })}</span>}
+      {echue && <span className="small text-warning-emphasis">{t("Votre abonnement (ou votre période de découverte) est terminé : vos données restent consultables. Souscrivez à l'offre Premium pour continuer à les modifier.")}</span>}
+      {plafond && <span className="small text-muted">{t("Jusqu'à {v0} élèves et {v1} comptes du personnel.", { v0: plafond.eleves, v1: plafond.personnels })}</span>}
+      {offre !== "premium" && <span className="small text-muted ms-auto">{t("Les rubriques marquées d'un cadenas sont comprises dans l'offre Premium.")}</span>}
+      <Link className="btn btn-sm btn-outline-primary" to="/abonnement">{t("Mon abonnement")}</Link>
       {offertes.length > 0 && <div className="w-100 small fonctions-offertes">🎁 <strong>{t("Offert par NexIA :")}</strong>{" "}
         {offertes.map((f) => `${t(LIBELLES_FONCTIONS[f.fonction] || f.fonction)} (${f.fin ? t("jusqu'au {v0}", { v0: formatDate(f.fin) }) : t("sans limite de durée")})`).join(" · ")}</div>}
     </div></div>

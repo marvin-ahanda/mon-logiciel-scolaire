@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
+import { ErreurCapacite, estErreurCapacite } from "../composants/Capacite.jsx"
 import { comparerNoms, date, nomComplet } from "../lib/format.js"
 import { adressesPhotos, envoyerPhoto } from "../lib/photos.js"
 import { differee, imageOptimisee } from "../lib/images.js"
@@ -115,7 +116,7 @@ export default function Eleves() {
         <h1 className="h3 m-0">{t("Élèves")}</h1>
         {!edition && <button className="btn btn-primary" onClick={() => ouvrir(null)}>{t("+ Nouvel élève")}</button>}
       </div>
-      <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte><Alerte type="info" onFermer={() => setInfo("")}>{info}</Alerte>
+      {estErreurCapacite(erreur) ? <ErreurCapacite message={erreur} onFermer={() => setErreur("")} /> : <Alerte onFermer={() => setErreur("")}>{erreur}</Alerte>}<Alerte type="info" onFermer={() => setInfo("")}>{info}</Alerte>
       {(() => { const att = enAttente(null, (x) => x.type === "eleve" && !x.erreur && !x.conflits); return att.length > 0 && (
         <div className="alert alert-warning small">{t("En attente d'envoi (saisi hors ligne) :")} {att.map((x) => x.description).join(" ; ")}</div>) })()}
       {!exercice && <div className="alert alert-warning">{t(

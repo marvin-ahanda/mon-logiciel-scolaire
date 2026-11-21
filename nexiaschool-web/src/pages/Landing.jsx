@@ -81,20 +81,7 @@ const ETAPES = [
   ["equipe", "Votre équipe se connecte", "Chacun reçoit son code et retrouve ses classes : notes, appel et bulletins dès le premier jour."],
 ]
 
-// --- Tarifs (en FCFA) : paiement mensuel, ou annuel avec 2 mois offerts (10 mois facturés au lieu de 12) ---------------------------
-// Les prix font foi en base (table tarifs, lue par tarifs_offres) ; les valeurs ci-dessous ne servent qu'en attendant la réponse.
-const MOIS_FACTURES_PAR_AN = 10
-const OFFRES = [
-  { nom: "Découverte", mensuel: 0, sous: "pour tester sans engagement",
-    inclus: ["1 établissement, jusqu'à 50 élèves", "Personnel : jusqu'à 10 comptes", "Import Excel des élèves, classes et matières", "Saisie des notes, moyennes et rangs", "Bulletins PDF (sans QR code anti-fraude)", "Appel du jour", "Mode hors ligne"],
-    cta: "Commencer gratuitement" },
-  { nom: "Essentiel", code: "essentiel", mensuel: 30000,
-    inclus: ["Jusqu'à 500 élèves, personnel illimité", "Tout Découverte", "Bulletins avec QR code anti-fraude et décisions de fin de période", "Discipline complète et alertes", "Finances : frais, reçus, retards, moratoires", "Import et export Excel complets"], cta: "Choisir Essentiel" },
-  { nom: "Pro", code: "pro", mensuel: 55000, recommande: true,
-    inclus: ["Élèves illimités", "Tout Essentiel", "SmartEval : évaluation digitalisée et correction automatique", "Génération automatique des emplois du temps", "Espace parents et courrier", "Statistiques avancées et alertes de retard de saisie"], cta: "Choisir Pro" },
-  { nom: "Premium", code: "premium", mensuel: 80000,
-    inclus: ["Tout Pro", "IA intégrée : analyse des évaluations et remédiation", "Connexion de vos assistants IA (API et MCP)", "Accompagnement au démarrage et formation de l'équipe", "Assistance prioritaire"], cta: "Choisir Premium" },
-]
+// --- Tarifs (en FCFA) : lus en base (offres_publiques, configuration commerciale) ; rien n'est écrit en dur ici --------------
 const fcfa = (n) => `${new Intl.NumberFormat("fr-FR").format(n).replace(/\s/g, " ")} FCFA`
 
 // --- Témoignages : EXEMPLES ILLUSTRATIFS, à remplacer par de vrais témoignages (avec l'accord des personnes) ------------------
@@ -110,19 +97,16 @@ const FAQ = [
   ["Et si la connexion Internet est mauvaise ou coupée ?", "L'application est conçue pour les connexions lentes : les données déjà consultées s'affichent sans attendre. Hors ligne, notes, appel, élèves et infractions se saisissent normalement et sont envoyés automatiquement au retour du réseau."],
   ["Dois-je ressaisir toutes mes données ?", "Non. Importez vos listes Excel (élèves, classes, matières, personnel, coefficients, notes), séparément ou en un seul classeur. Les cases incomplètes sont signalées sans bloquer l'import."],
   ["Les données d'un établissement sont-elles visibles par un autre ?", "Non. Chaque établissement dispose de son propre espace : la base de données refuse toute lecture ou écriture en dehors de son établissement, quel que soit l'utilisateur."],
-  ["Puis-je changer d'offre ?", "Oui, à tout moment. Toutes les données de l'établissement sont conservées. Dans une offre inférieure, les fonctionnalités avancées restent visibles en aperçu : vous savez exactement ce que vous gagnez en changeant d'offre."],
+  ["Puis-je augmenter le nombre d'élèves en cours d'année ?", "Oui, à tout moment : vous ne payez que la différence et la date d'échéance est conservée. La capacité peut aussi être réduite au renouvellement. Toutes les données de l'établissement sont conservées."],
 ]
 
 const LIENS = [["#avantages", "Avantages"], ["#demo", "Démo"], ["#etapes", "Démarrer"], ["#tarifs", "Tarifs"], ["#faq", "FAQ"]]
 
 export default function Landing() {
   const [menu, setMenu] = useState(false)
-  const [annuel, setAnnuel] = useState(false)
   const [actif, setActif] = useState("#avantages")
-  const [tarifs, setTarifs] = useState({})       // { pro: { mensuel, annuel }, … } lus en base
-  useEffect(() => {
-    rpc("tarifs_offres").then((l) => setTarifs(Object.fromEntries((l || []).map((x) => [x.offre, x])))).catch(() => {})
-  }, [])
+  const [offres, setOffres] = useState(null)       // configuration commerciale publique (établissements et SmartEval)
+  useEffect(() => { rpc("offres_publiques").then(setOffres).catch(() => {}) }, [])
   useEffect(() => { document.title = t("NexIA School — Libérez votre établissement des tâches chronophages") }, [])
   useEffect(() => {                       // menu : la section visible est mise en avant (comme l'onglet blanc du modèle)
     const obs = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActif("#" + e.target.id)), { rootMargin: "-45% 0px -50% 0px" })
@@ -218,30 +202,31 @@ export default function Landing() {
         <section id="tarifs" className="ac-section">
           <div className="ac-conteneur">
             <p className="ac-etiquette">{t("Tarifs")}</p>
-            <h2>{t("Une offre pour chaque établissement")}</h2>
-            <div className="ac-bascule" role="group" aria-label={t("Période de paiement")}>
-              <button type="button" className={annuel ? "" : "actif"} aria-pressed={!annuel} onClick={() => setAnnuel(false)}>{t("Mensuel")}</button>
-              <button type="button" className={annuel ? "actif" : ""} aria-pressed={annuel} onClick={() => setAnnuel(true)}>{t("Annuel")} <em>{t("2 mois offerts")}</em></button>
-            </div>
+            <h2>{t("Une offre complète, au tarif de votre effectif")}</h2>
             <div className="ac-offres">
-              {OFFRES.map((o) => {
-                const gratuit = !o.mensuel, b = tarifs[o.code]
-                const mensuel = b?.mensuel ?? o.mensuel, parAn = b?.annuel ?? mensuel * MOIS_FACTURES_PAR_AN
-                const prix = gratuit ? t("Gratuit") : fcfa(annuel ? parAn : mensuel)
-                const sous = gratuit ? t(o.sous) : annuel ? t("par an, soit {v0} d'économie", { v0: fcfa(mensuel * 12 - parAn) }) : t("par mois")
-                return (
-                  <article key={o.nom} className={`ac-offre${o.recommande ? " ac-offre-phare" : ""}`}>
-                    <div className="ac-offre-tete"><h3>{t(o.nom)}</h3>{o.recommande && <span className="ac-badge">{t("Recommandée")}</span>}</div>
-                    <p className="ac-prix">{prix}</p>
-                    <p className="ac-prix-sous">{sous}</p>
-                    <ul>{o.inclus.map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
-                    {gratuit ? <Commencer libelle={o.cta} petit clair={!o.recommande} />
-                      : <Link className={`ac-pilule ac-pilule-petite${o.recommande ? "" : " ac-pilule-claire"}`} to="/abonnement">
-                          <span>{t(o.cta)}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>}
-                  </article>)
-              })}
+              <article className="ac-offre">
+                <div className="ac-offre-tete"><h3>{t("Découverte")}</h3></div>
+                <p className="ac-prix">{t("Gratuit")}</p>
+                <p className="ac-prix-sous">{offres ? t("{v0} jours, jusqu'à {v1} élèves", { v0: offres.etablissement.decouverte.duree_jours, v1: offres.etablissement.decouverte.max_eleves }) : "…"}</p>
+                <ul>{["Saisie des notes, moyennes et rangs", "Bulletins PDF", "Appel du jour", "Import Excel des élèves, classes et matières", "Mode hors ligne"].map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
+                <Commencer libelle="Commencer gratuitement" petit clair />
+              </article>
+              <article className="ac-offre ac-offre-phare">
+                <div className="ac-offre-tete"><h3>{t("Premium")}</h3><span className="ac-badge">{t("Toutes les fonctionnalités")}</span></div>
+                <p className="ac-prix">{offres ? fcfa(offres.etablissement.prix_eleve) : "…"}</p>
+                <p className="ac-prix-sous">{offres ? t("par élève et par an · minimum {v0}", { v0: fcfa(offres.etablissement.minimum_annuel) }) : ""}</p>
+                <ul>{["Absolument toutes les fonctionnalités de l'application", "Discipline, finances, parents, SmartEval, emplois du temps", "Statistiques, IA intégrée, API et MCP", "Capacité ajustable : vous ne payez que la différence", "Valable 12 mois à compter de la souscription"].map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
+                <Link className="ac-pilule ac-pilule-petite" to="/tarifs"><span>{t("Calculer mon tarif")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
+              </article>
+              <article className="ac-offre">
+                <div className="ac-offre-tete"><h3>{t("SmartEval enseignants")}</h3></div>
+                <p className="ac-prix">{offres ? fcfa(offres.smarteval.prix_annuel) : "…"}</p>
+                <p className="ac-prix-sous">{offres ? t("par an · {v0} évaluations publiées", { v0: offres.smarteval.credits }) : ""}</p>
+                <ul>{["Pour les enseignants sans établissement abonné", "Évaluations digitalisées et correction automatique", "Analyse par votre propre IA", "Offre de groupe pour un département"].map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
+                <Link className="ac-pilule ac-pilule-petite ac-pilule-claire" to="/tarifs/smarteval"><span>{t("Découvrir SmartEval")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
+              </article>
             </div>
-            <p className="ac-note">{t("Prix en francs CFA, paiement par mobile money ou carte. Sans renouvellement, l'offre repasse en Découverte à l'échéance ; les données sont conservées.")}</p>
+            <p className="ac-note">{t("Prix en francs CFA, paiement par mobile money ou carte. Sans renouvellement, l'abonnement s'arrête à l'échéance ; les données sont conservées et restent consultables.")}</p>
           </div>
         </section>
 
@@ -286,6 +271,9 @@ export default function Landing() {
             <Link to="/confidentialite">{t("Politique de confidentialité")}</Link>
             <Link to="/conditions">{t("Conditions d'utilisation")}</Link>
             <Link to="/developpeurs">{t("Développeurs (API et MCP)")}</Link>
+            <Link to="/tarifs">{t("Tarifs")}</Link>
+            <Link to="/tarifs/smarteval">{t("SmartEval pour les enseignants")}</Link>
+            <Link to="/smarteval/connexion">{t("Espace SmartEval")}</Link>
           </nav>
           <nav aria-label={t("Réseaux")} className="ac-reseaux">
             <a href={EDITEUR.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><Icone nom="whatsapp" /></a>

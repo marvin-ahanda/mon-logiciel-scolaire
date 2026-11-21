@@ -88,7 +88,7 @@ select pg_temp.verifier((select count(*) from public.automatisations_rapports wh
 select pg_temp.verifier((public.automatisations_executer()->>'automatisations')::int = 0, 'une règle déjà exécutée ne repart pas avant son heure');
 
 -- 5. Offre : hors Premium, les règles sont mises en pause
-update public.etablissements set offre = 'pro' where id = :'etab_au';
+update public.etablissements set offre = 'decouverte' where id = :'etab_au';   -- Découverte : pas d'automatisations
 update public.automatisations set prochaine_execution = now() - interval '1 minute' where id = :'auto_s';
 select public.automatisations_executer() \g /dev/null
 select pg_temp.verifier((select not active and derniere_erreur like '%offre%' from public.automatisations where id = :'auto_s'), 'hors offre Premium : règle mise en pause');

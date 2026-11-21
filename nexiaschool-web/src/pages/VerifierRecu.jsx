@@ -43,8 +43,8 @@ export default function VerifierRecu() {
               <div className="mb-3">
                 <Ligne libelle={t("Reçu")}><strong>{r.numero}</strong></Ligne>
                 <Ligne libelle={t("Date du paiement")}>{dateHeure(r.date)}</Ligne>
-                <Ligne libelle={t("Établissement")}><strong>{r.etablissement}</strong>{r.ville ? ` · ${r.ville}` : ""}</Ligne>
-                <Ligne libelle={t("Offre")}>{t(NOMS_OFFRES[r.offre] || r.offre)} ({r.periode === "annuel" ? t("1 an") : t("1 mois")})</Ligne>
+                <Ligne libelle={r.etablissement === "Enseignant indépendant" ? t("Titulaire") : t("Établissement")}><strong>{r.etablissement}</strong>{r.ville ? ` · ${r.ville}` : ""}</Ligne>
+                <Ligne libelle={t("Offre")}>{r.libelle || <>{t(NOMS_OFFRES[r.offre] || r.offre)} ({r.periode === "annuel" ? t("1 an") : t("1 mois")})</>}</Ligne>
                 <Ligne libelle={t("Période couverte")}>{t("du")} {date(r.debut)} {t("au")} {date(r.fin)}</Ligne>
                 <Ligne libelle={t("Montant payé")}><strong>{fcfa(r.montant)}</strong></Ligne>
                 <Ligne libelle={t("Code")}><code>{code.toUpperCase()}</code></Ligne>

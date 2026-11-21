@@ -71,9 +71,9 @@ set role anon;
 do $$ begin perform public.api_parent('nxa_' || repeat('0', 48), 'contexte', '{}'); raise exception 'clé inventée';
 exception when sqlstate '28000' then raise notice 'ok : clé inventée refusée'; end $$;
 reset role;
-update public.etablissements set offre = 'pro' where id = :'etab_p';
+update public.etablissements set offre = 'decouverte' where id = :'etab_p';   -- Découverte : pas d'IA
 set role anon;
-do $$ begin perform public.api_parent(current_setting('app.cle_p'), 'contexte', '{}'); raise exception 'offre Pro';
+do $$ begin perform public.api_parent(current_setting('app.cle_p'), 'contexte', '{}'); raise exception 'offre Découverte';
 exception when sqlstate '28000' then raise notice 'ok : hors offre Premium, l''assistant IA du parent est refusé'; end $$;
 select pg_temp.verifier(not (public.parent_ia_etat(:'sp_ia')->>'ouverte')::boolean, 'hors offre Premium : connexion IA fermée dans l''espace parents');
 reset role;

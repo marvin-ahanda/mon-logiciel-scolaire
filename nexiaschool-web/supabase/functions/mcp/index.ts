@@ -460,21 +460,55 @@ export async function executerParent(outil, a, cle) {
   return r
 }
 
+// --- Enseignants indépendants (clé ou jeton « nxe_… ») : leurs seules évaluations SmartEval, sans établissement ----------
+export const OUTILS_ENSEIGNANT = [
+  { name: "contexte", title: "Mon espace SmartEval", description: "Offre en cours, crédits restants, nombre d'évaluations et de soumissions. À appeler en premier.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "smarteval_lister", title: "Mes évaluations", description: "Évaluations SmartEval de l'enseignant : titre, matière, classe, statut, nombre de soumissions, moyenne.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "smarteval_resultats", title: "Résultats, notions et profils des élèves",
+    description: "Résultats d'une évaluation : questions avec corrigé et notion, réussite par question et par notion, profil et copie de chaque élève. " +
+      "Si l'enseignant a activé l'anonymisation, les élèves ne sont désignés que par leur matricule.",
+    inputSchema: { type: "object", properties: { evaluation: { type: "string", description: "Titre (ou partie du titre) ou identifiant (voir smarteval_lister)" },
+      copies: { type: "boolean", default: true } }, required: ["evaluation"] }, annotations: { readOnlyHint: true } },
+]
+
+const INSTRUCTIONS_ENSEIGNANT = "Serveur SmartEval de NexIA School pour un enseignant indépendant. Vous n'avez accès qu'à SES évaluations et aux réponses de ses élèves. " +
+  "Commencez par contexte, puis smarteval_lister et smarteval_resultats ; suivez la démarche d'analyse fournie pour l'aider à remédier avant l'évaluation sur papier. " +
+  "Les données concernent souvent des mineurs : n'en partagez que le nécessaire. Si les élèves sont désignés par leur matricule, ne cherchez pas à les identifier autrement."
+
+export async function executerEnseignant(outil, a, cle) {
+  if (!OUTILS_ENSEIGNANT.some((o) => o.name === outil)) throw new ErreurApi(`Outil inconnu : ${outil}`)
+  const r = await rpc("api_enseignant", { p_cle: cle, p_outil: outil, p_args: a || {} })
+  if (r && typeof r === "object" && !Array.isArray(r) && typeof r.erreur === "string") throw new ErreurApi(r.erreur)
+  if (outil !== "smarteval_resultats") return r
+  return {
+    evaluation: { id: r.id, titre: r.titre, matiere: r.matiere, competence_visee: r.competence, consignes: r.consignes, classe: r.classe,
+      statut: r.statut, ouverte_jusqu_au: r.ferme_le, anonymisee: !!r.anonymisee,
+      questions: (r.questions || []).map((q, k) => ({ numero: k + 1, intitule: q.intitule, type: q.type, notion: q.notion || null, points: q.points,
+        ...(q.options?.length ? { options: q.options } : {}), reponse_attendue: attenduTexte(q) || null, corrigee_automatiquement: estCorrigible(q) })) },
+    ...analyserEvaluation(r),
+    ...(a?.copies === false ? {} : { copies: copiesEleves(r) }),
+    demarche_d_analyse: GUIDE_SMARTEVAL,
+  }
+}
+
 async function traiterMessage(m, cle) {
-  const parent = cle.startsWith("nxa_")
-  const outils = parent ? OUTILS_PARENT : OUTILS
+  const parent = cle.startsWith("nxa_"), enseignant = cle.startsWith("nxe_")
+  const outils = parent ? OUTILS_PARENT : enseignant ? OUTILS_ENSEIGNANT : OUTILS
   const reponse = (resultat) => ({ jsonrpc: "2.0", id: m.id, result: resultat })
   const erreur = (code, message) => ({ jsonrpc: "2.0", id: m.id, error: { code, message } })
   if (m.id === undefined || m.id === null) return null                       // notification : pas de réponse
   switch (m.method) {
     case "initialize": {
       if (parent) await rpc("api_parent", { p_cle: cle, p_outil: "contexte", p_args: {} })   // vérifie la clé dès la connexion
+      else if (enseignant) await executerEnseignant("contexte", {}, cle)
       else await rpc("api_contexte", { p_cle: cle })
       const demandee = m.params?.protocolVersion
       return reponse({ protocolVersion: VERSIONS.includes(demandee) ? demandee : VERSIONS[1],
         capabilities: { tools: { listChanged: false }, prompts: { listChanged: false } },
-        serverInfo: { name: "nexiaschool", title: parent ? "NexIA School — espace parents" : "NexIA School", version: "1.1.0", websiteUrl: BASE },
-        instructions: parent ? INSTRUCTIONS_PARENT : INSTRUCTIONS })
+        serverInfo: { name: "nexiaschool", title: parent ? "NexIA School — espace parents" : enseignant ? "NexIA SmartEval — enseignant" : "NexIA School", version: "1.1.0", websiteUrl: BASE },
+        instructions: parent ? INSTRUCTIONS_PARENT : enseignant ? INSTRUCTIONS_ENSEIGNANT : INSTRUCTIONS })
     }
     case "ping": return reponse({})
     case "tools/list": return reponse({ tools: outils })
@@ -490,7 +524,8 @@ async function traiterMessage(m, cle) {
       const nomOutil = m.params?.name
       if (!outils.some((o) => o.name === nomOutil)) return erreur(-32602, `Outil inconnu : ${nomOutil}`)
       try {
-        const resultat = parent ? await executerParent(nomOutil, m.params?.arguments || {}, cle) : await executer(nomOutil, m.params?.arguments || {}, cle)
+        const resultat = parent ? await executerParent(nomOutil, m.params?.arguments || {}, cle)
+          : enseignant ? await executerEnseignant(nomOutil, m.params?.arguments || {}, cle) : await executer(nomOutil, m.params?.arguments || {}, cle)
         return reponse({ content: [{ type: "text", text: JSON.stringify(resultat, null, 2) }] })
       } catch (e) {
         if (e.code === "28000") throw e                                         // jeton expiré : 401 pour que le client le renouvelle
@@ -504,12 +539,12 @@ async function traiterMessage(m, cle) {
 async function mcp(req) {
   const auth = req.headers.get("authorization") || ""
   const cle = (auth.match(/^Bearer\s+(\S+)$/i)?.[1] || req.headers.get("x-api-key") || "").trim()
-  if (!/^nx[soa]_[0-9a-f]{48}$/.test(cle)) return nonAutorise("Authentification requise : clé API NexIA School ou autorisation OAuth.")
+  if (!/^nx[soae]_[0-9a-f]{48}$/.test(cle)) return nonAutorise("Authentification requise : clé API NexIA School ou autorisation OAuth.")
   let corps
   try { corps = await req.json() } catch { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON invalide" } }, 400) }
   const messages = Array.isArray(corps) ? corps : [corps]
-  const parent = cle.startsWith("nxa_")
-  // assistants des parents : lots limités à 10 messages, traités l'un après l'autre (limite d'appels respectée)
+  const parent = cle.startsWith("nxa_") || cle.startsWith("nxe_")
+  // assistants des parents et des enseignants indépendants : lots limités à 10 messages, traités l'un après l'autre (limite d'appels respectée)
   if (parent && messages.length > 10) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "10 messages au plus par lot." } }, 400)
   try {
     const reponses = (parent
@@ -524,11 +559,11 @@ async function mcp(req) {
 }
 
 // --- OAuth 2.1 ---------------------------------------------------------------------------------------------
-const metaRessource = () => ({ resource: `${BASE}/mcp`, authorization_servers: [BASE], scopes_supported: ["lecture", "ecriture", "parent"],
+const metaRessource = () => ({ resource: `${BASE}/mcp`, authorization_servers: [BASE], scopes_supported: ["lecture", "ecriture", "parent", "smarteval"],
   bearer_methods_supported: ["header"], resource_name: "NexIA School", resource_documentation: `${BASE}/developpeurs` })
 const metaServeur = () => ({ issuer: BASE, authorization_endpoint: `${BASE}/oauth/autoriser`, token_endpoint: `${BASE}/oauth/token`,
   registration_endpoint: `${BASE}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"],
-  code_challenge_methods_supported: ["S256"], token_endpoint_auth_methods_supported: ["none"], scopes_supported: ["lecture", "ecriture", "parent"],
+  code_challenge_methods_supported: ["S256"], token_endpoint_auth_methods_supported: ["none"], scopes_supported: ["lecture", "ecriture", "parent", "smarteval"],
   service_documentation: `${BASE}/developpeurs` })
 
 async function enregistrer(req) {

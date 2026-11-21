@@ -10,7 +10,7 @@ import { connexionGoogle, rpc, supabase } from "../supabase.js"
 import { useSession } from "../Session.jsx"
 import { ChoixLangue, t, traduireErreur } from "../i18n.jsx"
 
-function Carte({ titre, children }) {
+export function Carte({ titre, children }) {
   return (
     <div className="row justify-content-center mt-4 mt-md-5 mx-0">
       <div className="col-sm-10 col-md-7 col-lg-5 col-xl-4">

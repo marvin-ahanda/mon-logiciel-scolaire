@@ -2,18 +2,18 @@
 // Chaque rôle voit toutes ses rubriques ; celles que l'offre ne comprend pas sont montrées floutées, avec l'invitation
 // à passer à une offre supérieure. La base refuse de toute façon les écritures hors offre.
 
-export const ORDRE_OFFRES = ["decouverte", "essentiel", "pro", "premium"]
-export const NOMS_OFFRES = { decouverte: "Découverte", essentiel: "Essentiel", pro: "Pro", premium: "Premium" }
+// Deux offres pour les établissements : Découverte (gratuite, limitée) et Premium (toutes les fonctionnalités, au tarif de l'effectif).
+// « expiree » : période terminée (données consultables, modifications fermées). Les anciennes formules valent Premium.
+export const ORDRE_OFFRES = ["expiree", "decouverte", "premium"]
+export const NOMS_OFFRES = { decouverte: "Découverte", premium: "Premium", expiree: "Expirée", essentiel: "Premium", pro: "Premium" }
 
 /** Offre minimale de chaque fonction (les fonctions de base sont comprises dans toutes les offres). Même table que la base
  *  (offre_requise, migrations 0028 et 0029). Le propriétaire de la plateforme peut, établissement par établissement, activer
  *  ou désactiver chacune pour une durée choisie (console) : l'application lit alors les droits effectifs (mes_fonctions). */
-export const OFFRE_REQUISE = {
-  notes: "decouverte", appel: "decouverte", bulletins: "decouverte", excel_base: "decouverte", plafonds: "pro",
-  discipline: "essentiel", finances: "essentiel", decisions: "essentiel", qr: "essentiel", excel: "essentiel",
-  smarteval: "pro", edt: "pro", parents: "pro", statistiques: "pro",
-  ia: "premium", distinctions: "decouverte", cartes: "decouverte", parcours: "decouverte", pv: "decouverte",
-}
+export const FONCTIONS_GRATUITES = ["notes", "appel", "bulletins", "excel_base", "distinctions", "cartes", "parcours", "pv"]
+export const OFFRE_REQUISE = Object.fromEntries(["notes", "appel", "bulletins", "excel_base", "plafonds", "discipline", "finances", "decisions", "qr",
+  "excel", "smarteval", "edt", "parents", "statistiques", "ia", "distinctions", "cartes", "parcours", "pv"]
+  .map((f) => [f, FONCTIONS_GRATUITES.includes(f) ? "decouverte" : "premium"]))
 
 /** Libellé de chaque fonction (fenêtre « passer à une offre supérieure »). */
 export const LIBELLES_FONCTIONS = {
@@ -47,12 +47,14 @@ const RUBRIQUES = [
 ]
 // (Paramètres → Décisions et Emploi du temps : onglets verrouillés dans la page elle-même, pour garder les autres onglets utilisables)
 
-/** Offre en vigueur : une offre payante échue retombe sur Découverte. */
-export function offreEffective(etablissement, maintenant = Date.now()) {
+/** Offre en vigueur. Le serveur fait foi (mes_fonctions.__offre, délai de grâce compris) ; à défaut (hors ligne, jamais lu),
+ *  estimation locale : offre payante non échue → Premium, sinon Découverte. */
+export function offreEffective(etablissement, maintenant = Date.now(), serveur = null) {
+  if (ORDRE_OFFRES.includes(serveur)) return serveur
   const o = etablissement?.offre
-  if (!ORDRE_OFFRES.includes(o)) return "decouverte"
+  if (!["essentiel", "pro", "premium"].includes(o)) return "decouverte"
   if (etablissement.offre_expire_le && new Date(etablissement.offre_expire_le).getTime() < maintenant) return "decouverte"
-  return o
+  return "premium"
 }
 
 export function offreInclut(offre, fonction) {
@@ -67,8 +69,8 @@ export function fonctionDuChemin(chemin) {
   return null
 }
 
-/** Plafonds d'effectifs (null = illimité). */
-export const PLAFONDS = { decouverte: { eleves: 50, personnels: 10 }, essentiel: { eleves: 500, personnels: null } }
+/** Plafonds de l'offre Découverte (valeurs par défaut ; la capacité réelle est lue sur le serveur : etat_abonnement). */
+export const PLAFONDS = { decouverte: { eleves: 50, personnels: 10 } }
 
 /** Toutes les fonctionnalités réglables, dans l'ordre d'affichage de la console. */
 export const FONCTIONS = ["notes", "appel", "bulletins", "excel_base", "plafonds", "discipline", "finances", "decisions", "qr", "excel",
@@ -78,4 +80,16 @@ export const FONCTIONS = ["notes", "appel", "bulletins", "excel_base", "plafonds
 export function droitEffectif(fonctions, offre, fonction) {
   const v = fonctions?.[fonction]
   return typeof v === "boolean" ? v : offreInclut(offre, fonction)
+}
+
+/** Montant annuel d'un établissement (même règle que la base : _montant_etablissement) : prix par élève, minimum annuel. */
+export function montantEtablissement(capacite, tarifs) {
+  const e = tarifs?.etablissement
+  if (!e || !(capacite > 0)) return 0
+  return Math.max(e.minimum_annuel, capacite * e.prix_eleve)
+}
+
+/** Le message d'erreur vient-il du contrôle de capacité d'élèves (serveur) ? */
+export function estErreurCapacite(message) {
+  return /limite d'élèves autorisée|inscrire de nouveaux élèves|renouvelez-le pour inscrire/i.test(String(message || ""))
 }

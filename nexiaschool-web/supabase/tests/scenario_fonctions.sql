@@ -58,16 +58,19 @@ reset role;
 do $$ begin perform public._exiger_offre(current_setting('app.etab_o')::uuid, 'notes'); raise exception 'ÉCHEC : notes encore permises';
 exception when sqlstate 'P0001' then if sqlerrm like 'ÉCHEC%' or sqlerrm not like '%momentanément désactivée%' then raise; end if; raise notice 'ok : fonctions : écriture refusée — %', sqlerrm; end $$;
 
--- plafond levé par dérogation (51 élèves en Découverte)
+-- capacité levée par dérogation (51e élève inscrit en Découverte)
 set role authenticated;
 select set_config('request.jwt.claim.sub', :'admin_o', false) \g /dev/null
-do $$ begin insert into public.eleves (matricule, nom, prenom, sexe) values ('O52', 'Élève', 'N52', 'M'); raise exception 'ÉCHEC : plafond ignoré';
-exception when sqlstate 'P0001' then if sqlerrm like 'ÉCHEC%' then raise; end if; raise notice 'ok : fonctions : plafond de Découverte appliqué'; end $$;
+do $$ begin insert into public.inscriptions (exercice_id, classe_id, eleve_id)
+  values (current_setting('app.ex_o')::uuid, current_setting('app.cl_o')::uuid, (select id from public.eleves where matricule = 'O60' and etablissement_id = current_setting('app.etab_o')::uuid));
+  raise exception 'ÉCHEC : capacité ignorée';
+exception when sqlstate 'P0001' then if sqlerrm like 'ÉCHEC%' then raise; end if; raise notice 'ok : fonctions : capacité de Découverte appliquée'; end $$;
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
 select public.console_definir_fonctions(:'etab_o', jsonb_build_array(jsonb_build_object('fonction', 'plafonds', 'etat', 'active', 'fin', now() + interval '30 days'))) \g /dev/null
 select set_config('request.jwt.claim.sub', :'admin_o', false) \g /dev/null
-insert into public.eleves (matricule, nom, prenom, sexe) values ('O52', 'Élève', 'N52', 'M');
-select pg_temp.verifier((select count(*) from public.eleves) = 52, 'fonctions : effectifs illimités pendant la période offerte');
+insert into public.inscriptions (exercice_id, classe_id, eleve_id)
+  values (:'ex_o', :'cl_o', (select id from public.eleves where matricule = 'O60' and etablissement_id = :'etab_o'));
+select pg_temp.verifier((select count(*) from public.inscriptions where etablissement_id = :'etab_o') = 51, 'fonctions : effectif illimité pendant la période offerte');
 
 -- échéance : retour aux droits de l'offre, sans toucher à l'offre
 reset role;

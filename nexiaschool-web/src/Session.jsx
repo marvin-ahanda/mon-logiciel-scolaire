@@ -23,6 +23,13 @@ async function compterMesMatieres(profil, exercice) {
   }
 }
 
+/** Espace de l'enseignant indépendant (null : pas de compte SmartEval). */
+async function lireEnseignant() {
+  const { data, error } = await supabase.rpc("enseignant_contexte")
+  if (error) return null
+  return data
+}
+
 /** Droits effectifs de l'établissement, fonction par fonction (offre + réglages de la plateforme), gardés sur l'appareil. */
 async function lireFonctions(etablissementId) {
   const cle = `nexiaschool.fonctions.${etablissementId}`
@@ -54,9 +61,14 @@ export function SessionProvider({ children }) {
         return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, proprietaire,
                          suspendu: { etablissement: compte.etablissement, motif: compte.motif } })
       }
-      if (!profil && google) {
-        // connecté avec Google mais sans établissement : il peut créer l'espace de son établissement
-        return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, sansEtablissement: true, proprietaire })
+      if (!profil) {
+        // enseignant indépendant (SmartEval) : compte sans établissement
+        const enseignant = await lireEnseignant()
+        if (enseignant?.compte) return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, enseignant, proprietaire })
+        const email = session.user.email || ""
+        const verifiee = google || (!!session.user.email_confirmed_at && !!email && !email.endsWith(".invalid"))
+        // adresse vérifiée sans espace : création de l'espace de l'établissement (Google) ou du compte SmartEval
+        if (verifiee) return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, sansEtablissement: google, sansCompte: true, proprietaire })
       }
       if (!profil || !profil.actif) {
         await supabase.auth.signOut()
@@ -92,10 +104,10 @@ export function SessionProvider({ children }) {
   }, [charger])
 
   const role = etat.profil?.role
-  const offre = offreEffective(etat.etablissement)
+  const offre = offreEffective(etat.etablissement, Date.now(), etat.fonctions?.__offre)
   const aOffre = (fonction) => droitEffectif(etat.fonctions, offre, fonction)
   const offertes = etat.fonctions?.__offertes || []                      // fonctions offertes en plus de l'offre (avec échéance)
-  const valeur = { ...etat, recharger, offre, aOffre, offertes, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
+  const valeur = { ...etat, recharger, estIndependant: !!etat.enseignant?.compte, offre, aOffre, offertes, estAdmin: role === "admin", estEnseignant: role === "enseignant", estSurveillant: role === "surveillant",
                    peutDiscipline: role === "admin" || role === "surveillant",
                    // rubrique Notes (saisie, résultats, bulletins selon le rôle) : tout le personnel ; chacun ne saisit que les matières qui lui sont confiées
                    peutNoter: ["admin", "enseignant", "surveillant", "comptable"].includes(role),

@@ -604,3 +604,18 @@ export async function exporterListe(cle, options = {}, suffixe = "") {
     `${LISTES[cle].fichier}${suffixe ? "-" + normaliser(suffixe) : ""}`)
   return lignes.length
 }
+
+/**
+ * Capacité de l'abonnement : nouvelles inscriptions qu'un import créerait dans l'année (élève avec une classe, pas encore
+ * inscrit), et import partiel limité aux places restantes (les premières lignes du fichier sont gardées). places = null : illimité.
+ * Le serveur contrôle de toute façon chaque inscription ; ceci sert à l'aperçu et à l'import partiel confirmé.
+ */
+export function limiterInscriptions(donnees, classesEleves, places) {
+  const inscrits = classesEleves || {}
+  const nouvelles = (donnees.eleves || []).filter((e) => e.classe && !inscrits[e.matricule])
+  if (places == null || nouvelles.length <= places) return { nouvelles: nouvelles.length, retirees: 0, donnees }
+  const retirees = new Set(nouvelles.slice(Math.max(places, 0)).map((e) => e.matricule))
+  return { nouvelles: nouvelles.length, retirees: retirees.size,
+           donnees: { ...donnees, eleves: donnees.eleves.filter((e) => !retirees.has(e.matricule)),
+                      notes: (donnees.notes || []).filter((n) => !retirees.has(n[0])) } }
+}

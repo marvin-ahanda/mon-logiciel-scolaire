@@ -21,7 +21,7 @@ export default function RappelAbonnement() {
   const cle = `nexiaschool.rappel.${etablissement?.id}.${jourCameroun(new Date())}`
   const [masque, setMasque] = useState(() => { try { return sessionStorage.getItem(cle) === "1" } catch { return false } })
   const echeance = etablissement?.offre_expire_le
-  if (!estAdmin || !echeance || !etablissement?.offre || etablissement.offre === "decouverte" || masque) return null
+  if (!estAdmin || !echeance || !etablissement?.offre || !["essentiel", "pro", "premium"].includes(etablissement.offre) || masque) return null
   if (new Date(echeance) <= new Date()) return null
   const jours = joursRestants(echeance)
   if (jours < 0 || jours > 5) return null

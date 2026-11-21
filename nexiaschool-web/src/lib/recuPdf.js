@@ -48,7 +48,7 @@ export async function recuPdf(recu, { imprimer = false } = {}) {
   doc.text(pdf(t("Désignation")), M + 3, y + 5.5); doc.text(pdf(t("Montant")), L - M - 3, y + 5.5, { align: "right" })
   y += 8
   doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); y += 7
-  doc.text(pdf(`${t("Abonnement NexIA School")} — ${t("offre")} ${nomOffre} (${duree})`), M + 3, y)
+  doc.text(doc.splitTextToSize(pdf(recu.libelle || `${t("Abonnement NexIA School")} — ${t("offre")} ${nomOffre} (${duree})`), L - 2 * M - 40), M + 3, y)
   doc.text(pdf(fcfa(recu.montant)), L - M - 3, y, { align: "right" })
   doc.setFontSize(9); doc.setTextColor(...GRIS); y += 5.5
   doc.text(pdf(`${t("Période couverte")} : ${t("du")} ${jour(recu.debut)} ${t("au")} ${jour(recu.fin)}`), M + 3, y)

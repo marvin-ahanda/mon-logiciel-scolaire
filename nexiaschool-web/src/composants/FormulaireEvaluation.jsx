@@ -99,7 +99,7 @@ function Question({ q, numero, valeur, onChange, erreur, desactive }) {
  */
 export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnvoyer, brouillon }) {
   const lire = () => { try { return JSON.parse(localStorage.getItem(brouillon) || "null") } catch { return null } }
-  const initial = useMemo(() => (brouillon && lire()) || { identite: { nom: "", prenom: "", classe_id: evaluation.classes.length === 1 ? evaluation.classes[0].id : "" }, reponses: {} },
+  const initial = useMemo(() => (brouillon && lire()) || { identite: { nom: "", prenom: "", matricule: "", classe_id: evaluation.classes.length === 1 ? evaluation.classes[0].id : "" }, reponses: {} },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [])
   const [identite, setIdentite] = useState(initial.identite)
@@ -111,17 +111,19 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
     [identite, reponses, brouillon, etape])
   const apercu = mode === "apercu"
   const classe = evaluation.classes.find((c) => c.id === identite.classe_id)
+  const matricule = !!evaluation.demande_matricule
 
   function terminer() {
     const e = {}
     if (!identite.nom.trim()) e.nom = t("Indiquez votre nom.")
     if (!identite.prenom.trim()) e.prenom = t("Indiquez votre prénom.")
     if (!identite.classe_id) e.classe = t("Choisissez votre classe.")
+    if (matricule && !(identite.matricule || "").trim()) e.matricule = t("Indiquez votre matricule.")
     for (const q of evaluation.questions) if (q.obligatoire && vide(reponses[q.id])) e[q.id] = t("Cette question est obligatoire.")
     setErreurs(e)
     if (Object.keys(e).length) {
       const k = Object.keys(e)[0]
-      const el = ["nom", "prenom", "classe"].includes(k) ? document.getElementById("se-identite") : document.querySelector(`[data-question="${k}"]`)
+      const el = ["nom", "prenom", "classe", "matricule"].includes(k) ? document.getElementById("se-identite") : document.querySelector(`[data-question="${k}"]`)
       el?.scrollIntoView({ behavior: "smooth", block: "center" })
       return
     }
@@ -131,7 +133,8 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
   async function envoyer() {
     setErreurEnvoi(""); setEnvoi(true)
     try {
-      const r = await onEnvoyer({ nom: identite.nom.trim(), prenom: identite.prenom.trim(), classe_id: identite.classe_id }, reponses)
+      const r = await onEnvoyer({ nom: identite.nom.trim(), prenom: identite.prenom.trim(), classe_id: identite.classe_id,
+                                 ...(matricule ? { matricule: (identite.matricule || "").trim() } : {}) }, reponses)
       setRecu(r); setEtape("envoye")
       if (brouillon) try { localStorage.removeItem(brouillon) } catch { /* rien */ }
       haut.current?.scrollIntoView({ behavior: "smooth" })
@@ -166,6 +169,7 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
             <dt className="col-sm-3">{t("Nom")}</dt><dd className="col-sm-9">{identite.nom}</dd>
             <dt className="col-sm-3">{t("Prénom")}</dt><dd className="col-sm-9">{identite.prenom}</dd>
             <dt className="col-sm-3">{t("Classe")}</dt><dd className="col-sm-9">{classe?.libelle}</dd>
+            {matricule && <><dt className="col-sm-3">{t("Matricule")}</dt><dd className="col-sm-9">{identite.matricule}</dd></>}
           </dl>
           <ol className="se-recap-liste">{evaluation.questions.map((q) => (
             <li key={q.id}><div className="fw-semibold">{q.intitule}</div>
@@ -180,7 +184,7 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
         </div>)}
 
       {etape === "saisie" && <>
-        <div className={`se-carte${erreurs.nom || erreurs.prenom || erreurs.classe ? " se-erreur" : ""}`} id="se-identite">
+        <div className={`se-carte${erreurs.nom || erreurs.prenom || erreurs.classe || erreurs.matricule ? " se-erreur" : ""}`} id="se-identite">
           <div className="se-intitule mb-3">{t("Identification de l'élève")}</div>
           <div className="row g-3">
             <div className="col-sm-6"><label className="form-label small" htmlFor="se-nom">{t("Nom")} <span className="text-danger">*</span></label>
@@ -193,6 +197,11 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
               <select id="se-classe" className="form-select" value={identite.classe_id} onChange={(e) => setIdentite({ ...identite, classe_id: e.target.value })}>
                 <option value="">{t("Choisir")}</option>{evaluation.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select>
               {erreurs.classe && <div className="text-danger small">{erreurs.classe}</div>}</div>
+            {matricule && <div className="col-sm-6"><label className="form-label small" htmlFor="se-matricule">{t("Matricule")} <span className="text-danger">*</span></label>
+              <input id="se-matricule" className="form-control se-ligne" maxLength={40} autoComplete="off" value={identite.matricule || ""}
+                     onChange={(e) => setIdentite({ ...identite, matricule: e.target.value })} />
+              <div className="form-text">{t("Votre numéro d'élève, donné par votre enseignant.")}</div>
+              {erreurs.matricule && <div className="text-danger small">{erreurs.matricule}</div>}</div>}
           </div>
         </div>
         {evaluation.questions.map((q, k) => (

@@ -31,7 +31,7 @@ function Cadre({ children }) {
 export default function OAuthAutoriser() {
   const { search, pathname } = useLocation()
   const naviguer = useNavigate()
-  const { pret, session, profil, etablissement, sansEtablissement } = useSession()
+  const { pret, session, profil, etablissement, sansEtablissement, enseignant } = useSession()
   const q = useMemo(() => Object.fromEntries(new URLSearchParams(search)), [search])
   const [client, setClient] = useState(null), [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false)
   const [ecriture, setEcriture] = useState(() => /ecriture/.test(q.scope || ""))
@@ -58,6 +58,19 @@ export default function OAuthAutoriser() {
                                                  p_methode: q.code_challenge_method, p_ecriture: ecriture })
       retour({ code: r.code })
     } catch (e) { setErreur(e.message); setEnvoi(false) }
+  }
+  // Enseignant indépendant (SmartEval) : accès en lecture à SES évaluations seulement
+  async function autoriserEnseignant() {
+    setEnvoi(true); setErreur("")
+    try {
+      const r = await rpc("oauth_autoriser_enseignant", { p_client_id: q.client_id, p_redirect_uri: q.redirect_uri, p_code_challenge: q.code_challenge,
+                                                           p_methode: q.code_challenge_method })
+      retour({ code: r.code })
+    } catch (e) { setErreur(e.message); setEnvoi(false) }
+  }
+  function seConnecterEnseignant() {
+    memoriserRetour(pathname + search)
+    naviguer("/smarteval/connexion")
   }
   function seConnecterParCode() {
     memoriserRetour(pathname + search)
@@ -106,11 +119,30 @@ export default function OAuthAutoriser() {
   );
   if (!pret || !client) return <Cadre><Chargement /></Cadre>
 
+  if (session && enseignant?.compte) return (
+    <Cadre>
+      <h2 className="h5">{client.nom}{t(" demande l'accès à votre espace")}</h2>
+      <p className="small text-muted">{t("Connecté en tant que ")}<strong>{[enseignant.compte.prenom, enseignant.compte.nom].filter(Boolean).join(" ")}</strong> ({t("SmartEval")}).{" "}
+        <button className="btn btn-link btn-sm p-0 align-baseline" onClick={async () => { await supabase.auth.signOut() }}>{t("Changer de compte")}</button></p>
+      <Alerte>{erreur}</Alerte>
+      <p className="mb-1">{t("Cette application pourra, en lecture seule :")}</p>
+      <ul className="small"><li>{t("consulter vos évaluations SmartEval et les réponses de vos élèves (anonymisées si vous l'avez demandé), et rien d'autre.")}</li></ul>
+      <p className="small text-muted">{t("Les données consultées seront transmises à ")}{client.nom}{t(". Vous pourrez retirer cet accès à tout moment dans « IA & API ».")}</p>
+      <div className="d-flex gap-2">
+        <button className="btn btn-primary flex-grow-1" disabled={envoi} onClick={autoriserEnseignant}>{envoi ? t("Autorisation…") : t("Autoriser")}</button>
+        <button className="btn btn-outline-secondary" disabled={envoi} onClick={() => retour({ error: "access_denied", error_description: t("Accès refusé par l'utilisateur") })}>{t("Refuser")}</button>
+      </div>
+    </Cadre>
+  )
   if (!session || (!profil && !sansEtablissement)) return (
     <Cadre>
       <p><strong>{client.nom}</strong>{t(" souhaite accéder à votre espace NexIA School. Connectez-vous d'abord.")}</p>
       <Alerte>{erreur}</Alerte>
       {blocParent}
+      <div className="border rounded p-3 mb-3">
+        <h2 className="h6">{t("Enseignant SmartEval (sans établissement) ?")}</h2>
+        <button className="btn btn-outline-primary w-100" onClick={seConnecterEnseignant}>{t("Me connecter à mon espace SmartEval")}</button>
+      </div>
       <h2 className="h6">{t("Personnel de l'établissement")}</h2>
       <button className="btn btn-primary w-100 mb-2" onClick={seConnecterParCode}>{t("Se connecter avec le code de mon établissement")}</button>
       <BoutonGoogle chemin={pathname + search} texte={t("Fondateur : se connecter avec Google")} />

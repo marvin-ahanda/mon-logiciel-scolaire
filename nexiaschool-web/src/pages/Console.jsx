@@ -9,7 +9,7 @@ import { comparerNoms, date, dateHeure } from "../lib/format.js"
 import { siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase } from "../supabase.js"
-import { LIBELLES_FONCTIONS, NOMS_OFFRES, ORDRE_OFFRES } from "../lib/offres.js"
+import { FONCTIONS, LIBELLES_FONCTIONS, NOMS_OFFRES } from "../lib/offres.js"
 
 const LIMITE_STOCKAGE = 1024 ** 3, LIMITE_BASE = 500 * 1024 ** 2     // plan Free de Supabase
 const entier = new Intl.NumberFormat("fr-FR")
@@ -304,7 +304,7 @@ function OffreEtablissement({ id, nom, onMessage }) {
   const [f, setF] = useState(null), [envoi, setEnvoi] = useState(false)
   const echeance = (periodicite) => { const d = new Date(); d.setMonth(d.getMonth() + (periodicite === "annuel" ? 12 : 1)); return d.toISOString().slice(0, 10) }
   if (!o) return <Alerte>{erreur}</Alerte>
-  const v = f || { offre: o.offre, periodicite: o.periodicite, expire: o.expire_le ? o.expire_le.slice(0, 10) : "" }
+  const v = f || { offre: o.offre === "decouverte" ? "decouverte" : "premium", periodicite: "annuel", expire: o.expire_le ? o.expire_le.slice(0, 10) : "" }
   async function enregistrer(ev) {
     ev.preventDefault(); setEnvoi(true); onMessage({})
     try {
@@ -321,17 +321,14 @@ function OffreEtablissement({ id, nom, onMessage }) {
         <div className="col-sm-3"><label className="form-label small" htmlFor="offre">Offre</label>
           <select id="offre" className="form-select form-select-sm" value={v.offre} onChange={(x) => setF({ ...v, offre: x.target.value,
             expire: x.target.value === "decouverte" ? "" : v.expire || echeance(v.periodicite) })}>
-            {ORDRE_OFFRES.map((k) => <option key={k} value={k}>{NOMS_OFFRES[k]}</option>)}</select></div>
-        <div className="col-sm-3"><label className="form-label small" htmlFor="periodicite">Paiement</label>
-          <select id="periodicite" className="form-select form-select-sm" value={v.periodicite} disabled={v.offre === "decouverte"}
-                  onChange={(x) => setF({ ...v, periodicite: x.target.value, expire: echeance(x.target.value) })}>
-            <option value="mensuel">Mensuel</option><option value="annuel">Annuel (2 mois offerts)</option></select></div>
-        <div className="col-sm-3"><label className="form-label small" htmlFor="expire">Payée jusqu'au</label>
+            {["decouverte", "premium"].map((k) => <option key={k} value={k}>{NOMS_OFFRES[k]}</option>)}</select></div>
+
+        <div className="col-sm-5"><label className="form-label small" htmlFor="expire">Valable jusqu'au</label>
           <input id="expire" type="date" className="form-control form-control-sm" value={v.expire} disabled={v.offre === "decouverte"}
                  onChange={(x) => setF({ ...v, expire: x.target.value })} /></div>
-        <div className="col-sm-3"><button className="btn btn-primary btn-sm w-100" disabled={envoi || !f}>{envoi ? "Enregistrement…" : "Attribuer l'offre"}</button></div>
+        <div className="col-sm-4"><button className="btn btn-primary btn-sm w-100" disabled={envoi || !f}>{envoi ? "Enregistrement…" : "Attribuer l'offre"}</button></div>
       </form>
-      <p className="small text-muted mb-0 mt-2">Sans date, l'offre n'expire pas. À l'échéance, l'établissement repasse en Découverte : ses données sont conservées, les fonctions avancées passent en lecture seule.</p>
+      <p className="small text-muted mb-0 mt-2">Attribution manuelle (hors paiement) : Premium sans limite d'effectif. Sans date, l'offre n'expire pas. Après l'échéance et le délai de grâce, l'abonnement est expiré : les données restent consultables, les modifications sont fermées. Les abonnements payés en ligne se gèrent seuls (capacité, 12 mois).</p>
     </div></div>
   )
 }
@@ -454,6 +451,59 @@ function Journal() {
   )
 }
 
+/** Paramètres commerciaux centralisés (une seule source de vérité, lue par la base et par l'application). */
+const CHAMPS_CONFIG = [
+  ["Établissements", [["etab_prix_eleve", "Prix par élève et par an (FCFA)"], ["etab_minimum_annuel", "Minimum annuel (FCFA)"], ["etab_duree_mois", "Durée d'un abonnement (mois)"],
+    ["etab_grace_jours", "Délai de grâce après l'échéance (jours)"], ["etab_renouvellement_jours", "Renouvellement possible avant l'échéance (jours)"], ["etab_capacite_max", "Capacité maximale (élèves)"]]],
+  ["Découverte (établissements)", [["decouverte_max_eleves", "Élèves au maximum"], ["decouverte_max_personnel", "Comptes du personnel au maximum"], ["decouverte_duree_jours", "Durée (jours)"]]],
+  ["SmartEval enseignant", [["se_prix_annuel", "Prix annuel (FCFA)"], ["se_credits_inclus", "Évaluations incluses (crédits)"], ["se_duree_mois", "Durée (mois)"],
+    ["se_renouvellement_jours", "Renouvellement possible avant l'échéance (jours)"], ["se_soumissions_max", "Réponses par évaluation au maximum"]]],
+  ["SmartEval Découverte", [["se_decouverte_evaluations", "Évaluations publiables"], ["se_decouverte_soumissions", "Réponses au maximum"], ["se_decouverte_duree_jours", "Durée (jours)"]]],
+  ["Pack de crédits", [["se_pack_actif", "Proposé", "case"], ["se_pack_credits", "Crédits du pack"], ["se_pack_prix", "Prix du pack (FCFA)"]]],
+  ["Groupe de département", [["groupe_actif", "Proposé", "case"], ["groupe_prix_annuel", "Prix annuel du groupe (FCFA)"], ["groupe_membres_max", "Membres au maximum (administrateur compris)"],
+    ["groupe_credits_membre", "Évaluations par membre et par période"]]],
+]
+function ConfigCommerciale() {
+  const [c, erreur, relire] = useDonnees(() => rpc("console_config_commerciale"), [])
+  const [f, setF] = useState(null), [msg, setMsg] = useState({}), [envoi, setEnvoi] = useState(false)
+  if (!c) return <><Alerte>{erreur}</Alerte>{!erreur && <Chargement />}</>
+  const v = f || c
+  const maj = (k, val) => setF({ ...v, [k]: val })
+  async function enregistrer(e) {
+    e.preventDefault()
+    if (!confirm("Appliquer ces paramètres ? Ils valent pour les nouvelles souscriptions et les prochains contrôles (les périodes déjà payées sont conservées).")) return
+    setEnvoi(true); setMsg({})
+    try { await rpc("console_definir_config", { p: v }); setF(null); relire(); setMsg({ ok: "Paramètres enregistrés." }) } catch (x) { setMsg({ erreur: x.message }) } finally { setEnvoi(false) }
+  }
+  return (
+    <form onSubmit={enregistrer} style={{ maxWidth: 980 }}>
+      <Alerte onFermer={() => setMsg({})}>{msg.erreur}</Alerte><Alerte type="success" onFermer={() => setMsg({})}>{msg.ok}</Alerte>
+      {CHAMPS_CONFIG.map(([titre, champs]) => (
+        <fieldset key={titre} className="card mb-3"><div className="card-body">
+          <legend className="h6">{titre}</legend>
+          <div className="row g-2">{champs.map(([k, lib, type]) => (
+            <div className="col-sm-6 col-lg-4" key={k}>{type === "case"
+              ? <div className="form-check mt-4"><input className="form-check-input" type="checkbox" id={`cfg-${k}`} checked={!!v[k]} onChange={(e) => maj(k, e.target.checked)} />
+                  <label className="form-check-label small" htmlFor={`cfg-${k}`}>{lib}</label></div>
+              : <><label className="form-label small" htmlFor={`cfg-${k}`}>{lib}</label>
+                  <input id={`cfg-${k}`} type="number" min={0} className="form-control form-control-sm" value={v[k] ?? ""} onChange={(e) => maj(k, e.target.value === "" ? null : Number(e.target.value))} /></>}
+            </div>))}</div>
+        </div></fieldset>))}
+      <fieldset className="card mb-3"><div className="card-body">
+        <legend className="h6">Fonctionnalités de l'offre Découverte</legend>
+        <div className="row g-1">{FONCTIONS.map((fn) => (
+          <div className="col-sm-6" key={fn}><div className="form-check">
+            <input className="form-check-input" type="checkbox" id={`cfg-f-${fn}`} checked={(v.fonctions_gratuites || []).includes(fn)}
+                   onChange={(e) => maj("fonctions_gratuites", e.target.checked ? [...(v.fonctions_gratuites || []), fn] : (v.fonctions_gratuites || []).filter((x) => x !== fn))} />
+            <label className="form-check-label small" htmlFor={`cfg-f-${fn}`}>{LIBELLES_FONCTIONS[fn]}</label></div></div>))}</div>
+        <p className="small text-muted mb-0 mt-2">Toutes les autres fonctionnalités (et toute fonctionnalité future) sont comprises dans Premium.</p>
+      </div></fieldset>
+      <button className="btn btn-primary" disabled={envoi || !f}>{envoi ? "Enregistrement…" : "Enregistrer les paramètres"}</button>
+      {c.maj && <span className="small text-muted ms-2">Dernière modification : {date(c.maj)}</span>}
+    </form>
+  )
+}
+
 function MessageRetour() {
   const msg = window.history.state?.usr?.message
   return msg ? <div className="alert alert-success">{msg}</div> : null
@@ -492,6 +542,7 @@ export default function Console() {
           <li className="nav-item"><NavLink className={onglet} to="/console/etablissements">Établissements</NavLink></li>
           <li className="nav-item"><NavLink className={onglet} to="/console/utilisateurs">Utilisateurs</NavLink></li>
           <li className="nav-item"><NavLink className={onglet} to="/console/journal">Journal</NavLink></li>
+          <li className="nav-item"><NavLink className={onglet} to="/console/configuration">Tarifs et offres</NavLink></li>
         </ul>
         <Routes>
           <Route index element={<VueEnsemble />} />
@@ -499,6 +550,7 @@ export default function Console() {
           <Route path="etablissements/:id" element={<FicheEtablissement />} />
           <Route path="utilisateurs" element={<Utilisateurs />} />
           <Route path="journal" element={<Journal />} />
+          <Route path="configuration" element={<ConfigCommerciale />} />
           <Route path="*" element={<Navigate to="/console" replace />} />
         </Routes>
       </main>

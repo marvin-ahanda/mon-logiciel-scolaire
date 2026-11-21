@@ -24,7 +24,7 @@ export function Copier({ texte, libelle = t("Copier"), className = "btn btn-outl
   return <button type="button" className={className} onClick={copier}>{fait ? t("Copié ✓") : libelle}</button>
 }
 
-function Statut({ e }) {
+export function Statut({ e }) {
   const classes = { brouillon: "text-bg-secondary", ouverte: "text-bg-success", close: "text-bg-dark", programmee: "text-bg-info" }
   return <span className={`badge ${classes[e.statut]}`}>{t(STATUTS[e.statut])}{e.statut === "ouverte" && e.ferme_le ? t(" jusqu'au {v0}", { v0: dateHeure(e.ferme_le) }) : ""}</span>
 }
@@ -101,7 +101,7 @@ function Entete() {
 // ======================================================================================================
 // Éditeur (façon Google Forms) -> aperçu -> durée -> lien
 // ======================================================================================================
-function EditeurQuestion({ q, numero, total, onChange, onSupprimer, onDupliquer, onDeplacer }) {
+export function EditeurQuestion({ q, numero, total, onChange, onSupprimer, onDupliquer, onDeplacer }) {
   const maj = (champs) => onChange({ ...q, ...champs })
   const aOptions = ["choix", "cases", "liste"].includes(q.type)
   const basculerBonne = (i) => {
@@ -430,7 +430,7 @@ function Barre({ v }) {
   return <div className="se-barre" title={pc(v)}><div style={{ width: `${v ?? 0}%`, background: c }} /></div>
 }
 
-function CopieEleve({ ev, s }) {
+export function CopieEleve({ ev, s }) {
   return (
     <section className="copie-a4" data-copie={s.numero}>
       <EnteteEvaluation entete={ev.entete} sequence={ev.sequence} />
@@ -459,13 +459,38 @@ function CopieEleve({ ev, s }) {
   )
 }
 
-export function ResultatsEvaluation() {
+/** Anonymisation pour l'IA : l'assistant ne voit que les matricules (ou numéros de copie), jamais les noms. */
+function Anonymisation({ ev, independant, onMaj }) {
+  const [actif, setActif] = useState(!!ev.anonyme_ia), [erreur, setErreur] = useState("")
+  async function basculer(v) {
+    setErreur(""); setActif(v)
+    try { await rpc(independant ? "se_anonymiser" : "smarteval_anonymiser", { p_id: ev.id, p_actif: v }); onMaj() }
+    catch (x) { setActif(!v); setErreur(x.message) }
+  }
+  return (
+    <div className="form-check form-switch mb-2 se-anonymisation">
+      <input className="form-check-input" type="checkbox" role="switch" id="se-anonyme" checked={actif} onChange={(e) => basculer(e.target.checked)} />
+      <label className="form-check-label small" htmlFor="se-anonyme">{t("Anonymiser les copies pour l'IA : l'assistant ne voit que les matricules (ou les numéros de copie), jamais les noms des élèves.")}</label>
+      {erreur && <div className="text-danger small">{erreur}</div>}
+    </div>
+  )
+}
+
+/** Demande à copier pour l'IA : construite à partir de l'évaluation (titre, classe, compétence, anonymisation). */
+export function demandeDynamique(ev) {
+  const base = demandeIA(ev.titre)
+  const precisions = [ev.classe || (ev.classes || []).map((c) => c.libelle).join(", "), ev.matiere].filter(Boolean).join(", ")
+  return [base, precisions && t("Contexte : {v0}. Compétence visée : {v1}.", { v0: precisions, v1: ev.competence }),
+          ev.anonyme_ia && t("Les copies sont anonymisées : désigne chaque élève uniquement par son matricule.")].filter(Boolean).join(" ")
+}
+
+export function ResultatsEvaluation({ independant = false, base = "/smarteval" }) {
   const { id } = useParams()
-  const [ev, erreur, recharger] = useDonnees(() => rpc("smarteval_detail", { p_id: id }), [id])
+  const [ev, erreur, recharger] = useDonnees(() => rpc(independant ? "se_detail" : "smarteval_detail", { p_id: id }), [id])
   const [classe, setClasse] = useState(""), [occupe, setOccupe] = useState(""), [erreurExport, setErreurExport] = useState("")
-  useEffect(() => { if (ev) rpc("smarteval_marquer_vu").then(signaler).catch(() => {}) }, [ev])
+  useEffect(() => { if (ev) rpc(independant ? "se_marquer_vu" : "smarteval_marquer_vu").then(signaler).catch(() => {}) }, [ev, independant])
   useEffect(() => { const f = () => recharger(); window.addEventListener("smarteval:recharger", f); return () => window.removeEventListener("smarteval:recharger", f) }, [recharger])
-  const filtree = useMemo(() => (ev ? { ...ev, soumissions: ev.soumissions.filter((s) => !classe || s.classe_id === classe) } : null), [ev, classe])
+  const filtree = useMemo(() => (ev ? { ...ev, soumissions: ev.soumissions.filter((s) => !classe || (s.classe_id ?? s.classe) === classe) } : null), [ev, classe])
   const a = useMemo(() => (filtree ? analyserEvaluation(filtree) : null), [filtree])
   if (!ev) return <><Alerte>{erreur}</Alerte>{!erreur && <Chargement />}</>
 
@@ -487,9 +512,10 @@ export function ResultatsEvaluation() {
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 no-print">
-        <div><Link to="/smarteval" className="small">{t("← SmartEval")}</Link>
+        <div><Link to={base} className="small">{t("← SmartEval")}</Link>
           <h1 className="h4 mb-1">{ev.titre} <Statut e={ev} /></h1>
-          <div className="small text-muted">{[ev.matiere, ev.classes.map((c) => c.libelle).join(", "), t("Séquence {v0}", { v0: ev.sequence })].join(" · ")}</div>
+          <div className="small text-muted">{[ev.matiere, ev.classes.map((c) => c.libelle).join(", "), ev.sequence && t("Séquence {v0}", { v0: ev.sequence })].filter(Boolean).join(" · ")}</div>
+          {independant && ev.soumissions_max && <div className="small text-muted">{t("Réponses : {v0} sur {v1} au maximum.", { v0: ev.soumissions.length, v1: ev.soumissions_max })}</div>}
           <div className="small"><span className="fw-semibold">{t("Compétence visée : ")}</span>{ev.competence}</div></div>
         <div className="d-flex flex-wrap gap-2">
           {ev.jeton && <Copier texte={lienEvaluation(ev.jeton)} libelle={t("Copier le lien")} className="btn btn-sm btn-outline-primary" />}
@@ -511,8 +537,10 @@ export function ResultatsEvaluation() {
         <div className="card mb-3 se-analyse-ia border-primary"><div className="card-body">
           <h2 className="h6 mb-1">🤖 {t("Analyse et remédiation par votre IA")}</h2>
           <p className="small mb-2">{t("Copiez cette demande et collez-la dans l'IA connectée à votre compte (Claude, Grok…). Elle lira les soumissions grâce au connecteur NexIA School et vous proposera profils d'élèves, binômes et trinômes, exercices adaptés et activités d'intégration.")}</p>
-          <div className="bg-light border rounded p-2 small mb-2 se-demande-ia">{demandeIA(ev.titre)}</div>
-          <div className="d-flex flex-wrap gap-2"><Copier texte={demandeIA(ev.titre)} libelle={t("Copier la demande")} className="btn btn-sm btn-primary" />
+          <p className="small text-muted mb-2">{t("L'analyse est faite par votre propre assistant IA, avec votre propre compte : NexIA School n'utilise aucune IA payante pour vous et ne vous facture rien pour l'analyse.")}</p>
+          <Anonymisation ev={ev} independant={independant} onMaj={recharger} />
+          <div className="bg-light border rounded p-2 small mb-2 se-demande-ia">{demandeDynamique(ev)}</div>
+          <div className="d-flex flex-wrap gap-2"><Copier texte={demandeDynamique(ev)} libelle={t("Copier la demande")} className="btn btn-sm btn-primary" />
             <a className="btn btn-sm btn-outline-primary" href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">{t("Ouvrir Claude")}</a></div>
         </div></div>
 

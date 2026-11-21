@@ -1,7 +1,8 @@
 // @ts-nocheck  (JavaScript standard, aussi exécuté par le banc d'essai Node)
 // Paiement des abonnements NexIA School par SasPay (page de paiement hébergée : mobile money, carte).
-//   POST /paiement/creer     { offre, periode, retour } (administrateur connecté) → { url } de la page SasPay
-//   POST /paiement/verifier  { paiement_id? } (personne connectée) → revérifie les paiements en attente
+//   POST /paiement/creer     { produit, capacite?, matiere?, nom?, retour } → { url } de la page SasPay
+//       produits : etab_abonnement / etab_extension (administrateur d'établissement), se_abonnement / se_credits / se_groupe (enseignant SmartEval)
+//   POST /paiement/verifier  { paiement_id? } (personne connectée) → revérifie SES paiements en attente (établissement ou compte enseignant)
 //   POST /paiement/webhook   notification SasPay signée (X-Webhook-Signature) → revérifie les paiements en attente
 //   POST /paiement/rappels   (tâche planifiée quotidienne) e-mails « fin d'abonnement dans N jours » de J-5 au dernier jour ; un seul par jour
 // Le montant est fixé en base (paiement_preparer) et un paiement n'est validé qu'après vérification auprès de l'API
@@ -64,15 +65,18 @@ async function saspay(chemin, init = {}) {
 async function creer(req, jeton) {
   const b = await req.json().catch(() => ({}))
   const retour = SITES.find((s) => String(b.retour || "").startsWith(s + "/")) ? String(b.retour) : `${SITES[0]}/abonnement`
-  const p = await rpc("paiement_preparer", { p_offre: String(b.offre || ""), p_periode: String(b.periode || "") }, jeton)
+  // produit, quantité et MONTANT fixés en base (configuration commerciale) : rien n'est repris du navigateur
+  const demande = { produit: String(b.produit || ""), capacite: Number(b.capacite) || null, matiere: String(b.matiere || "").slice(0, 80), nom: String(b.nom || "").slice(0, 120) }
+  const p = await rpc("paiement_preparer_produit", { p: demande }, jeton)
+  if (p?.gratuit) return { gratuit: true, capacite: p.capacite }        // augmentation couverte par le montant déjà payé : appliquée sans paiement
   const sep = retour.includes("?") ? "&" : "?"
   let s
   try {
     s = await saspay("/checkout-sessions/", { method: "POST", body: JSON.stringify({
       amount: `${p.montant}.00`, currency: "XAF", country: "CM",
-      description: `NexIA School — offre ${p.offre} (${p.periode === "annuel" ? "1 an" : "1 mois"})`,
-      customer_email: p.email || "contact@nexiaschool.com", customer_name: String(p.etablissement || "Établissement").slice(0, 100),
-      return_url: `${retour}${sep}paiement=${p.id}`, metadata: { paiement_id: p.id, offre: p.offre, periode: p.periode },
+      description: String(p.libelle || "NexIA School").slice(0, 200),
+      customer_email: p.email || "contact@nexiaschool.com", customer_name: String(p.client || "Client NexIA School").slice(0, 100),
+      return_url: `${retour}${sep}paiement=${p.id}`, metadata: { paiement_id: p.id, produit: p.produit },
     }) })
   } catch (e) {
     await rpc("_paiement_echec", { p_id: p.id, p_statut: "echoue" }).catch(() => {})
@@ -86,7 +90,7 @@ async function creer(req, jeton) {
 const echapper = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 const montantTexte = (n) => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(n)).replace(/[\u202f\u00a0]/g, " ")} FCFA`
 const jourTexte = (d) => new Date(d).toLocaleDateString("fr-FR", { timeZone: "Africa/Douala" })
-const NOMS = { essentiel: "Essentiel", pro: "Pro", premium: "Premium" }
+const NOMS = { essentiel: "Premium", pro: "Premium", premium: "Premium", smarteval: "SmartEval Enseignant", credits: "Crédits SmartEval", groupe: "SmartEval Groupe" }
 
 /** Envoie le reçu par e-mail (une seule fois par paiement). Ne bloque jamais l'activation de l'offre : toute erreur est ignorée. */
 async function envoyerRecu(id) {
@@ -94,7 +98,8 @@ async function envoyerRecu(id) {
   try {
     const r = await rpc("_recu_a_envoyer", { p_id: id })
     if (!r?.email) return false
-    const offre = NOMS[r.offre] || r.offre, duree = r.periode === "annuel" ? "1 an / 1 year" : "1 mois / 1 month"
+    const offre = r.libelle || NOMS[r.offre] || r.offre
+    const duree = r.periode === "annuel" ? "12 mois / 12 months" : r.periode === "mensuel" ? "1 mois / 1 month" : "—"
     const lignes = [["Reçu / Receipt", r.numero], ["Date", jourTexte(r.date)], ["Établissement / School", r.etablissement?.nom],
       ["Offre / Plan", `${offre} (${duree})`], ["Période / Period", `${jourTexte(r.debut)} → ${jourTexte(r.fin)}`], ["Montant / Amount", montantTexte(r.montant)],
       ["Référence / Reference", r.transaction || "—"]]
@@ -175,16 +180,16 @@ async function verifierAttente(etab, id) {
 async function verifier(req, jeton) {
   const b = await req.json().catch(() => ({}))
   const id = UUID.test(String(b.paiement_id || "")) ? String(b.paiement_id) : null
-  const a = await rpc("mon_abonnement", {}, jeton)          // réservé à l'administrateur ; donne l'établissement par ses paiements
-  const miens = new Set((a?.paiements || []).map((p) => p.id))
+  const liste = await rpc("mes_paiements", {}, jeton)       // paiements de l'établissement administré ou du compte enseignant connecté
+  const miens = new Set((liste || []).map((p) => p.id))
   if (id && !miens.has(id)) throw new Erreur("Paiement introuvable.", 404)
   const ids = id ? [id] : [...miens]
   const bilan = []
   for (const x of ids) bilan.push(...(await verifierAttente(null, x)))
   // rattrapage : reçus de paiements validés des 30 derniers jours qui n'ont pas encore pu partir par e-mail (déjà envoyés : ignorés)
-  const recents = (a?.paiements || []).filter((p) => p.statut === "paye" && p.paye_le && Date.now() - new Date(p.paye_le) < 30 * 864e5)
+  const recents = (liste || []).filter((p) => p.statut === "paye" && p.paye_le && Date.now() - new Date(p.paye_le) < 30 * 864e5)
   for (const p of recents) await envoyerRecu(p.id)
-  return { paiements: bilan, abonnement: await rpc("mon_abonnement", {}, jeton) }
+  return { paiements: bilan }
 }
 
 async function hmacHex(secret, texte) {

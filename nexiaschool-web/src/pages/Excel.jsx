@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { chargerClasse, resultatsPeriode } from "../lib/donneesClasse.js"
-import { analyserEcole, chargerExistant, cumulerBilan, decouperImport, exporterListe, lieuRemarque, lireListe, LISTES, REMARQUES, ROLES_IMPORT } from "../lib/ecoleExcel.js"
+import { analyserEcole, chargerExistant, cumulerBilan, decouperImport, exporterListe, lieuRemarque, limiterInscriptions, lireListe, LISTES, REMARQUES, ROLES_IMPORT } from "../lib/ecoleExcel.js"
+import { ErreurCapacite, estErreurCapacite } from "../composants/Capacite.jsx"
 import { telechargerClasseur } from "../lib/excel.js"
 import { comparerNoms, nomComplet } from "../lib/format.js"
 import { periodes } from "../lib/periodes.js"
@@ -74,8 +75,32 @@ function Resume({ cle, r }) {
   )
 }
 
+/** Aperçu de la capacité : nouvelles inscriptions du fichier, places restantes, import partiel à confirmer. */
+function ApercuCapacite({ capacite, partiel, setPartiel }) {
+  const { estAdmin } = useSession()
+  if (!capacite || capacite.places == null || !capacite.nouvelles) return null
+  const depasse = capacite.retirees > 0
+  return (
+    <div className={`alert ${depasse ? "alert-warning" : "alert-light border"} apercu-capacite`}>
+      <p className="mb-1">{t("Nouvelles inscriptions dans ce fichier : {v0}. Places restantes dans votre abonnement : {v1} (capacité {v2} élèves).",
+        { v0: capacite.nouvelles, v1: capacite.places, v2: capacite.capacite })}</p>
+      {depasse && <>
+        <p className="fw-semibold mb-2">{t("Vous avez atteint la limite d'élèves autorisée par votre abonnement actuel ({v0} élèves). Pour inscrire de nouveaux élèves, veuillez augmenter la capacité de votre abonnement.", { v0: capacite.capacite })}</p>
+        <div className="form-check mb-2">
+          <input className="form-check-input" type="checkbox" id="import-partiel" checked={partiel} onChange={(e) => setPartiel(e.target.checked)} />
+          <label className="form-check-label" htmlFor="import-partiel">{t("Importer seulement les {v0} premiers nouveaux élèves (les {v1} suivants ne seront pas inscrits).",
+            { v0: Math.max(capacite.places, 0), v1: capacite.retirees })}</label>
+        </div>
+        {estAdmin && <Link className="btn btn-sm btn-primary" to="/abonnement">{t("Augmenter mon abonnement")}</Link>}
+      </>}
+    </div>
+  )
+}
+
 function Validation({ cle, analyse, envoi, progression, onValider, onFermer }) {
   const { resume: r, erreurs } = analyse
+  const [partiel, setPartiel] = useState(false)
+  const bloque = analyse.capacite?.retirees > 0 && !partiel
   useEffect(() => {
     const echap = (x) => x.key === "Escape" && !envoi && onFermer()
     document.addEventListener("keydown", echap); return () => document.removeEventListener("keydown", echap)
@@ -101,10 +126,11 @@ function Validation({ cle, analyse, envoi, progression, onValider, onFermer }) {
               </div>)}
             <h3 className="h6">{t("Résumé")}</h3>
             <Resume cle={cle} r={r} />
+            <ApercuCapacite capacite={analyse.capacite} partiel={partiel} setPartiel={setPartiel} />
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline-secondary" disabled={envoi} onClick={onFermer}>{t("Annuler")}</button>
-            <button type="button" className="btn btn-success" disabled={erreurs.length > 0 || envoi} onClick={onValider}>
+            <button type="button" className="btn btn-success" disabled={erreurs.length > 0 || envoi || bloque} onClick={() => onValider(partiel)}>
               {envoi ? t("Enregistrement… {v0} %", { v0: progression }) : t("Valider l'import")}</button>
           </div>
         </div></div>
@@ -176,14 +202,20 @@ function CarteListe({ cle, ref_, annee, onMaj }) {
   async function importer(fichier) {
     setMsg({}); setBilan(null); setOccupe("lecture")
     try {
-      const [lu, existant] = await Promise.all([lireListe(fichier, cle), chargerExistant(exercice, { seulement })])
-      setAnalyse({ fichier: fichier.name, ...analyserEcole(lu, existant, annee.trim()) })
+      const [lu, existant, etat] = await Promise.all([lireListe(fichier, cle), chargerExistant(exercice, { seulement }),
+        cle === "eleves" ? rpc("etat_abonnement").catch(() => null) : null])
+      const a = analyserEcole(lu, existant, annee.trim())
+      // aperçu de la capacité (élèves inscrits dans l'année active) : le serveur refuse de toute façon tout dépassement
+      const capacite = etat && existant.exercice && a.donnees ? { places: etat.places_restantes, capacite: etat.capacite,
+        ...limiterInscriptions(a.donnees, existant.classesEleves, etat.places_restantes) } : null
+      setAnalyse({ fichier: fichier.name, ...a, capacite })
     } catch (x) { setMsg({ erreur: x.message }) } finally { setOccupe("") }
   }
 
-  async function valider() {
+  async function valider(partiel) {
     setOccupe("envoi"); setProgression(0)
-    const etapes = decouperImport(analyse.donnees).filter((e) => Object.entries(e).some(([k, v]) => k !== "annee" && v.length))
+    const donnees = partiel && analyse.capacite?.retirees ? analyse.capacite.donnees : analyse.donnees
+    const etapes = decouperImport(donnees).filter((e) => Object.entries(e).some(([k, v]) => k !== "annee" && v.length))
     let total = null
     try {
       for (let k = 0; k < etapes.length; k++) {
@@ -215,7 +247,7 @@ function CarteListe({ cle, ref_, annee, onMaj }) {
       <div className="card h-100 carte-liste" data-liste={cle}>
         <div className="card-header fw-semibold">{t(LISTES[cle].titre)}</div>
         <div className="card-body">
-          <Alerte>{msg.erreur}</Alerte><Alerte type="success">{msg.ok}</Alerte>
+          {estErreurCapacite(msg.erreur) ? <ErreurCapacite message={msg.erreur} /> : <Alerte>{msg.erreur}</Alerte>}<Alerte type="success">{msg.ok}</Alerte>
           <p className="small text-muted">{t(CONTENU[cle])}</p>
           {besoinAnnee && cle === "notes" ? <div className="alert alert-warning py-2 small">{t("Aucune année scolaire active.")}</div> : (<>
             {["eleves", "programme", "notes"].includes(cle) && (
