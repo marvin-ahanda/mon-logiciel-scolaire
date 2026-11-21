@@ -1,6 +1,6 @@
 # Double modèle de distribution — établissements et enseignants SmartEval (novembre 2026)
 
-État : **développé et testé en local, non déployé.** Les migrations 0051 et 0052 ne sont pas appliquées en production, et les fonctions `paiement` et `mcp` ne sont pas redéployées. Le code n'est ni poussé ni publié.
+État : **déployé en production le 21/11/2026.** Les migrations 0051 et 0052 sont appliquées à Supabase, et les fonctions `paiement` et `mcp` sont redéployées. L'interface est publiée sur Cloudflare et GitHub Pages (commit `a67eb89`).
 
 ## 1. Établissements
 
