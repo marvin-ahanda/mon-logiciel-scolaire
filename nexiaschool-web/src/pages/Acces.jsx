@@ -75,6 +75,7 @@ export function Etablissement() {
       <p className="small text-muted mb-2">{t("Fondateur de l'établissement ?")}</p>
       <BoutonGoogle chemin="/" texte={t("Se connecter avec Google")} />
       <p className="small mt-3 mb-0">{t("Nouvel établissement ? ")}<Link to="/inscription">{t("Créer l'espace de mon établissement")}</Link></p>
+      <p className="small mt-2 mb-0">{t("Enseignant sans établissement ? ")}<Link to="/smarteval/connexion">{t("Se connecter à SmartEval")}</Link></p>
     </Carte>
   );
 }

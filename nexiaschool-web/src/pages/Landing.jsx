@@ -1,6 +1,6 @@
-// Page d'accueil publique de NexIA School : brève, épurée, sans photos. Six blocs, dans l'ordre où un chef d'établissement
-// décide : accroche → avantages → démo → démarrage en 3 étapes → tarifs → confiance (témoignages, FAQ) et dernier appel.
-// Style : carte blanche arrondie sur fond gris clair, voile pastel, typographie Inter serrée, boutons noirs en pilule.
+// Page d'accueil publique de NexIA School : brève, épurée, sans photos ni illustrations génériques. Blocs, dans l'ordre où un
+// visiteur décide : accroche → fonctionnalités → démonstration → démarrage en 3 étapes → SmartEval enseignants → tarifs → FAQ.
+// Style : cartes blanches sur fond gris clair, typographie Inter serrée, boutons noirs en pilule, apparitions discrètes au défilement.
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import "@fontsource-variable/inter"
@@ -27,6 +27,10 @@ const ICONES = {
   equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
   check: '<path d="m5 12 5 5 9-10"/>', plus: '<path d="M12 5v14M5 12h14"/>',
   whatsapp: '<path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.4z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.2-1.4-2-1-1 .8c-1-.4-1.7-1.1-2.1-2.1l.8-1-1-2z"/>',
+  lien: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  liste: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+  ia: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><rect x="7" y="7" width="10" height="10" rx="2.5"/><path d="M10.5 12h3"/>',
+  courbe: '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/>',
   linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/>',
 }
 function Icone({ nom }) {
@@ -100,14 +104,62 @@ const FAQ = [
   ["Puis-je augmenter le nombre d'élèves en cours d'année ?", "Oui, à tout moment : vous ne payez que la différence et la date d'échéance est conservée. La capacité peut aussi être réduite au renouvellement. Toutes les données de l'établissement sont conservées."],
 ]
 
-const LIENS = [["#avantages", "Avantages"], ["#demo", "Démo"], ["#etapes", "Démarrer"], ["#tarifs", "Tarifs"], ["#faq", "FAQ"]]
+const LIENS = [["#fonctionnalites", "Fonctionnalités"], ["#demo", "Démonstration"], ["#etapes", "Démarrer"], ["#smarteval", "SmartEval enseignants"],
+  ["#tarifs", "Tarifs"], ["#faq", "FAQ"]]
+
+const SMARTEVAL = [
+  ["smarteval", "Évaluations digitalisées", "QCM, cases à cocher, réponses courtes ou rédigées : corrigées automatiquement dès l'envoi."],
+  ["liste", "Aucune liste d'élèves à créer", "Indiquez simplement la classe : chaque élève saisit son nom en répondant."],
+  ["lien", "Partage par lien", "Un lien à envoyer sur WhatsApp ou par SMS, ouvert sur n'importe quel téléphone."],
+  ["courbe", "Analyse pédagogique", "Réussite par question et par notion, profil de chaque élève, notions à reprendre."],
+  ["ia", "Connexion IA via MCP", "Votre assistant (Claude, ChatGPT…) lit les résultats et propose la remédiation, avec votre propre compte."],
+]
+
+/** Apparition discrète des blocs au défilement (désactivée si l'utilisateur limite les animations). */
+function useApparition(racine) {
+  useEffect(() => {
+    const el = racine.current
+    if (!el || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return
+    el.classList.add("ac-anim")
+    const obs = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("vu"); obs.unobserve(e.target) } }),
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 })
+    el.querySelectorAll(".ac-apparait").forEach((x) => obs.observe(x))
+    return () => obs.disconnect()
+  }, [racine])
+}
+
+/** Maquette réaliste de SmartEval (HTML/CSS, aucune image) : résultats d'une évaluation partagée par lien. */
+function MaquetteSmartEval() {
+  const notions = [["Simplifier une fraction", 86], ["Comparer des fractions", 64], ["Additionner des fractions", 38]]
+  return (
+    <div className="ac-maquette" aria-hidden="true">
+      <div className="ac-maquette-barre"><span /><span /><span /><em>nexiaschool.com/e/7Kq2…</em></div>
+      <div className="ac-maquette-corps">
+        <div className="ac-maquette-tete">
+          <div><b>Les fractions</b><i>6e · Mathématiques</i></div>
+          <span className="ac-maquette-statut">Ouverte</span>
+        </div>
+        <div className="ac-maquette-chiffres">
+          <div><b>32</b><i>réponses</i></div><div><b>12,4</b><i>moyenne /20</i></div><div><b>69 %</b><i>réussite</i></div>
+        </div>
+        <p className="ac-maquette-titre">Réussite par notion</p>
+        <ul className="ac-maquette-notions">
+          {notions.map(([n, v]) => <li key={n}><span>{n}</span><span className="ac-maquette-jauge"><span style={{ width: `${v}%` }} className={v < 50 ? "faible" : ""} /></span><b>{v} %</b></li>)}
+        </ul>
+        <div className="ac-maquette-ia"><span className="ac-maquette-puce" />Analyse IA : 9 élèves à revoir sur l'addition — 3 trinômes proposés</div>
+      </div>
+    </div>
+  )
+}
 
 export default function Landing() {
   const [menu, setMenu] = useState(false)
-  const [actif, setActif] = useState("#avantages")
+  const [actif, setActif] = useState("#fonctionnalites")
+  const racine = useRef(null)
+  useApparition(racine)
   const [offres, setOffres] = useState(null)       // configuration commerciale publique (établissements et SmartEval)
   useEffect(() => { rpc("offres_publiques").then(setOffres).catch(() => {}) }, [])
-  useEffect(() => { document.title = t("NexIA School — Libérez votre établissement des tâches chronophages") }, [])
+  useEffect(() => { document.title = t("NexIA School — Moins de gestion. Plus de réussite scolaire.") }, [])
   useEffect(() => {                       // menu : la section visible est mise en avant (comme l'onglet blanc du modèle)
     const obs = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActif("#" + e.target.id)), { rootMargin: "-45% 0px -50% 0px" })
     LIENS.forEach(([h]) => { const s = document.querySelector(h); if (s) obs.observe(s) })
@@ -115,7 +167,7 @@ export default function Landing() {
   }, [])
 
   return (
-    <div className="ac">
+    <div className="ac" ref={racine}>
       {/* 1. Accroche */}
       <div className="ac-page-haut">
         <section className="ac-carte ac-hero" aria-labelledby="ac-titre">
@@ -136,17 +188,13 @@ export default function Landing() {
           </header>
 
           <div className="ac-hero-centre">
-            <h1 id="ac-titre">{t("Libérez votre établissement des tâches chronophages.")}</h1>
-            <p className="ac-hero-texte">{t("Automatisez les tâches scolaires, simplifiez le travail de vos équipes et pilotez votre établissement depuis une seule plateforme intelligente.")}</p>
+            <h1 id="ac-titre"><span>{t("Moins de gestion.")}</span> <span>{t("Plus de réussite scolaire.")}</span></h1>
+            <p className="ac-hero-texte">{t("Centralisez la gestion de votre établissement, digitalisez les évaluations et exploitez l'intelligence artificielle pour mieux comprendre les performances de vos élèves. Tout cela depuis une seule plateforme.")}</p>
             <div className="ac-hero-actions">
               <Commencer />
-              <div className="ac-preuve">
-                <div className="ac-ronds" aria-hidden="true">
-                  {["bulletin", "agenda", "smarteval", "horsligne"].map((n) => <span key={n}><Icone nom={n} /></span>)}
-                </div>
-                <p><b>{t("Gratuit jusqu'à 50 élèves")}</b><span>{t("Prêt en 2 minutes · sans installation")}</span></p>
-              </div>
+              <Link className="ac-pilule ac-pilule-claire" to="/etablissement"><span>{t("Se connecter")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
             </div>
+            <p className="ac-preuve"><b>{t("Gratuit jusqu'à 50 élèves")}</b><span>{t("Prêt en 2 minutes · sans installation")}</span></p>
           </div>
 
           <div className="ac-hero-bas">
@@ -160,13 +208,13 @@ export default function Landing() {
 
       <main>
         {/* 2. Avantages */}
-        <section id="avantages" className="ac-section">
+        <section id="fonctionnalites" className="ac-section">
           <div className="ac-conteneur">
-            <p className="ac-etiquette">{t("Avantages")}</p>
+            <p className="ac-etiquette">{t("Fonctionnalités")}</p>
             <h2>{t("Moins d'administratif, plus de pédagogie")}</h2>
             <div className="ac-grille-3">
               {AVANTAGES.map(([ic, titre, texte]) => (
-                <article key={titre} className="ac-bloc">
+                <article key={titre} className="ac-bloc ac-apparait">
                   <span className="ac-bloc-icone"><Icone nom={ic} /></span>
                   <h3>{t(titre)}</h3><p>{t(texte)}</p>
                 </article>))}
@@ -177,9 +225,9 @@ export default function Landing() {
         {/* 3. Démo */}
         <section id="demo" className="ac-section ac-section-serree">
           <div className="ac-conteneur">
-            <p className="ac-etiquette">{t("Démo")}</p>
+            <p className="ac-etiquette">{t("Démonstration")}</p>
             <h2>{t("Voyez NexIA School en deux minutes")}</h2>
-            <div className="ac-carte ac-carte-video"><Demo /></div>
+            <div className="ac-carte ac-carte-video ac-apparait"><Demo /></div>
           </div>
         </section>
 
@@ -190,7 +238,7 @@ export default function Landing() {
             <h2>{t("Opérationnel le jour même, en trois étapes")}</h2>
             <ol className="ac-grille-3 ac-etapes">
               {ETAPES.map(([ic, titre, texte], i) => (
-                <li key={titre} className="ac-bloc">
+                <li key={titre} className="ac-bloc ac-apparait">
                   <div className="ac-etape-tete"><span className="ac-etape-num">{i + 1}</span><span className="ac-bloc-icone"><Icone nom={ic} /></span></div>
                   <h3>{t(titre)}</h3><p>{t(texte)}</p>
                 </li>))}
@@ -198,39 +246,62 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* 5. Tarifs */}
+        {/* 5. SmartEval pour les enseignants, sans établissement */}
+        <section id="smarteval" className="ac-section">
+          <div className="ac-conteneur">
+            <p className="ac-etiquette">{t("SmartEval enseignants")}</p>
+            <h2>{t("Enseignant ? Utilisez SmartEval sans établissement")}</h2>
+            <p className="ac-intro">{t("Pas besoin que votre école soit abonnée : créez votre compte avec votre adresse e-mail, préparez vos évaluations et partagez-les à vos élèves en quelques minutes.")}</p>
+            <div className="ac-se">
+              <ul className="ac-se-liste">
+                {SMARTEVAL.map(([ic, titre, texte]) => (
+                  <li key={titre} className="ac-apparait"><span className="ac-se-icone"><Icone nom={ic} /></span>
+                    <span><b>{t(titre)}</b><span>{t(texte)}</span></span></li>))}
+              </ul>
+              <div className="ac-se-visuel ac-apparait"><MaquetteSmartEval /></div>
+            </div>
+            <div className="ac-se-actions">
+              <Link className="ac-pilule" to="/smarteval/inscription"><span>{t("Créer mon compte SmartEval")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
+              <Link className="ac-lien-souligne" to="/tarifs/smarteval">{t("Voir les offres SmartEval")}</Link>
+            </div>
+            <p className="ac-note">{offres ? t("Gratuit pour commencer : {v0} évaluation et {v1} réponses pendant {v2} jours. Puis {v3} par an.",
+              { v0: offres.smarteval.decouverte.evaluations, v1: offres.smarteval.decouverte.soumissions, v2: offres.smarteval.decouverte.duree_jours, v3: fcfa(offres.smarteval.prix_annuel) }) : ""}</p>
+          </div>
+        </section>
+
+        {/* 6. Tarifs */}
         <section id="tarifs" className="ac-section">
           <div className="ac-conteneur">
             <p className="ac-etiquette">{t("Tarifs")}</p>
             <h2>{t("Une offre complète, au tarif de votre effectif")}</h2>
             <div className="ac-offres">
-              <article className="ac-offre">
+              <article className="ac-offre ac-apparait">
                 <div className="ac-offre-tete"><h3>{t("Découverte")}</h3></div>
                 <p className="ac-prix">{t("Gratuit")}</p>
                 <p className="ac-prix-sous">{offres ? t("{v0} jours, jusqu'à {v1} élèves", { v0: offres.etablissement.decouverte.duree_jours, v1: offres.etablissement.decouverte.max_eleves }) : "…"}</p>
                 <ul>{["Saisie des notes, moyennes et rangs", "Bulletins PDF", "Appel du jour", "Import Excel des élèves, classes et matières", "Mode hors ligne"].map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
                 <Commencer libelle="Commencer gratuitement" petit clair />
               </article>
-              <article className="ac-offre ac-offre-phare">
+              <article className="ac-offre ac-offre-phare ac-apparait">
                 <div className="ac-offre-tete"><h3>{t("Premium")}</h3><span className="ac-badge">{t("Toutes les fonctionnalités")}</span></div>
                 <p className="ac-prix">{offres ? fcfa(offres.etablissement.prix_eleve) : "…"}</p>
                 <p className="ac-prix-sous">{offres ? t("par élève et par an · minimum {v0}", { v0: fcfa(offres.etablissement.minimum_annuel) }) : ""}</p>
                 <ul>{["Absolument toutes les fonctionnalités de l'application", "Discipline, finances, parents, SmartEval, emplois du temps", "Statistiques, IA intégrée, API et MCP", "Capacité ajustable : vous ne payez que la différence", "Valable 12 mois à compter de la souscription"].map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
                 <Link className="ac-pilule ac-pilule-petite" to="/tarifs"><span>{t("Calculer mon tarif")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
               </article>
-              <article className="ac-offre">
+              <article className="ac-offre ac-apparait">
                 <div className="ac-offre-tete"><h3>{t("SmartEval enseignants")}</h3></div>
                 <p className="ac-prix">{offres ? fcfa(offres.smarteval.prix_annuel) : "…"}</p>
                 <p className="ac-prix-sous">{offres ? t("par an · {v0} évaluations publiées", { v0: offres.smarteval.credits }) : ""}</p>
                 <ul>{["Pour les enseignants sans établissement abonné", "Évaluations digitalisées et correction automatique", "Analyse par votre propre IA", "Offre de groupe pour un département"].map((x) => <li key={x}><Icone nom="check" />{t(x)}</li>)}</ul>
-                <Link className="ac-pilule ac-pilule-petite ac-pilule-claire" to="/tarifs/smarteval"><span>{t("Découvrir SmartEval")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
+                <Link className="ac-pilule ac-pilule-petite ac-pilule-claire" to="/smarteval/inscription"><span>{t("Créer mon compte SmartEval")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link>
               </article>
             </div>
             <p className="ac-note">{t("Prix en francs CFA, paiement par mobile money ou carte. Sans renouvellement, l'abonnement s'arrête à l'échéance ; les données sont conservées et restent consultables.")}</p>
           </div>
         </section>
 
-        {/* 6. Confiance : témoignages, questions fréquentes, dernier appel */}
+        {/* 7. Confiance : témoignages, questions fréquentes, dernier appel */}
         <section id="faq" className="ac-section">
           <div className="ac-conteneur">
             <div className="ac-temoignages">
@@ -257,9 +328,10 @@ export default function Landing() {
         <div className="ac-page-bas">
           <section className="ac-carte ac-appel" aria-labelledby="ac-appel-titre">
             <div className="ac-voile" aria-hidden="true" />
-            <h2 id="ac-appel-titre">{t("Prêt à libérer votre établissement ?")}</h2>
+            <h2 id="ac-appel-titre">{t("Moins de gestion, plus de réussite : commencez aujourd'hui.")}</h2>
             <p>{t("Créez gratuitement l'espace de votre établissement : il est prêt en deux minutes, et vos listes Excel suffisent pour démarrer.")}</p>
-            <Commencer />
+            <div className="ac-hero-actions"><Commencer />
+              <Link className="ac-pilule ac-pilule-claire" to="/smarteval/inscription"><span>{t("Je suis enseignant")}</span><span className="ac-pilule-rond"><Icone nom="fleche" /></span></Link></div>
           </section>
         </div>
       </main>
