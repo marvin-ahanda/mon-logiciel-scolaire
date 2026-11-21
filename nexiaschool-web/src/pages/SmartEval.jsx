@@ -256,10 +256,10 @@ export function EditeurEvaluation() {
       if (ev.jeton) { naviguer(`/smarteval/${ev.id}`, { replace: true }); return }
       setSupportsEnregistres(ev.supports || [])
       setF({ titre: ev.titre, consignes: ev.consignes, competence: ev.competence, matiere_id: ev.matiere_id, classes: ev.classes.slice(0, 1).map((c) => c.id),
-             supports: ev.supports || [], questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
+             supports: ev.supports || [], anonyme_ia: !!ev.anonyme_ia, questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
     } else {
       const c = classesDe(ctx)[0], m = matieresDe(ctx, c?.id)[0]
-      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], supports: [], questions: [nouvelleQuestion()] })
+      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], supports: [], anonyme_ia: false, questions: [nouvelleQuestion()] })
     }
   }, [donnees, f, naviguer])
   useEffect(() => { enteteEtablissement(etablissement, exercice, logoUrl).then(setEntete) }, [etablissement, exercice, logoUrl])
@@ -282,7 +282,9 @@ export function EditeurEvaluation() {
     try {
       const questions = f.questions.map((q) => ({ ...q, options: q.options.map((o) => o.trim()).filter(Boolean), acceptees: q.acceptees.filter(Boolean),
         points: q.type === "echelle" ? 0 : Number(q.points) || 0 }))
-      const nouvelId_ = (await rpc("smarteval_enregistrer", { p: { id: evId, ...f, questions } })).id
+      const { anonyme_ia, ...donneesEv } = f
+      const nouvelId_ = (await rpc("smarteval_enregistrer", { p: { id: evId, ...donneesEv, questions } })).id
+      await rpc("smarteval_anonymiser", { p_id: nouvelId_, p_actif: !!anonyme_ia })
       const gardes = new Set(f.supports.map((d) => d.chemin))                       // documents retirés : supprimés du stockage
       retirerSupports(supportsEnregistres.filter((d) => !gardes.has(d.chemin)).map((d) => d.chemin)).catch(() => {})
       setSupportsEnregistres(f.supports)
@@ -300,7 +302,7 @@ export function EditeurEvaluation() {
   }
 
   const apercuEvaluation = {
-    titre: f.titre, consignes: f.consignes, supports: f.supports, competence: f.competence, matiere: matiere?.libelle, sequence: ctx.sequence?.numero, entete: entete || {},
+    titre: f.titre, consignes: f.consignes, supports: f.supports, competence: f.competence, matiere: matiere?.libelle, demande_matricule: !!f.anonyme_ia, sequence: ctx.sequence?.numero, entete: entete || {},
     classes: mesClasses.filter((c) => f.classes.includes(c.id)),
     questions: f.questions.map((q) => ({ ...q, options: q.options.filter((o) => o.trim()), points: q.type === "echelle" ? 0 : q.points })),
   }
@@ -392,6 +394,10 @@ export function EditeurEvaluation() {
             <textarea id="se-competence" className="form-control" rows={2} maxLength={600} placeholder={t("ex. Résoudre des problèmes de proportionnalité dans des situations de vie courante")}
                       value={f.competence} onChange={(e) => setF({ ...f, competence: e.target.value })} />
             <div className="form-text">{t("L'objectif visé par cette évaluation : il guide l'analyse de l'IA.")}</div></div>
+          <div className="col-12"><div className="form-check form-switch">
+            <input className="form-check-input" type="checkbox" role="switch" id="se-anonyme-editeur" checked={!!f.anonyme_ia} onChange={(e) => setF({ ...f, anonyme_ia: e.target.checked })} />
+            <label className="form-check-label small" htmlFor="se-anonyme-editeur">{t("Anonymisation pour l'IA (désactivée par défaut) : une fois activée, l'assistant ne lit plus les noms des élèves, seulement leurs matricules ; le matricule devient obligatoire dans le formulaire.")}</label>
+          </div></div>
         </div>
       </div>
 
@@ -401,6 +407,7 @@ export function EditeurEvaluation() {
           <div className="col-sm-4"><input className="form-control form-control-sm" disabled placeholder={`${t("Nom")} *`} /></div>
           <div className="col-sm-4"><input className="form-control form-control-sm" disabled placeholder={`${t("Prénom")} *`} /></div>
           <div className="col-sm-4"><select className="form-select form-select-sm" disabled><option>{`${t("Classe")} *`}</option></select></div>
+          <div className="col-sm-4"><input className="form-control form-control-sm" disabled placeholder={`${t("Matricule")}${f.anonyme_ia ? " *" : ""}`} /></div>
         </div>
         <div className="form-text">{t("Champs automatiques, remplis par chaque élève.")}</div>
       </div>

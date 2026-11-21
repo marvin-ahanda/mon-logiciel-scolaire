@@ -173,6 +173,8 @@ create policy "son compte" on public.comptes_enseignants for select to authentic
 
 -- Anonymisation : aussi pour les évaluations des établissements
 alter table public.evaluations add column if not exists anonyme_ia boolean not null default false;
+-- matricule saisi par l'élève dans le formulaire (sert à le reconnaître et, si l'anonymisation est activée, à le désigner auprès de l'IA)
+alter table public.soumissions add column if not exists matricule_saisi text;
 
 -- ---------------------------------------------------------------------------------------------------------
 -- 2. Outils : compte connecté, offre en vigueur, crédits
@@ -774,6 +776,7 @@ language plpgsql volatile security definer set search_path = '' as $$
 declare
   e public.evaluations; r jsonb; v_nom text := left(btrim(coalesce(p ->> 'nom', '')), 100); v_prenom text := left(btrim(coalesce(p ->> 'prenom', '')), 100);
   v_classe uuid; v_classe_lib text; v_ident text; v_num int; v_ins uuid; v_n int; x int; so record;
+  v_mat text := upper(left(btrim(coalesce(p ->> 'matricule', '')), 40));
 begin
   if coalesce(p_jeton, '') !~ '^[A-Za-z0-9_-]{20,40}$' then raise exception 'Lien invalide.' using errcode = 'P0001'; end if;
   if p is null or jsonb_typeof(p) <> 'object' or pg_column_size(p) > 1000000 then raise exception 'Formulaire invalide.' using errcode = 'P0001'; end if;
@@ -789,6 +792,7 @@ begin
   if v_nom = '' or v_prenom = '' then raise exception 'Indiquez votre nom et votre prénom.' using errcode = 'P0001'; end if;
   begin v_classe := (p ->> 'classe_id')::uuid; exception when others then v_classe := null; end;
   if v_classe is null or not v_classe = any (e.classes) then raise exception 'Choisissez votre classe.' using errcode = 'P0001'; end if;
+  if e.anonyme_ia and v_mat = '' then raise exception 'Indiquez votre matricule.' using errcode = 'P0001'; end if;
   select libelle into v_classe_lib from public.classes where id = v_classe;
   v_ident := public._normaliser(v_nom) || '|' || public._normaliser(v_prenom) || '|' || v_classe;
   if exists (select 1 from public.soumissions where evaluation_id = e.id and identite = v_ident) then
@@ -803,11 +807,17 @@ begin
      and (public._normaliser(el.nom || el.prenom) = public._normaliser(v_nom || v_prenom)
        or public._normaliser(el.nom || el.prenom) = public._normaliser(v_prenom || v_nom));
   if x <> 1 then v_ins := null; end if;
+  -- nom non reconnu : le matricule saisi, s'il correspond à un élève de la classe, permet de le retrouver
+  if v_ins is null and v_mat <> '' then
+    select min(i.id::text)::uuid, count(*) into v_ins, x from public.inscriptions i join public.eleves el on el.id = i.eleve_id
+     where i.classe_id = v_classe and i.exercice_id = e.exercice_id and upper(btrim(el.matricule)) = v_mat;
+    if x <> 1 then v_ins := null; end if;
+  end if;
   select coalesce(max(numero), 0) + 1 into v_num from public.soumissions where evaluation_id = e.id;
   insert into public.soumissions (evaluation_id, etablissement_id, numero, nom, prenom, classe_id, classe, inscription_id, identite,
-                                  reponses, details, points, total, note20, a_corriger)
+                                  reponses, details, points, total, note20, a_corriger, matricule_saisi)
   values (e.id, e.etablissement_id, v_num, upper(v_nom), v_prenom, v_classe, v_classe_lib, v_ins, v_ident, r -> 'reponses', r -> 'details',
-          (r ->> 'points')::numeric, (r ->> 'total')::numeric, (r ->> 'note20')::numeric, (r ->> 'a_corriger')::int)
+          (r ->> 'points')::numeric, (r ->> 'total')::numeric, (r ->> 'note20')::numeric, (r ->> 'a_corriger')::int, nullif(v_mat, ''))
   returning numero, soumis_le, nom, prenom, classe into so;
   return jsonb_build_object('numero', so.numero, 'recu', upper(substr(md5(e.id::text || so.numero), 1, 4)) || '-' || lpad(so.numero::text, 4, '0'),
                             'soumis_le', so.soumis_le, 'nom', so.nom, 'prenom', so.prenom, 'classe', so.classe, 'evaluation', e.titre);
@@ -845,8 +855,13 @@ begin
     if n > 1 then raise exception 'Plusieurs évaluations correspondent à « % » : précisez le titre ou utilisez l''identifiant (smarteval_lister).', p_evaluation using errcode = 'P0001'; end if;
   end if;
   r := public.smarteval_detail(v_id);
+  -- anonymisation seulement si l'enseignant l'a activée : matricule de la fiche, sinon celui saisi par l'élève, sinon n° de copie
   if (select anonyme_ia from public.evaluations where id = v_id) then
-    r := r || jsonb_build_object('soumissions', public._smarteval_anonymes(r -> 'soumissions'), 'anonymisee', true);
+    r := r || jsonb_build_object('anonymisee', true, 'soumissions', public._smarteval_anonymes((
+      select coalesce(jsonb_agg(s || jsonb_build_object('matricule', coalesce(nullif(s ->> 'matricule', ''),
+               (select so.matricule_saisi from public.soumissions so where so.evaluation_id = v_id and so.numero = (s ->> 'numero')::int)))
+             order by (s ->> 'numero')::int), '[]'::jsonb)
+        from jsonb_array_elements(r -> 'soumissions') s)));
   end if;
   perform public._api_journal(c.etab, c.personnel, c.source, 'smarteval_resultats',
     jsonb_build_object('evaluation', r ->> 'titre', 'soumissions', jsonb_array_length(r -> 'soumissions')));
@@ -1226,7 +1241,8 @@ language sql stable security definer set search_path = '' as $$
     'entete', e.entete, 'duree_valeur', e.duree_valeur, 'duree_unite', e.duree_unite,
     'jeton', case when p_corriges then e.jeton end, 'publiee_le', e.publiee_le, 'ferme_le', e.ferme_le,
     'statut', public._smarteval_statut(e), 'cree_le', e.cree_le,
-    'auteur', (select btrim(p.nom || ' ' || p.prenom) from public.personnels p where p.id = e.auteur_id))
+    'auteur', (select btrim(p.nom || ' ' || p.prenom) from public.personnels p where p.id = e.auteur_id),
+    'demande_matricule', e.anonyme_ia)
     || case when p_corriges then jsonb_build_object('anonyme_ia', e.anonyme_ia) else '{}'::jsonb end
   from public.matieres m, public.sequences s, public.exercices x
   where m.id = e.matiere_id and s.id = e.sequence_id and x.id = e.exercice_id

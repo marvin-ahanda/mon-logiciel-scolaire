@@ -157,6 +157,36 @@ reset role; set role anon;
 do $$ begin perform public.api_smarteval_resultats(current_setting('app.cle_adm'), current_setting('app.ev')); raise exception 'IA d''un autre compte lit l''évaluation';
 exception when sqlstate 'P0001' then raise notice 'ok : l''IA d''un autre compte ne lit pas cette évaluation'; end $$;
 
+-- anonymisation : uniquement si l'enseignant l'active ; matricule alors obligatoire et seul visible par l'IA
+reset role; set role anon;
+select pg_temp.verifier(not (public.smarteval_formulaire(:'jeton') ->> 'demande_matricule')::boolean
+  and (public.api_smarteval_resultats(:'cle_se', 'fractions') #>> '{soumissions,0,nom}') = 'ABENA',
+  'anonymisation désactivée par défaut : matricule facultatif, l''IA voit les noms');
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select public.smarteval_anonymiser(:'ev'::uuid, true) \g /dev/null
+reset role; set role anon;
+select pg_temp.verifier((public.smarteval_formulaire(:'jeton') ->> 'demande_matricule')::boolean, 'anonymisation activée : le formulaire exige le matricule');
+do $$ begin perform public.smarteval_soumettre(current_setting('app.jeton'), jsonb_build_object('nom', 'Sans', 'prenom', 'Matricule',
+    'classe_id', current_setting('app.classe_a'), 'reponses', '{"q1":0,"q2":[0]}'::jsonb));
+  raise exception 'ÉCHEC : envoi sans matricule accepté';
+exception when sqlstate 'P0001' then if sqlerrm like 'ÉCHEC%' then raise; end if; raise notice 'ok : anonymisation activée : envoi sans matricule refusé'; end $$;
+select public.smarteval_soumettre(:'jeton', jsonb_build_object('nom', 'Nouvel', 'prenom', 'Élève', 'classe_id', :'classe_a', 'matricule', 'm-900',
+  'reponses', '{"q1":0,"q2":[0]}'::jsonb)) \g /dev/null
+select public.api_smarteval_resultats(:'cle_se', 'fractions') as anon_r \gset
+select set_config('app.anon_r', :'anon_r', false) \g /dev/null
+select pg_temp.verifier((current_setting('app.anon_r')::jsonb ->> 'anonymisee')::boolean
+  and (current_setting('app.anon_r')::jsonb #>> '{soumissions,0,nom}') = 'M1'
+  and (current_setting('app.anon_r')::jsonb #>> '{soumissions,2,nom}') = 'M-900'
+  and current_setting('app.anon_r') not like '%ABENA%' and current_setting('app.anon_r') not like '%NOUVEL%',
+  'anonymisation activée : l''IA ne lit que les matricules (fiche, sinon saisi par l''élève), jamais les noms');
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', :'prof_a', false) \g /dev/null
+select public.smarteval_anonymiser(:'ev'::uuid, false) \g /dev/null
+reset role; set role anon;
+select pg_temp.verifier((public.api_smarteval_resultats(:'cle_se', 'fractions') #>> '{soumissions,0,nom}') = 'ABENA',
+  'anonymisation désactivée de nouveau : l''IA retrouve les noms');
+
 -- lien expiré : plus de réponse
 reset role;
 update public.evaluations set ferme_le = now() - interval '1 minute' where id = :'ev';

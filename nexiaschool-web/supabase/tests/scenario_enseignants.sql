@@ -343,3 +343,8 @@ reset role;
 select pg_temp.verifier(public._smarteval_anonymes('[{"numero": 3, "nom": "ABENA", "prenom": "Grace", "matricule": null}, {"numero": 4, "nom": "X", "prenom": "Y", "matricule": "M1"}]')
   = '[{"numero": 3, "nom": "Élève n° 3", "prenom": "", "matricule": null}, {"numero": 4, "nom": "M1", "prenom": "", "matricule": "M1"}]'::jsonb,
   'anonymisation : matricule, ou numéro de copie à défaut');
+
+-- Offre gratuite SmartEval : 30 jours (établissements : 120 jours)
+reset role;
+select pg_temp.verifier((public.offres_publiques() #>> '{smarteval,decouverte,duree_jours}')::int = 30
+  and (public.offres_publiques() #>> '{etablissement,decouverte,duree_jours}')::int = 120, 'SmartEval : offre gratuite de 30 jours');

@@ -214,10 +214,10 @@ export function EditeurIndependant() {
           <div className="col-12">
             <div className="form-check form-switch"><input className="form-check-input" type="checkbox" role="switch" id="si-anonyme" checked={f.anonyme_ia}
               onChange={(e) => setF({ ...f, anonyme_ia: e.target.checked, demande_matricule: e.target.checked || f.demande_matricule })} />
-              <label className="form-check-label small" htmlFor="si-anonyme">{t("Anonymiser pour l'IA : l'assistant ne verra que les matricules des élèves, jamais leurs noms.")}</label></div>
+              <label className="form-check-label small" htmlFor="si-anonyme">{t("Anonymisation pour l'IA (désactivée par défaut) : une fois activée, l'assistant ne lit plus les noms des élèves, seulement leurs matricules ; le matricule devient obligatoire dans le formulaire.")}</label></div>
             <div className="form-check form-switch"><input className="form-check-input" type="checkbox" role="switch" id="si-matricule" checked={f.demande_matricule || f.anonyme_ia}
               disabled={f.anonyme_ia} onChange={(e) => setF({ ...f, demande_matricule: e.target.checked })} />
-              <label className="form-check-label small" htmlFor="si-matricule">{t("Demander le matricule de l'élève")}</label></div>
+              <label className="form-check-label small" htmlFor="si-matricule">{t("Rendre le matricule obligatoire")}</label></div>
           </div>
         </div>
       </div>

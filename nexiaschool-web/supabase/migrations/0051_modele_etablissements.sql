@@ -34,7 +34,7 @@ create table if not exists public.config_commerciale (
   se_renouvellement_jours integer not null default 30 check (se_renouvellement_jours between 0 and 365),
   se_decouverte_evaluations integer not null default 1 check (se_decouverte_evaluations between 0 and 100),
   se_decouverte_soumissions integer not null default 2 check (se_decouverte_soumissions between 0 and 1000),
-  se_decouverte_duree_jours integer not null default 120 check (se_decouverte_duree_jours between 1 and 3650),
+  se_decouverte_duree_jours integer not null default 30 check (se_decouverte_duree_jours between 1 and 3650),
   se_soumissions_max integer not null default 150 check (se_soumissions_max between 1 and 3000),
   se_pack_actif boolean not null default true,
   se_pack_credits integer not null default 5 check (se_pack_credits between 1 and 1000),

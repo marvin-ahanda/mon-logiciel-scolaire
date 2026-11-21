@@ -111,14 +111,15 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
     [identite, reponses, brouillon, etape])
   const apercu = mode === "apercu"
   const classe = evaluation.classes.find((c) => c.id === identite.classe_id)
-  const matricule = !!evaluation.demande_matricule
+  // matricule : toujours proposé ; obligatoire quand l'enseignant a activé l'anonymisation pour l'IA
+  const matriculeObligatoire = !!evaluation.demande_matricule
 
   function terminer() {
     const e = {}
     if (!identite.nom.trim()) e.nom = t("Indiquez votre nom.")
     if (!identite.prenom.trim()) e.prenom = t("Indiquez votre prénom.")
     if (!identite.classe_id) e.classe = t("Choisissez votre classe.")
-    if (matricule && !(identite.matricule || "").trim()) e.matricule = t("Indiquez votre matricule.")
+    if (matriculeObligatoire && !(identite.matricule || "").trim()) e.matricule = t("Indiquez votre matricule.")
     for (const q of evaluation.questions) if (q.obligatoire && vide(reponses[q.id])) e[q.id] = t("Cette question est obligatoire.")
     setErreurs(e)
     if (Object.keys(e).length) {
@@ -134,7 +135,7 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
     setErreurEnvoi(""); setEnvoi(true)
     try {
       const r = await onEnvoyer({ nom: identite.nom.trim(), prenom: identite.prenom.trim(), classe_id: identite.classe_id,
-                                 ...(matricule ? { matricule: (identite.matricule || "").trim() } : {}) }, reponses)
+                                 ...((identite.matricule || "").trim() ? { matricule: identite.matricule.trim() } : {}) }, reponses)
       setRecu(r); setEtape("envoye")
       if (brouillon) try { localStorage.removeItem(brouillon) } catch { /* rien */ }
       haut.current?.scrollIntoView({ behavior: "smooth" })
@@ -169,7 +170,7 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
             <dt className="col-sm-3">{t("Nom")}</dt><dd className="col-sm-9">{identite.nom}</dd>
             <dt className="col-sm-3">{t("Prénom")}</dt><dd className="col-sm-9">{identite.prenom}</dd>
             <dt className="col-sm-3">{t("Classe")}</dt><dd className="col-sm-9">{classe?.libelle}</dd>
-            {matricule && <><dt className="col-sm-3">{t("Matricule")}</dt><dd className="col-sm-9">{identite.matricule}</dd></>}
+            {(identite.matricule || "").trim() && <><dt className="col-sm-3">{t("Matricule")}</dt><dd className="col-sm-9">{identite.matricule}</dd></>}
           </dl>
           <ol className="se-recap-liste">{evaluation.questions.map((q) => (
             <li key={q.id}><div className="fw-semibold">{q.intitule}</div>
@@ -197,11 +198,11 @@ export default function FormulaireEvaluation({ evaluation, mode = "eleve", onEnv
               <select id="se-classe" className="form-select" value={identite.classe_id} onChange={(e) => setIdentite({ ...identite, classe_id: e.target.value })}>
                 <option value="">{t("Choisir")}</option>{evaluation.classes.map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}</select>
               {erreurs.classe && <div className="text-danger small">{erreurs.classe}</div>}</div>
-            {matricule && <div className="col-sm-6"><label className="form-label small" htmlFor="se-matricule">{t("Matricule")} <span className="text-danger">*</span></label>
+            <div className="col-sm-6"><label className="form-label small" htmlFor="se-matricule">{t("Matricule")} {matriculeObligatoire ? <span className="text-danger">*</span> : <span className="text-muted">{t("(facultatif)")}</span>}</label>
               <input id="se-matricule" className="form-control se-ligne" maxLength={40} autoComplete="off" value={identite.matricule || ""}
                      onChange={(e) => setIdentite({ ...identite, matricule: e.target.value })} />
               <div className="form-text">{t("Votre numéro d'élève, donné par votre enseignant.")}</div>
-              {erreurs.matricule && <div className="text-danger small">{erreurs.matricule}</div>}</div>}
+              {erreurs.matricule && <div className="text-danger small">{erreurs.matricule}</div>}</div>
           </div>
         </div>
         {evaluation.questions.map((q, k) => (

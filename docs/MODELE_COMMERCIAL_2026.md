@@ -34,7 +34,7 @@
 
 | Offre | Contenu | Prix |
 |---|---|---|
-| Découverte | 1 évaluation publiée, 2 réponses, 120 jours, une seule fois par adresse e-mail | Gratuit |
+| Découverte | 1 évaluation publiée, 2 réponses, 30 jours, une seule fois par adresse e-mail | Gratuit |
 | SmartEval Enseignant | 10 évaluations publiées (crédits), 150 réponses par évaluation | 5 000 FCFA/an, 12 mois |
 | Pack de crédits | 5 évaluations supplémentaires (abonnés en cours) | 2 000 FCFA |
 | SmartEval Groupe | Département d'une même matière : jusqu'à 20 enseignants, 10 évaluations chacun ; la matière est demandée avant le paiement | 15 000 FCFA/an, 12 mois |
@@ -55,7 +55,10 @@
   - l'administrateur génère le code du groupe, crée le compte de chaque collègue et lui remet un code personnel ;
   - les codes sont conservés hachés et bloqués 15 minutes après 5 essais erronés ;
   - une évaluation dans une autre matière est refusée par le serveur.
-- **Anonymisation** (enseignants indépendants et établissements) : l'IA ne voit que les matricules ou les numéros de copie. Le formulaire de l'élève demande alors son matricule.
+- **Anonymisation** (enseignants indépendants et établissements) : un bouton à activer ou désactiver, dans l'éditeur et sur la page des résultats. Elle est **désactivée par défaut**.
+  - Le formulaire de l'élève propose toujours le champ « Matricule ». Il devient obligatoire quand l'anonymisation est activée.
+  - Une fois activée, l'IA ne lit plus les noms : seulement le matricule de la fiche, sinon celui saisi par l'élève, sinon le numéro de copie.
+  - Côté établissement, le matricule saisi permet aussi de reconnaître un élève dont le nom n'a pas été retrouvé.
 - **IA & API** : clé personnelle `nxe_` ou OAuth (`nxe_`/`nxf_`), limitée à 300 appels par heure.
   - Accès en lecture seule aux seules évaluations de l'enseignant (outils MCP : `contexte`, `smarteval_lister`, `smarteval_resultats`).
   - Journal des appels et révocation.
@@ -91,7 +94,7 @@
 
 ## 5. Tests
 
-- **Banc SQL (PGlite)** : 763 vérifications réussies. Nouveau scénario `scenario_enseignants.sql`, et `scenario_offres.sql` réécrit.
+- **Banc SQL (PGlite)** : 769 vérifications réussies. Nouveau scénario `scenario_enseignants.sql`, et `scenario_offres.sql` réécrit.
 - **Vitest** : 171 tests réussis, dont les nouveaux `mcpEnseignants.test.js` et `capacite.test.js`. Le seul échec est le test ZIP, qui échoue toujours sous Windows (outil `unzip`).
 - **Build de production** : réussi.
 - **Non vérifié** : l'interface n'a pas été parcourue dans un navigateur, faute de base à jour (les migrations ne sont pas déployées).
@@ -114,7 +117,7 @@ Points moyens restants, non corrigés :
 
 Tous sont modifiables dans la console, sans déploiement.
 
-- Durée des offres gratuites : **120 jours** (établissements et SmartEval).
+- Durée des offres gratuites : **120 jours** pour les établissements, **30 jours** pour SmartEval (décidé).
 - Délai de grâce : **7 jours**.
 - Ouverture du renouvellement : **60 jours** (établissements) et **30 jours** (SmartEval) avant l'échéance.
 - Groupe : **20 membres** au plus, administrateur compris ; **10 évaluations** par membre.
