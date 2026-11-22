@@ -8,7 +8,7 @@ export const EDITEUR = {
   contact: import.meta.env.VITE_CONTACT_EMAIL || "contact@nexiaschool.com",
   // réseaux du développeur (page d'accueil : « Me contacter » et pied de page)
   whatsapp: "https://wa.me/237653724075",
-  linkedin: "https://www.linkedin.com/in/marvin-brice-ahanda?utm_source=share_via&utm_content=profile&utm_medium=member_android",
+  linkedin: "https://www.linkedin.com/company/nexiaschool/",
   pays: "Cameroun",
   miseAJour: "2026-11-06",
 }
