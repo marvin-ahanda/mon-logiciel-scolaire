@@ -1,6 +1,7 @@
 // Espace parents : choix du profil (personnel / parent), connexion par l'élève (nom et prénom + matricule),
 // portail de l'élève : bilan disciplinaire daté, bulletins publiés, courrier à l'école et réponses.
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useImpressionA4 } from "../lib/impressionA4.js"
 import { Link, useNavigate } from "react-router-dom"
 import { Alerte, Chargement } from "../composants/Communs.jsx"
 import Lettre from "../composants/Lettre.jsx"
@@ -206,6 +207,7 @@ function BilanDisciplinaire({ d }) {
 
 // --- Bulletins publiés -----------------------------------------------------------------------------------------
 function BulletinsParent({ d, quitter }) {
+  useImpressionA4()
   const [choisi, setChoisi] = useState(d.bulletins.at(-1)?.periode || null)
   const [b, setB] = useState(null), [erreur, setErreur] = useState(""), [logo, setLogo] = useState(null), [fond, setFond] = useState(null), [pdf, setPdf] = useState(false)
   useEffect(() => {

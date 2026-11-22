@@ -328,6 +328,20 @@ exception when sqlstate 'P0001' then raise notice 'ok : site web invalide refus�
 update public.etablissements set logo = public.etab_courant()::text || '/logo-1.png' where id = public.etab_courant();
 do $$ begin update public.etablissements set logo = 'autre/logo-1.png' where id = public.etab_courant(); raise exception 'logo hors dossier accepté';
 exception when check_violation then raise notice 'ok : le logo doit rester dans le dossier de l''établissement'; end $$;
+-- En-tête officiel du bulletin (bilingue, libre) et professeur principal de la classe
+update public.etablissements set entete_pays = 'RÉPUBLIQUE DU CAMEROUN', entete_devise_pays = 'Paix - Travail - Patrie',
+  entete_ministere = 'MINISTÈRE DES ENSEIGNEMENTS SECONDAIRES', entete_delegation = 'DÉLÉGATION RÉGIONALE DU CENTRE',
+  entete_pays_en = 'REPUBLIC OF CAMEROON', entete_devise_pays_en = 'Peace - Work - Fatherland', entete_ministere_en = 'MINISTRY OF SECONDARY EDUCATION',
+  entete_delegation_en = 'REGIONAL DELEGATION FOR THE CENTRE', specialisation = 'Enseignement général & technique · Bilingue'
+ where id = public.etab_courant();
+select pg_temp.verifier((select entete_pays_en || ' / ' || specialisation from public.etablissements where id = public.etab_courant())
+  = 'REPUBLIC OF CAMEROON / Enseignement général & technique · Bilingue', 'en-tête du bulletin : champs bilingues et spécialisation enregistrés');
+update public.classes set professeur_principal_id = :'prof_a' where id = :'classe_a';
+select pg_temp.verifier((select professeur_principal_id from public.classes where id = :'classe_a') = :'prof_a'::uuid, 'professeur principal choisi parmi le personnel');
+select set_config('app.classe_a', :'classe_a', false), set_config('app.admin_b', :'admin_b', false) \g /dev/null
+do $$ begin update public.classes set professeur_principal_id = current_setting('app.admin_b')::uuid where id = current_setting('app.classe_a')::uuid;
+  raise exception 'ÉCHEC : professeur principal d''un autre établissement accepté';
+exception when foreign_key_violation then raise notice 'ok : le professeur principal appartient au même établissement'; end $$;
 insert into storage.objects (bucket_id, name) values ('logos', public.etab_courant()::text || '/logo-1.png');
 do $$ begin insert into storage.objects (bucket_id, name) values ('logos', gen_random_uuid()::text || '/logo-1.png'); raise exception 'logo écrit chez un autre';
 exception when insufficient_privilege then raise notice 'ok : pas d''envoi de logo dans le dossier d''un autre établissement'; end $$;

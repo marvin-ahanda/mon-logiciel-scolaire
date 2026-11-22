@@ -1,6 +1,7 @@
 // Publication des bulletins pour les parents : copie figée de chaque bulletin (contenu, décision, QR code, photo réduite)
 // et partie commune à la classe (en-tête de l'établissement, logo réduit, statistiques). Le parent ne reçoit que celle de son enfant.
 import { image } from "./bulletinPdf.js"
+import { CHAMPS_ENTETE } from "./enteteBulletin.js"
 
 /** Image { donnees, largeur, hauteur } réduite à `max` px (PNG ou JPEG) : data URL, ou null. */
 export async function reduire(img, max, format = "image/png", qualite = 0.82) {
@@ -27,11 +28,12 @@ const eleveVisible = (e) => ({ nom: e.nom, prenom: e.prenom, matricule: e.matric
 export async function preparerPublication(x) {
   const e = x.etablissement || {}
   const commun = {
-    etablissement: { nom: e.nom, devise: e.devise, adresse: e.adresse, ville: e.ville, telephone: e.telephone, site_web: e.site_web, nom_chef: e.nom_chef },
+    etablissement: { nom: e.nom, devise: e.devise, adresse: e.adresse, ville: e.ville, telephone: e.telephone, site_web: e.site_web, nom_chef: e.nom_chef,
+                     ...Object.fromEntries(CHAMPS_ENTETE.map((k) => [k, e[k] || ""])) },
     logo: await reduire(x.logoImage, 320),
     exercice: { libelle: x.exercice.libelle },
     periode: { code: x.periode.code, type: x.periode.type, libelle: x.periode.libelle },
-    classe: { libelle: x.classe.libelle },
+    classe: { libelle: x.classe.libelle, professeur_principal: x.classe.professeur_principal || "" },
     stats: x.stats, entetes: x.entetes,
   }
   const bulletins = []

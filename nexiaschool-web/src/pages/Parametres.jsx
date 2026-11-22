@@ -5,6 +5,7 @@ import PeriodesPersonnalisees from "./PeriodesPersonnalisees.jsx"
 import { Alerte, Chargement, FicheCode, useDonnees } from "../composants/Communs.jsx"
 import { date as formatDate, exerciceParDefaut, nomComplet, comparerNoms } from "../lib/format.js"
 import { ChoixLogo } from "../composants/Logo.jsx"
+import { ChampsEntete, valeursEntete } from "../composants/EnteteOfficiel.jsx"
 import { envoyerLogo, retirerLogo, siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, toutCharger, verifier } from "../supabase.js"
@@ -91,7 +92,8 @@ function OffreActuelle() {
 function Etablissement() {
   const { etablissement, logoUrl, recharger } = useSession()
   const [f, setF] = useState(() => ({ ville: etablissement.ville, adresse: etablissement.adresse, telephone: etablissement.telephone,
-                                      devise: etablissement.devise, nom_chef: etablissement.nom_chef, site_web: siteAffiche(etablissement.site_web) }))
+                                      devise: etablissement.devise, nom_chef: etablissement.nom_chef, site_web: siteAffiche(etablissement.site_web),
+                                      ...valeursEntete(etablissement) }))
   const [msg, setMsg] = useState({}), [code, setCode] = useState(null), [envoiLogo, setEnvoiLogo] = useState(false), [cleLogo, setCleLogo] = useState(0)
   const champ = (k, lib, max) => (
     <div className="col-md-6 mb-3"><label className="form-label" htmlFor={k}>{lib}</label>
@@ -140,7 +142,8 @@ function Etablissement() {
             <input className="form-control" id="site_web" maxLength={200} inputMode="url" placeholder={t("ex. www.monecole.cm")} value={f.site_web}
                    onChange={(e) => setF({ ...f, site_web: e.target.value })} />
             <div className="form-text">{t("Affiché dans l'en-tête des bulletins.")}</div></div></div>
-        <div><button className="btn btn-primary">{t("Enregistrer")}</button></div>
+        <ChampsEntete valeurs={f} onChange={(v) => setF((x) => ({ ...x, ...v }))} idPrefixe="param" />
+        <div className="mt-3"><button className="btn btn-primary">{t("Enregistrer")}</button></div>
       </form>
       <div className="card card-body mb-3" style={{ maxWidth: 820 }}>
         <h2 className="h6">{t("Logo de l'établissement")}</h2>
@@ -271,16 +274,22 @@ function ListeEditable({ table, colonnes, vide, ordre }) {
 
 export const CYCLES = [[1, "Premier cycle"], [2, "Second cycle"]]
 function Classes() {
-  const [sections, erreur] = useDonnees(async () => verifier(await supabase.from("sections").select("id, libelle").order("ordre").order("libelle")), [])
-  if (!sections) return <><Alerte>{erreur}</Alerte><Chargement /></>
+  const [ref, erreur] = useDonnees(async () => ({
+    sections: verifier(await supabase.from("sections").select("id, libelle").order("ordre").order("libelle")),
+    // professeur principal : un membre actif du personnel de l'établissement (affiché sur les bulletins)
+    personnels: verifier(await supabase.from("personnels").select("id, nom, prenom").eq("actif", true)).sort((a, b) => comparerNoms(nomComplet(a), nomComplet(b))),
+  }), [])
+  if (!ref) return <><Alerte>{erreur}</Alerte><Chargement /></>
+  const { sections, personnels } = ref
   return (
     <>
       {!sections.length && <p className="small text-muted">{t(
         "Astuce : créez d'abord les sections (anglophone, francophone, technique…) dans l'onglet « Sections », puis rattachez-y chaque classe."
       )}</p>}
-      <ListeEditable table="classes" ordre={["ordre", "libelle"]} vide={{ libelle: "", niveau: "", section_id: "", cycle: "", ordre: 0, coef_min: 0 }}
+      <ListeEditable table="classes" ordre={["ordre", "libelle"]} vide={{ libelle: "", niveau: "", section_id: "", cycle: "", professeur_principal_id: "", ordre: 0, coef_min: 0 }}
         colonnes={[{ cle: "libelle", libelle: "Classe", requis: true, max: 50 }, { cle: "niveau", libelle: "Niveau", max: 50 },
                    { cle: "section_id", libelle: "Section", options: sections.map((x) => [x.id, x.libelle]), vide: "Aucune" },
+                   { cle: "professeur_principal_id", libelle: "Professeur principal", options: personnels.map((x) => [x.id, nomComplet(x)]), vide: "Non désigné" },
                    { cle: "cycle", libelle: "Cycle", options: CYCLES.map(([v, l]) => [v, t(l)]), nombre: true, vide: t("Non précisé") },
                    { cle: "ordre", libelle: "Ordre d'affichage", nombre: true },
                    { cle: "coef_min", libelle: t("Coef. minimum pour être classé"), nombre: true, aide: t("0 = toujours classé") }]} />

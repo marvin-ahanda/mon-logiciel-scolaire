@@ -1,4 +1,5 @@
 // Colonnes lisibles par le personnel (les empreintes des codes et les compteurs d'essais sont interdits de lecture :
 // une requête « select * » sur ces tables est refusée par la base).
 export const COLONNES_PERSONNEL = "id, etablissement_id, nom, prenom, role, matricule, telephone, poste, actif, compte_google, code_genere_le, derniere_connexion, cree_le, ia_active"
-export const COLONNES_ETABLISSEMENT = "id, nom, ville, adresse, telephone, devise, nom_chef, code_genere_le, cree_le, api_active, site_web, logo, notes_surveillants, notes_comptables, offre, offre_periodicite, offre_expire_le"
+export const COLONNES_ETABLISSEMENT = "id, nom, ville, adresse, telephone, devise, nom_chef, code_genere_le, cree_le, api_active, site_web, logo, notes_surveillants, notes_comptables, offre, offre_periodicite, offre_expire_le, " +
+  "entete_pays, entete_devise_pays, entete_ministere, entete_delegation, entete_pays_en, entete_devise_pays_en, entete_ministere_en, entete_delegation_en, specialisation"

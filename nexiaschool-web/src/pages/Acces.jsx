@@ -5,6 +5,7 @@ import { enregistrerAppareil, lireAppareil, oublierAppareil } from "../lib/appar
 import { comparerNoms } from "../lib/format.js"
 import { envoyerLogo } from "../lib/logo.js"
 import { ChoixLogo } from "../composants/Logo.jsx"
+import { CHAMPS_ENTETE, ChampsEntete, valeursEntete } from "../composants/EnteteOfficiel.jsx"
 import { consommerRetour } from "../lib/retour.js"
 import { connexionGoogle, rpc, supabase } from "../supabase.js"
 import { useSession } from "../Session.jsx"
@@ -101,7 +102,7 @@ export function Inscription() {
   const { pret, session, profil, sansEtablissement, recharger, erreur: erreurSession } = useSession()
   const meta = session?.user?.user_metadata || {}
   const [f, setF] = useState({ nom: "", ville: "", adresse: "", telephone: "", devise: "", nom_chef: "", site_web: "",
-                               admin_nom: meta.family_name || "", admin_prenom: meta.given_name || "" })
+                               admin_nom: meta.family_name || "", admin_prenom: meta.given_name || "", ...valeursEntete() })
   const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false), [resultat, setResultat] = useState(null)
   const [logo, setLogo] = useState(null)
   const champ = (k) => ({ value: f[k], onChange: (e) => setF({ ...f, [k]: e.target.value }) })
@@ -117,6 +118,11 @@ export function Inscription() {
     try {
       const r = await rpc("creer_etablissement_google", { p_nom: f.nom, p_ville: f.ville, p_adresse: f.adresse, p_telephone: f.telephone,
         p_devise: f.devise, p_nom_chef: f.nom_chef, p_admin_nom: f.admin_nom, p_admin_prenom: f.admin_prenom, p_site_web: f.site_web })
+      const entete = Object.fromEntries(CHAMPS_ENTETE.map((k) => [k, f[k].trim()]).filter(([, v]) => v))
+      if (Object.keys(entete).length) {
+        const { error } = await supabase.from("etablissements").update(entete).eq("id", r.id)
+        if (error) r.avertissement = t("L'en-tête du bulletin n'a pas pu être enregistré : complétez-le dans Paramètres → Établissement.")
+      }
       if (logo) {
         try { await envoyerLogo(r.id, logo) } catch (err) { r.avertissement = t(
           "{v0} Vous pourrez l'ajouter plus tard dans Paramètres → Établissement.",
@@ -200,6 +206,7 @@ export function Inscription() {
                   "Facultatif. Il apparaît en couleur dans l'application et au centre de l'en-tête des bulletins."
                 )}</div></div>
             </div>
+            <div className="mt-3"><ChampsEntete valeurs={f} onChange={(v) => setF((x) => ({ ...x, ...v }))} idPrefixe="creation" /></div>
             <h2 className="h6 mt-3">{t("Vous (administrateur fondateur)")}</h2>
             <div className="row g-2">
               <div className="col-md-6"><label className="form-label" htmlFor="an">{t("Nom")}</label><input className="form-control" id="an" required maxLength={150} {...champ("admin_nom")} /></div>

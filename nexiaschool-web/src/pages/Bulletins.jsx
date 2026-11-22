@@ -17,6 +17,8 @@ import { Cadenas, demanderOffre } from "../composants/Offre.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t } from "../i18n.jsx"
 import { differee, imageOptimisee } from "../lib/images.js"
+import { lignesEntete, nomProfesseurPrincipal } from "../lib/enteteBulletin.js"
+import { useImpressionA4 } from "../lib/impressionA4.js"
 
 const TITRES = { sequence: "BULLETIN DE NOTES SÉQUENTIEL", trimestre: "BULLETIN DE NOTES TRIMESTRIEL", annee: "BULLETIN DE NOTES ANNUEL" }
 const COLONNE_NOTE = { sequence: "Note /20", trimestre: "Note trim.", annee: "Note ann." }
@@ -31,8 +33,29 @@ export function QrCode({ texte, className, titre }) {
     <title>{titre}</title><rect width="100%" height="100%" fill="#fff" /><path d={d} fill="#000" /></svg>
 }
 
+/** En-tête officiel : à gauche la langue principale, à droite la traduction, au centre le logo puis l'établissement. */
+export function EnteteBulletin({ etablissement, logo }) {
+  const { gauche, droite, centre } = lignesEntete(etablissement)
+  const colonne = (lignes, cote) => <div className={`entete-officiel ${cote}`}>{lignes.map((l, k) => <div key={k} className={l.devise ? "devise-pays" : ""}>{l.texte}</div>)}</div>
+  const coordonnees = [etablissement.adresse, etablissement.ville, etablissement.telephone && `${t("Tél.")} ${etablissement.telephone}`, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")
+  return (
+    <header className="entete-bulletin">
+      {colonne(gauche, "gauche")}
+      <div className="entete-centre">{logo && <img src={logo} alt={`Logo ${etablissement.nom}`} className="logo-bulletin" />}</div>
+      {colonne(droite, "droite")}
+      <div className="entete-etablissement">
+        <div className="nom-etablissement">{centre.nom}</div>
+        {centre.devise && <div className="devise-etablissement">{centre.devise}</div>}
+        {centre.specialisation && <div className="specialisation-etablissement">{centre.specialisation}</div>}
+        {coordonnees && <div className="coordonnees-etablissement">{coordonnees}</div>}
+      </div>
+    </header>
+  )
+}
+
 export function Bulletin({ r, donnees, periode, stats, entetes, etablissement, logo, filigrane, exercice, photo, conduite, decision, code, onPdf, enCours }) {
   const e = r.eleve, nd = entetes.length
+  const pp = donnees.classe.professeur_principal || ""
   const moy = r.moyenne !== null ? `${note(r.moyenne)} / 20` : r.moyenneNonClassee !== null ? `${note(r.moyenneNonClassee)} / 20 (NC)` : "NC"
   return (
     <section className="bulletin card mb-4">
@@ -40,19 +63,15 @@ export function Bulletin({ r, donnees, periode, stats, entetes, etablissement, l
         {filigrane && <img src={filigrane} alt="" aria-hidden="true" className="filigrane-bulletin" />}
         <button type="button" className="btn btn-sm btn-outline-secondary bouton-pdf-eleve no-print" onClick={onPdf} disabled={!!enCours}
                 title={t("Télécharger le bulletin de {v0} en PDF", { v0: nomComplet(e) })}>{enCours === r.inscriptionId ? "PDF…" : "PDF"}</button>
-        <header className="entete-bulletin">
-          <div><div className="fw-bold">{etablissement.nom}</div>
-            {etablissement.devise && <div className="small fst-italic">{etablissement.devise}</div>}
-            <div className="small">{[etablissement.adresse, etablissement.ville, etablissement.telephone && `${t("Tél.")} ${etablissement.telephone}`, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")}</div></div>
-          <div className="text-center">{logo && <img src={logo} alt={`Logo ${etablissement.nom}`} className="logo-bulletin" />}</div>
-          <div className="text-end small">{t("Année scolaire ")}<strong>{exercice.libelle}</strong><br />{periode.libelle}</div>
-        </header>
+        <EnteteBulletin etablissement={etablissement} logo={logo} />
         <h2 className="titre-bulletin">{t(TITRES[periode.type])}</h2>
+        <div className="annee-bulletin">{t("Année scolaire ")}<strong>{exercice.libelle}</strong> · {periode.libelle}</div>
         <table className="table table-sm table-bordered mb-2 tableau-bulletin identite-bulletin"><tbody>
-          <tr><td rowSpan={2} className="cellule-photo">{photo ? <img src={imageOptimisee(photo, 72)} alt="" className="photo-bulletin" {...differee} /> : <div className="photo-bulletin vide" />}</td>
+          <tr><td rowSpan={pp ? 3 : 2} className="cellule-photo">{photo ? <img src={imageOptimisee(photo, 72)} alt="" className="photo-bulletin" {...differee} /> : <div className="photo-bulletin vide" />}</td>
             <td>{t("Nom et prénom : ")}<strong>{nomComplet(e)}</strong></td><td>{t("Matricule : ")}<strong>{e.matricule}</strong></td><td>{t("Sexe : ")}{e.sexe || "—"}</td></tr>
           <tr><td>{t("Né(e) le : ")}{date(e.date_naissance) || "—"}{e.lieu_naissance && t(" à {v0}", { v0: e.lieu_naissance })}</td>
             <td>{t("Classe : ")}<strong>{donnees.classe.libelle}</strong></td><td>{t("Effectif : ")}{stats.effectif}</td></tr>
+          {pp && <tr><td colSpan={3}>{t("Professeur principal : ")}<strong>{pp}</strong></td></tr>}
         </tbody></table>
         <div className="site-plateforme">{t("Bulletin généré par NexIA School · {v0}", { v0: sitePlateforme() })}</div>
         <table className="table table-sm table-bordered mb-2 tableau-bulletin">
@@ -88,7 +107,7 @@ export function Bulletin({ r, donnees, periode, stats, entetes, etablissement, l
             <td><strong>{note(conduite.note)} / 20</strong> · {t(conduite.appreciation)}</td></tr>
         </tbody></table>}
         <table className="table table-bordered mb-1 tableau-bulletin visas-bulletin"><tbody>
-          <tr><th>{t("Visa du parent")}</th><th>{t("Professeur principal")}</th>
+          <tr><th>{t("Visa du parent")}</th><th>{t("Professeur principal")}{pp && <div className="fw-normal">{pp}</div>}</th>
             <th>{t("Le chef d'établissement")}{etablissement.nom_chef && <div className="fw-normal">{etablissement.nom_chef}</div>}</th></tr>
           <tr><td /><td /><td /></tr>
         </tbody></table>
@@ -110,27 +129,26 @@ function Bulletins({ classe, periode }) {
   const [donnees, erreur] = useDonnees(async () => {
     const d = await chargerClasse(classe, exercice)
     const ids = d.eleves.map((x) => x.inscriptionId)
-    const [photos, discipline, criteres, passages, niveaux] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(ids, exercice),
+    const [photos, discipline, criteres, passages, niveaux, professeur] = await Promise.all([adressesPhotos(d.eleves.map((x) => x.eleve.photo)), chargerDiscipline(ids, exercice),
       supabase.from("criteres_decision").select("*").order("ordre").then(verifier).catch(() => []),
       // décisions de passage validées (Paramètres → Parcours et orientation) : leur mention remplace la décision proposée sur le bulletin annuel
       ids.length ? supabase.from("decisions_passage").select("inscription_id, decision, mention").in("inscription_id", ids).eq("statut", "validee").then(verifier).catch(() => []) : [],
-      classe.niveau_id ? supabase.from("niveaux").select("id, cycle_id").then(verifier).catch(() => []) : []])
+      classe.niveau_id ? supabase.from("niveaux").select("id, cycle_id").then(verifier).catch(() => []) : [],
+      classe.professeur_principal_id ? supabase.from("personnels").select("nom, prenom").eq("id", classe.professeur_principal_id).maybeSingle().then(verifier).catch(() => null) : null])
     // contexte de la classe pour les critères propres à un cycle, un niveau ou une section
     const contexte = { niveau_id: classe.niveau_id || null, section_id: classe.section_id || null, cycle_id: niveaux.find((n) => n.id === classe.niveau_id)?.cycle_id || null }
-    return { ...d, photos, discipline, criteres, passages, contexte }
+    return { ...d, classe: { ...d.classe, professeur_principal: nomProfesseurPrincipal(professeur) }, photos, discipline, criteres, passages, contexte }
   }, [classe.id])
   const [pdf, setPdf] = useState(null), [erreurPdf, setErreurPdf] = useState("")      // pdf : "classe" ou inscriptionId en cours
   const titre = t("Bulletins {v0} {v1} {v2}", { v0: classe.libelle, v1: periode.libelle, v2: exercice.libelle })
 
-  // Impression : marges de page nulles (le navigateur n'ajoute alors ni adresse, ni date, ni numéro de page) ;
-  // les marges sont reportées dans chaque bulletin. Le titre du document sert de nom au PDF « Enregistrer au format PDF ».
+  // Impression : une page A4 par bulletin (marges nulles, réduction automatique si besoin) ;
+  // le titre du document sert de nom au PDF « Enregistrer au format PDF ».
+  useImpressionA4()
   useEffect(() => {
-    const style = document.createElement("style")
-    style.textContent = "@media print { @page { size: A4; margin: 0; } }"
-    document.head.appendChild(style)
     const avant = document.title
     document.title = titre
-    return () => { style.remove(); document.title = avant }
+    return () => { document.title = avant }
   }, [titre])
 
   const calcul = useMemo(() => (donnees ? resultatsPeriode(donnees, periode) : null), [donnees, periode.code])  // eslint-disable-line react-hooks/exhaustive-deps
