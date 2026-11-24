@@ -49,6 +49,15 @@ const P_CLASSE = { type: "string", description: "Libellé de la classe, ex. « 6
 const P_PERIODE = { type: "string", description: "Période : s1 à s6 (séquence), t1 à t3 (trimestre) ou annee (bilan annuel)", default: "t1" }
 const P_CONFIRMER = { type: "boolean", description: "false (par défaut) : renvoie un aperçu sans rien enregistrer. true : enregistre. Demandez toujours l'accord de l'utilisateur avant de passer true.", default: false }
 
+const P_PERIODE_FINANCE = {
+  debut: { type: "string", description: "Début de période AAAA-MM-JJ (début du mois en cours par défaut)" },
+  fin: { type: "string", description: "Fin de période AAAA-MM-JJ (aujourd'hui par défaut)" },
+  annee_scolaire: { type: "string", description: "Année scolaire, ex. « 2026-2027 » (remplace debut/fin)" },
+}
+const TYPES_RAPPORT_FINANCE = ["journal_encaissements", "encaissements_mode", "encaissements_classe", "impayes", "remises", "annulations", "factures",
+  "depenses_categorie", "depenses_fournisseur", "journal_tresorerie", "clotures", "rapprochement", "synthese_mensuelle", "masse_salariale"]
+export const OUTILS_FINANCE = ["finance_tableau_bord", "finance_rapport", "finance_tresorerie", "finance_situation_eleve", "finance_depenses"]
+
 const OUTILS = [
   { name: "contexte_etablissement", title: "Contexte de l'établissement",
     description: "Établissement, exercice actif, séquences (verrouillées ou non), utilisateur connecté et ses droits. À appeler en premier.",
@@ -102,7 +111,7 @@ const OUTILS = [
     description: "Enregistre le paiement des frais d'un élève (administration ou comptabilité). L'élève est identifié par matricule ou par nom dans sa classe. Un reçu (numéro) est attribué. Faites d'abord un aperçu.",
     inputSchema: { type: "object", properties: { classe: P_CLASSE, matricule: { type: "string", description: "Matricule si connu" },
       nom: { type: "string", description: "Nom (et prénom) de l'élève si le matricule n'est pas connu" }, montant: { type: "integer", minimum: 1, description: "Montant en FCFA" },
-      mode: { type: "string", enum: ["especes", "mobile_money", "virement", "cheque", "autre"], default: "especes" },
+      mode: { type: "string", enum: ["especes", "mtn_momo", "orange_money", "mobile_money", "virement", "cheque", "carte", "autre"], default: "especes" },
       date: { type: "string", description: "AAAA-MM-JJ (aujourd'hui par défaut)" }, reference: { type: "string" }, observation: { type: "string" }, confirmer: P_CONFIRMER },
       required: ["classe", "montant"] }, annotations: { readOnlyHint: false, destructiveHint: false } },
   { name: "enregistrer_frais", title: "Définir les frais de scolarité",
@@ -154,6 +163,28 @@ const OUTILS = [
       "élèves en difficulté et sur quelles notions, binômes ou trinômes, exercices adaptés à chaque profil, activités d'intégration en classe.",
     inputSchema: { type: "object", properties: { evaluation: { type: "string", description: "Titre (ou partie du titre) ou identifiant de l'évaluation (voir smarteval_lister)" },
       copies: { type: "boolean", default: true, description: "Inclure la copie de chaque élève (réponses question par question)" } }, required: ["evaluation"] },
+    annotations: { readOnlyHint: true } },
+  // --- Assistant financier : lecture seule ; droits financiers (« assistant », « paie »…) vérifiés par la base à chaque appel ---
+  { name: "finance_tableau_bord", title: "Finances : tableau de bord",
+    description: "Encaissements (confirmés, nets des annulations ; paiements en attente exclus et comptés à part), dépenses PAYÉES, créances, taux de recouvrement, " +
+      "soldes de trésorerie, écarts de caisse et, si le droit « paie » est accordé, masse salariale. Période : debut/fin (AAAA-MM-JJ) ou annee_scolaire (« 2026-2027 »). " +
+      "La réponse indique la période retenue et les données manquantes (champ manquants).",
+    inputSchema: { type: "object", properties: P_PERIODE_FINANCE }, annotations: { readOnlyHint: true } },
+  { name: "finance_rapport", title: "Finances : rapport",
+    description: "Rapport calculé par NexIA School (colonnes, lignes, totaux) sur une période. Types : journal_encaissements, encaissements_mode, encaissements_classe, " +
+      "impayes, remises, annulations, factures, depenses_categorie, depenses_fournisseur, journal_tresorerie, clotures, rapprochement, synthese_mensuelle, " +
+      "masse_salariale (droit « paie » uniquement).",
+    inputSchema: { type: "object", properties: { type: { type: "string", enum: TYPES_RAPPORT_FINANCE }, ...P_PERIODE_FINANCE }, required: ["type"] },
+    annotations: { readOnlyHint: true } },
+  { name: "finance_tresorerie", title: "Finances : trésorerie",
+    description: "Comptes (caisse, banque, MTN MoMo, Orange Money…), solde actuel recalculé à partir des mouvements, dernière clôture.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "finance_situation_eleve", title: "Finances : compte d'un élève",
+    description: "Dossier financier d'un élève de l'année en cours (par matricule) : pension et échéancier, autres frais, factures, remises, encaissements, paiements en attente.",
+    inputSchema: { type: "object", properties: { matricule: { type: "string" } }, required: ["matricule"] }, annotations: { readOnlyHint: true } },
+  { name: "finance_depenses", title: "Finances : dépenses",
+    description: "Dépenses de la période avec leur statut (brouillon, en_attente, approuvee, rejetee, payee, annulee). Seules les dépenses « payee » sont sorties de la trésorerie.",
+    inputSchema: { type: "object", properties: { statut: { type: "string", enum: ["brouillon", "en_attente", "approuvee", "rejetee", "payee", "annulee"] }, ...P_PERIODE_FINANCE } },
     annotations: { readOnlyHint: true } },
 ]
 
@@ -228,6 +259,12 @@ function bilans(d, periode) {
 
 export async function executer(outil, a, cle) {
   const donnees = (classe) => rpc("api_donnees_classe", { p_cle: cle, p_classe: classe })
+  if (OUTILS_FINANCE.includes(outil)) {
+    // une seule fonction serveur, en lecture seule : droits, période, données manquantes et journal y sont traités
+    const r = await rpc("api_finance", { p_cle: cle, p_outil: outil, p_args: a || {} })
+    if (r?.erreur) throw new ErreurApi(r.erreur, r.statut === "refuse" ? "42501" : "P0001")
+    return r
+  }
   switch (outil) {
     case "contexte_etablissement": return rpc("api_contexte", { p_cle: cle })
     case "lister_classes": return rpc("api_classes", { p_cle: cle })
@@ -405,7 +442,11 @@ const INSTRUCTIONS = "Serveur de NexIA School, logiciel de gestion scolaire (not
   "SmartEval : smarteval_lister puis smarteval_resultats donnent les évaluations digitalisées de l'utilisateur et les réponses de ses élèves ; " +
   "suivez la démarche d'analyse fournie pour l'aider à remédier avant l'évaluation sur papier. " +
   "L'utilisateur peut vous envoyer une photo, une vidéo (relevé filmé) ou un document (image, PDF) : lisez-le vous-même, puis saisissez les données avec l'outil adapté. " +
-  "saisir_notes et enregistrer_appel acceptent le nom de l'élève quand le matricule n'est pas lisible ; vérifiez toujours la correspondance (exact, approche, ambigu) dans l'aperçu avec l'utilisateur avant de confirmer."
+  "saisir_notes et enregistrer_appel acceptent le nom de l'élève quand le matricule n'est pas lisible ; vérifiez toujours la correspondance (exact, approche, ambigu) dans l'aperçu avec l'utilisateur avant de confirmer. " +
+  "Finances : les outils finance_* sont en lecture seule et ne renvoient que ce que les droits financiers de l'utilisateur autorisent (la paie exige le droit « paie »). " +
+  "Appuyez chaque chiffre sur leurs résultats (jamais d'estimation présentée comme un fait), précisez la période et les filtres, distinguez paiements confirmés et en attente, " +
+  "dépenses engagées et payées, et signalez les données manquantes (champ manquants). Séparez clairement les faits calculés, les prévisions et vos interprétations. " +
+  "Vous ne pouvez ni encaisser, ni annuler, ni valider, ni transférer, ni modifier une paie par ces outils : ces opérations se font dans l'application."
 
 const INVITES = [{ name: "analyse_smarteval", title: "Analyser une évaluation SmartEval",
   description: "Bilan, profils d'élèves, binômes et trinômes, exercices adaptés et séances d'intégration à partir des soumissions d'une évaluation digitalisée.",

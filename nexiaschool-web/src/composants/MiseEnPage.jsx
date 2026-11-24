@@ -74,6 +74,7 @@ function Compte({ nom, role, onDeconnecter, estAdmin }) {
         <div className="px-3 py-2"><div className="fw-semibold">{nom}</div><span className="badge text-bg-primary">{role}</span></div>
         <div className="dropdown-divider" />
         {estAdmin && <Link className="dropdown-item" to="/abonnement" onClick={() => setOuvert(false)}>{t("Abonnement et paiement")}</Link>}
+        <Link className="dropdown-item" to="/mes-bulletins-paie" onClick={() => setOuvert(false)}>{t("Mes bulletins de paie")}</Link>
         <button type="button" className="dropdown-item" onClick={onDeconnecter}>{t("Se déconnecter")}</button>
       </div>
     </div>

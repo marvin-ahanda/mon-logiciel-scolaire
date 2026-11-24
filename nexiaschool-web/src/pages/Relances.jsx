@@ -1,4 +1,4 @@
-// Finances → Relances et insolvabilité (administration, comptabilité / caisse) : élèves concernés à une date, exclusions,
+// Finances → Relances et recouvrement (administration, comptabilité / caisse) : élèves concernés à une date, exclusions,
 // envois planifiés et leur statut, courrier final validé avant envoi, réglages des paliers, journal de chaque action.
 import { useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
@@ -31,7 +31,7 @@ export default function Relances() {
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-        <h1 className="h3 m-0">{t("Relances et insolvabilité")}</h1>
+        <h1 className="h3 m-0">{t("Relances et recouvrement")}</h1>
         <Link className="btn btn-sm btn-outline-secondary" to="/finance">{t("← Finances")}</Link>
       </div>
       <p className="text-muted small">{t("Les relances rappellent l'échéance et annoncent un contrôle : elles n'annoncent jamais de renvoi. Seul le parent de l'élève concerné reçoit le courrier, dans l'espace de son enfant.")}</p>

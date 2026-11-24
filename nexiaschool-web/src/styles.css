@@ -385,3 +385,44 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 .pv-tableau thead th { position: sticky; top: 0; z-index: 1; }
 .pv-coches .form-check { margin-bottom: .1rem; }
 @media (max-width: 575.98px) { .pv-barre-libelle { width: 6.5rem; } }
+
+/* --- Finances : onglets, indicateurs, graphiques, comptes de trésorerie ----------------------------------------------- */
+:root { --fin-entree: #198754; --fin-sortie: #c2410c; --fin-accent: var(--bs-primary); }
+.onglets-finance { display: flex; gap: .25rem; overflow-x: auto; padding-bottom: .35rem; border-bottom: 1px solid var(--bs-border-color); scrollbar-width: thin; }
+.onglet-finance { white-space: nowrap; padding: .4rem .75rem; border-radius: .45rem .45rem 0 0; color: var(--bs-secondary-color); text-decoration: none;
+  font-size: .9rem; border-bottom: 3px solid transparent; transition: color .15s ease, border-color .15s ease, background-color .15s ease; }
+.onglet-finance:hover { color: var(--bs-body-color); background: var(--bs-tertiary-bg); }
+.onglet-finance:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 1px; }
+.onglet-finance.actif { color: var(--bs-primary); border-bottom-color: var(--bs-primary); font-weight: 600; }
+.grille-indicateurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .75rem; }
+.grille-indicateurs.petits { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.indicateur-finance { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-left: 4px solid var(--bs-secondary-border-subtle);
+  border-radius: .6rem; padding: .7rem .9rem; }
+.indicateur-finance .libelle { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--bs-secondary-color); }
+.indicateur-finance .valeur { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.indicateur-finance.grand .valeur { font-size: 1.55rem; }
+.indicateur-finance .detail { font-size: .8rem; color: var(--bs-secondary-color); }
+.indicateur-finance.ton-succes { border-left-color: var(--fin-entree); }
+.indicateur-finance.ton-alerte { border-left-color: var(--fin-sortie); }
+.indicateur-finance.ton-danger { border-left-color: var(--bs-danger); }
+.indicateur-finance.ton-danger .valeur { color: var(--bs-danger); }
+.barres-finance li + li { margin-top: .5rem; }
+.barres-finance .piste { height: .5rem; background: var(--bs-tertiary-bg); border-radius: 1rem; overflow: hidden; margin-top: .15rem; }
+.barres-finance .barre { height: 100%; background: var(--fin-accent); transform-origin: left; transition: transform .4s ease; border-radius: 1rem; }
+.courbe-finance svg { width: 100%; height: 170px; display: block; }
+.courbe-finance .axe { stroke: var(--bs-border-color); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.courbe-finance .pastille { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; vertical-align: -1px; }
+.vigilance li { padding: .35rem 0; border-bottom: 1px dashed var(--bs-border-color); font-size: .9rem; }
+.vigilance li:last-child { border-bottom: 0; }
+.grille-comptes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .75rem; }
+.carte-compte { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-top: 4px solid var(--bs-secondary); border-radius: .6rem; padding: .75rem .9rem; }
+.carte-compte .solde { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.carte-compte.type-caisse { border-top-color: var(--fin-entree); }
+.carte-compte.type-banque { border-top-color: var(--bs-primary); }
+.carte-compte.type-mtn_momo { border-top-color: #e0b100; }
+.carte-compte.type-orange_money { border-top-color: #f16e00; }
+.carte-compte.inactif { opacity: .6; }
+.carte-compte.total { background: var(--bs-tertiary-bg); border-top-color: var(--bs-dark); display: flex; flex-direction: column; justify-content: center; }
+@media (prefers-color-scheme: dark) { :root:not([data-bs-theme="light"]) { --fin-entree: #4ade80; --fin-sortie: #fb923c; } }
+[data-bs-theme="dark"] { --fin-entree: #4ade80; --fin-sortie: #fb923c; }
+@media (prefers-reduced-motion: reduce) { .barres-finance .barre, .onglet-finance { transition: none; } }

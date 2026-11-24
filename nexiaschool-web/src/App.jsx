@@ -38,6 +38,7 @@ const PageBulletins = page(() => import("./pages/Bulletins.jsx"))
 const Eleves = page(() => import("./pages/Eleves.jsx"))
 const Excel = page(() => import("./pages/Excel.jsx"))
 const Finance = page(() => import("./pages/Finance.jsx"))
+const MesBulletinsPaie = page(() => import("./pages/finances/MesBulletinsPaie.jsx"))
 const Statistiques = page(() => import("./pages/Statistiques.jsx"))
 const Parametres = page(() => import("./pages/Parametres.jsx"))
 const Personnel = page(() => import("./pages/Personnel.jsx"))
@@ -156,6 +157,7 @@ export default function App() {
           </Route>
           <Route element={<Protege />}>
             <Route path="/developpeur" element={<Developpeur />} />
+            <Route path="/mes-bulletins-paie" element={<MesBulletinsPaie />} />
             <Route path="/smarteval" element={<SmartEval />} />
             <Route path="/smarteval/nouvelle" element={<EditeurEvaluation />} />
             <Route path="/smarteval/journal" element={<JournalSmartEval />} />

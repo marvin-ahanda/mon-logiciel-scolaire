@@ -4,18 +4,29 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { comparerNoms, nomComplet } from "../lib/format.js"
-import { fcfa, fichier, jour, listePdf, MODES, modePaiement, recuPdf } from "../lib/financePdf.js"
+import { fcfa, fichier, jour, listePdf, MODES, modePaiement } from "../lib/financePdf.js"
+import { recuFinancePdf } from "../lib/financeDocs.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase, verifier } from "../supabase.js"
 import { t, locale } from "../i18n.jsx"
 import Relances from "./Relances.jsx"
+import { nouvelleCle, OngletsFinance, premierOnglet, signalerMajFinance, useDroits, demanderMotif } from "./finances/commun.jsx"
+import VueEnsemble from "./finances/VueEnsemble.jsx"
+import Facturation from "./finances/Facturation.jsx"
+import Encaissements from "./finances/Encaissements.jsx"
+import Depenses from "./finances/Depenses.jsx"
+import Tresorerie from "./finances/Tresorerie.jsx"
+import Paie from "./finances/Paie.jsx"
+import Rapports from "./finances/Rapports.jsx"
+import Assistant from "./finances/Assistant.jsx"
+import ParametresFinance from "./finances/ParametresFinance.jsx"
 
 const CYCLES = { 1: "Premier cycle", 2: "Second cycle" }
 const LIGNES = ["Inscription", "Tranche 1", "Tranche 2", "Tranche 3", "Tranche 4"]
 const aujourdhui = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 /** « Inscription, Tranche 1 » traduit élément par élément */
 const trTranches = (s) => (s ? s.split(", ").map((x) => t(x)).join(", ") : s)
-export const signalerMajFinance = () => window.dispatchEvent(new Event("finance:maj"))
+export { signalerMajFinance }
 
 export function Etat({ e }) {
   if (e.statut === "solde") return <span className="badge text-bg-success">{t("Soldé")}</span>;
@@ -112,12 +123,14 @@ export function Frais() {
 function FicheEleve({ e, onFermer, onMaj }) {
   const { etablissement, logoUrl, estAdmin, profil } = useSession()
   const [p, setP] = useState({ montant: "", date: aujourdhui(), mode: "especes", reference: "", observation: "" })
-  const [msg, setMsg] = useState({}), [envoi, setEnvoi] = useState(false)
+  const [msg, setMsg] = useState({}), [envoi, setEnvoi] = useState(false), [cle, setCle] = useState(nouvelleCle)
+  const droits = useDroits()
   const enRetard = e.retard, prochaine = e.prochaine?.reste || 0
   async function recu(paiement, imprimer) {
     const fenetre = imprimer ? window.open("", "_blank") : null
     try {
-      await recuPdf({ etablissement, logoUrl, eleve: e, paiement, situation: e, caissier: paiement.saisi_par || nomComplet(profil) }, { imprimer, fenetre })
+      await recuFinancePdf({ etablissement, logoUrl, eleve: e, paiement: { ...paiement, rubrique: t("Pension / scolarité") }, reste: e.reste,
+        caissier: paiement.saisi_par || nomComplet(profil) }, { imprimer, fenetre })
     } catch (x) { fenetre?.close(); setMsg({ erreur: t("Reçu impossible : {v0}", {
       v0: x.message
     }) }) }
@@ -131,9 +144,9 @@ function FicheEleve({ e, onFermer, onMaj }) {
     }))) return
     setEnvoi(true)
     try {
-      verifier(await supabase.from("paiements").insert({ inscription_id: e.inscription_id, montant, date_paiement: p.date, mode: p.mode,
-        reference: p.reference.trim(), observation: p.observation.trim() }))
-      setP({ ...p, montant: "", reference: "", observation: "" })
+      await rpc("finance_encaisser", { p: { inscription_id: e.inscription_id, montant, date: p.date, mode: p.mode,
+        reference: p.reference.trim(), observation: p.observation.trim(), cle } })
+      setP({ ...p, montant: "", reference: "", observation: "" }); setCle(nouvelleCle())
       await onMaj(t("Paiement de {v0} enregistré.", {
         v0: fcfa(montant)
       }))
@@ -141,14 +154,11 @@ function FicheEleve({ e, onFermer, onMaj }) {
     } catch (x) { setMsg({ erreur: x.message }) } finally { setEnvoi(false) }
   }
   async function annuler(paiement) {
-    if (!confirm(t("Annuler le reçu n° {v0} ({v1}) ? Cette opération est définitive.", {
-      v0: paiement.numero,
-      v1: fcfa(paiement.montant)
-    }))) return
+    const motif = demanderMotif(t("Motif de l'annulation du reçu n° {v0} ({v1}) ? Une contre-écriture sera enregistrée ; le reçu reste visible.", {
+      v0: paiement.numero, v1: fcfa(paiement.montant) }))
+    if (!motif) return
     try {
-      const { data, error } = await supabase.from("paiements").delete().eq("id", paiement.id).select("id")
-      if (error) throw new Error(error.message)
-      if (!data?.length) throw new Error(t("Annulation refusée : seule l'administration peut annuler ce reçu."))
+      await rpc("finance_annuler_paiement", { p_id: paiement.id, p_motif: motif })
       await onMaj(t("Reçu n° {v0} annulé.", {
         v0: paiement.numero
       })); signalerMajFinance()
@@ -193,14 +203,14 @@ function FicheEleve({ e, onFermer, onMaj }) {
             <div className="table-responsive mb-3"><table className="table table-sm align-middle">
               <thead><tr><th>{t("Reçu")}</th><th>{t("Date")}</th><th className="text-end">{t("Montant")}</th><th>{t("Mode")}</th><th>{t("Référence")}</th><th>{t("Encaissé par")}</th><th /></tr></thead>
               <tbody>{e.paiements.map((x) => (
-                <tr key={x.id}><td>{t("n° ")}{String(x.numero).padStart(5, "0")}</td><td>{jour(x.date)}</td><td className="text-end">{fcfa(x.montant)}</td><td>{modePaiement(x.mode)}</td>
+                <tr key={x.id} className={x.annule ? "text-muted" : undefined}><td>{t("n° ")}{String(x.numero).padStart(5, "0")}{x.annule && <span className="badge text-bg-dark ms-1">{t("annulé")}</span>}</td><td>{jour(x.date)}</td><td className="text-end">{fcfa(x.montant)}</td><td>{modePaiement(x.mode)}</td>
                   <td className="small">{x.reference || "—"}</td><td className="small">{x.saisi_par || "—"}</td>
                   <td className="text-end text-nowrap"><button className="btn btn-sm btn-outline-secondary me-1" onClick={() => recu(x, false)}>{t("Reçu PDF")}</button>
                     <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => recu(x, true)}>{t("Imprimer")}</button>
                     {x.annulable && <button className="btn btn-sm btn-outline-danger" onClick={() => annuler(x)}>{t("Annuler")}</button>}</td></tr>))}
                 {!e.paiements.length && <tr><td colSpan={7} className="text-muted">{t("Aucun paiement enregistré.")}</td></tr>}</tbody>
             </table></div>
-            {e.reste > 0 && (
+            {e.reste > 0 && droits.a("caisse") && (
               <form className="card card-body bg-light" onSubmit={encaisser}>
                 <h3 className="h6">{t("Encaisser un paiement")}</h3>
                 <div className="d-flex flex-wrap gap-2 mb-2">
@@ -383,10 +393,9 @@ function Parcours() {
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-        <h1 className="h3 m-0">{t("Finances")}</h1>
+        <h1 className="h3 m-0">{t("Situation par classe")}</h1>
         <div className="d-flex flex-wrap gap-2">
           <Link className="btn btn-sm btn-danger" to="/finance/insolvables">{t("Élèves non en règle (")}{d.s.eleves.filter((e) => !e.en_regle).length})</Link>
-          <Link className="btn btn-sm btn-warning" to="/finance/relances">{t("Relances et insolvabilité")}</Link>
           <Link className="btn btn-sm btn-outline-secondary" to="/finance/frais">{t("Frais et délais")}</Link>
         </div>
       </div>
@@ -433,7 +442,7 @@ function Insolvables() {
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <h1 className="h3 m-0">{t("Élèves non en règle")}</h1>
-        <Link className="btn btn-sm btn-outline-secondary" to="/finance">{t("← Finances")}</Link>
+        <Link className="btn btn-sm btn-outline-secondary" to="/finance/classes">{t("Situation par classe")}</Link>
       </div>
       <p className="text-muted small">{t(
         "Élèves de tout l'établissement ayant au moins une échéance dont le délai de paiement est dépassé, au "
@@ -449,14 +458,34 @@ function Insolvables() {
   );
 }
 
+/** Accueil de la rubrique : vue d'ensemble si la personne y a droit, sinon son premier menu accessible. */
+function Accueil() {
+  const d = useDroits(), { estAdmin } = useSession()
+  if (["rapports", "validation", "tresorerie"].some(d.a)) return <VueEnsemble />
+  return <Navigate to={premierOnglet(d, estAdmin)} replace />
+}
+
 export default function Finance() {
+  const { estAdmin } = useSession()
   return (
-    <Routes>
-      <Route index element={<Parcours />} />
-      <Route path="frais" element={<Frais />} />
-      <Route path="insolvables" element={<Insolvables />} />
-      <Route path="relances" element={<Relances />} />
-      <Route path="*" element={<Navigate to="/finance" replace />} />
-    </Routes>
+    <>
+      <OngletsFinance />
+      <Routes>
+        <Route index element={<Accueil />} />
+        <Route path="classes" element={<Parcours />} />
+        <Route path="frais" element={<Frais />} />
+        <Route path="facturation" element={<Facturation />} />
+        <Route path="encaissements" element={<Encaissements />} />
+        <Route path="insolvables" element={<Insolvables />} />
+        <Route path="relances" element={<Relances />} />
+        <Route path="depenses" element={<Depenses />} />
+        <Route path="tresorerie" element={<Tresorerie />} />
+        <Route path="paie" element={<Paie />} />
+        <Route path="rapports" element={<Rapports />} />
+        <Route path="assistant" element={<Assistant />} />
+        {estAdmin && <Route path="parametres" element={<ParametresFinance />} />}
+        <Route path="*" element={<Navigate to="/finance" replace />} />
+      </Routes>
+    </>
   )
 }

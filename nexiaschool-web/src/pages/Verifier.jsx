@@ -10,14 +10,41 @@ import { ChoixLangue, t } from "../i18n.jsx"
 
 const Ligne = ({ libelle, children }) => (children || children === 0 ? <div className="row py-1 border-bottom"><div className="col-5 text-muted small">{libelle}</div><div className="col-7">{children}</div></div> : null)
 
+const TYPES_DOC = { recu: "Reçu de paiement", contre_ecriture: "Annulation d'un paiement", facture: "Facture", bulletin_paie: "Bulletin de paie" }
+
+/** Document financier : données minimales (initiales du bénéficiaire, numéro, date, statut ; aucun montant de salaire). */
+function DocumentFinance({ doc, code }) {
+  if (!doc) return (
+    <div className="alert alert-danger verification-ko"><strong>{t("Code inconnu : {v0}", { v0: code.toUpperCase() })}</strong><br />
+      {t("Aucun document financier portant ce code n'a été émis sur la plateforme NexIA School. Ce document n'est peut-être pas authentique.")}</div>)
+  const valide = doc.statut === "valide"
+  return <>
+    <div className={`alert ${valide ? "alert-success verification-ok" : "alert-warning"} mb-3`}>
+      <strong>{valide ? `✓ ${t("Document authentique")}` : t("Document annulé")}</strong><br />
+      {valide ? t("Ce document a été émis par l'établissement ci-dessous. Comparez le numéro, la date et le montant avec le document papier.")
+        : t("Ce document a été émis puis annulé par l'établissement : il n'a plus de valeur.")}</div>
+    <div className="mb-3">
+      <Ligne libelle={t("Document")}><strong>{t(TYPES_DOC[doc.type] || doc.type)}</strong></Ligne>
+      <Ligne libelle={t("Établissement")}>{doc.etablissement}</Ligne>
+      <Ligne libelle={t("Numéro")}>{doc.numero}</Ligne>
+      <Ligne libelle={t("Date")}>{doc.date && new Date(`${doc.date}T00:00:00`).toLocaleDateString()}</Ligne>
+      <Ligne libelle={t("Période")}>{doc.periode}</Ligne>
+      <Ligne libelle={t("Bénéficiaire")}>{doc.beneficiaire}</Ligne>
+      <Ligne libelle={t("Montant")}>{doc.montant != null && `${Number(doc.montant).toLocaleString()} FCFA`}</Ligne>
+      <Ligne libelle={t("Code")}><code>{code.toUpperCase()}</code></Ligne>
+    </div>
+  </>
+}
+
 export default function Verifier() {
   const { code = "" } = useParams()
   const [etat, setEtat] = useState({ chargement: true })
+  const finance = /^[0-9a-f]{32}$/i.test(code)
   useEffect(() => {
-    rpc("verifier_bulletin", { p_code: code })
+    (finance ? rpc("verifier_document_finance", { p_code: code }).then((doc) => ({ doc })) : rpc("verifier_bulletin", { p_code: code }))
       .then((v) => setEtat({ v }))
       .catch(() => setEtat({ erreur: true }))
-  }, [code])
+  }, [code, finance])
 
   const e = etat.v?.etablissement, b = etat.v?.bulletin
   return (
@@ -29,10 +56,11 @@ export default function Verifier() {
               <h1 className="h4 mb-0 text-primary d-flex align-items-center gap-2"><img src={`${import.meta.env.BASE_URL}logo-nexia-192.png`} alt="" width="32" height="32" className="rounded-2" />NexIA School</h1>
               <ChoixLangue />
             </div>
-            <p className="text-muted mb-3">{t("Vérification d'un bulletin scolaire")}</p>
+            <p className="text-muted mb-3">{finance ? t("Vérification d'un document financier") : t("Vérification d'un bulletin scolaire")}</p>
             {etat.chargement && <Chargement />}
             {etat.erreur && <div className="alert alert-warning">{t("Vérification impossible pour le moment. Vérifiez votre connexion puis réessayez.")}</div>}
-            {!etat.chargement && !etat.erreur && !etat.v && (
+            {finance && etat.v && <DocumentFinance doc={etat.v.doc} code={code} />}
+            {!etat.chargement && !etat.erreur && !finance && !etat.v && (
               <div className="alert alert-danger verification-ko">
                 <strong>{t("Code inconnu : {v0}", { v0: code.toUpperCase() })}</strong><br />
                 {t("Aucun bulletin portant ce code n'a été émis sur la plateforme NexIA School. Ce document n'est peut-être pas authentique.")}

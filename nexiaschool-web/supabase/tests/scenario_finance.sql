@@ -56,18 +56,24 @@ update public.inscriptions set nouveau = false where id = :'ins_a';
 set role authenticated;
 select pg_temp.verifier((pg_temp.situation()->>'total_du')::int = 200000 and (pg_temp.situation()->'lignes'->0->>'montant')::int = 20000, 'ancien élève : pension 200 000, inscription 20 000');
 
--- annulation : le caissier annule ses propres encaissements récents ; pas ceux de l'administration
+-- annulation : jamais de suppression physique ; contre-écriture par le caissier (ses encaissements de moins de 24 h)
+-- ou par la validation (administration) à tout moment
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
 insert into public.paiements (inscription_id, montant) values (:'ins_a', 1000) returning id as pay_admin \gset
 select set_config('request.jwt.claim.sub', :'cpt', false) \g /dev/null
-delete from public.paiements where id = :'pay_admin';
-select pg_temp.verifier((select count(*) from public.paiements where id = :'pay_admin') = 1, 'le caissier ne peut pas annuler l''encaissement d''un autre');
+select set_config('app.pay_admin', :'pay_admin', false) \g /dev/null
+do $$ begin delete from public.paiements where id = current_setting('app.pay_admin')::uuid; raise exception 'ÉCHEC : suppression physique d''un paiement';
+exception when insufficient_privilege then raise notice 'ok : aucune suppression physique d''un encaissement'; end $$;
+do $$ begin perform public.finance_annuler_paiement(current_setting('app.pay_admin')::uuid, 'Erreur de saisie'); raise exception 'ÉCHEC : annulation de l''encaissement d''un autre';
+exception when insufficient_privilege then raise notice 'ok : le caissier ne peut pas annuler l''encaissement d''un autre'; end $$;
 insert into public.paiements (inscription_id, montant) values (:'ins_a', 500) returning id as pay_cpt \gset
-delete from public.paiements where id = :'pay_cpt';
-select pg_temp.verifier((select count(*) from public.paiements where id = :'pay_cpt') = 0, 'le caissier annule son propre encaissement récent');
+select public.finance_annuler_paiement(:'pay_cpt', 'Erreur de saisie') \g /dev/null
+select pg_temp.verifier((select count(*) from public.paiements where id = :'pay_cpt') = 1
+  and (select montant from public.paiements where annule_paiement_id = :'pay_cpt') = -500, 'le caissier annule son propre encaissement récent (contre-écriture, original conservé)');
 select set_config('request.jwt.claim.sub', :'admin_a', false) \g /dev/null
-delete from public.paiements where id = :'pay_admin';
-select pg_temp.verifier((select count(*) from public.paiements where id = :'pay_admin') = 0, 'l''administration annule un encaissement');
+select public.finance_annuler_paiement(:'pay_admin', 'Doublon') \g /dev/null
+select pg_temp.verifier((select coalesce(sum(montant), 0) from public.paiements where id = :'pay_admin' or annule_paiement_id = :'pay_admin') = 0,
+  'l''administration annule un encaissement (solde net nul)');
 insert into public.eleves (matricule, nom, sexe) values ('FIN1', 'NANA', 'F') returning id as el_fin \gset
 insert into public.inscriptions (exercice_id, classe_id, eleve_id) values (:'ex_a', :'classe_a', :'el_fin') returning id as ins_fin \gset
 insert into public.paiements (inscription_id, montant) values (:'ins_fin', 10000) \g /dev/null

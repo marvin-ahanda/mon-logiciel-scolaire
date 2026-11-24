@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
 import { adresseLogo } from "./lib/logo.js"
 import { droitEffectif, offreEffective } from "./lib/offres.js"
-import { sessionLocale, supabase, verifier } from "./supabase.js"
+import { rpc, sessionLocale, supabase, verifier } from "./supabase.js"
 
 const Contexte = createContext(null)
 
@@ -75,13 +75,15 @@ export function SessionProvider({ children }) {
         return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })
       }
       const etablissement = verifier(await supabase.from("etablissements").select(COLONNES_ETABLISSEMENT).eq("id", profil.etablissement_id).single())
-      const [exercice, logoUrl, fonctions] = await Promise.all([
+      const [exercice, logoUrl, fonctions, droitsFinance] = await Promise.all([
         supabase.from("exercices").select("*").eq("actif", true).maybeSingle().then(verifier),
         adresseLogo(etablissement.logo),
         lireFonctions(etablissement.id),
+        // droits financiers de la personne (vérifiés côté serveur à chaque action) ; à défaut, ceux de son rôle
+        rpc("mes_droits_finance").catch(() => null),
       ])
       const mesMatieres = await compterMesMatieres(profil, exercice)
-      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire, mesMatieres, fonctions })
+      setEtat({ pret: true, session, profil, etablissement, exercice, logoUrl, proprietaire, mesMatieres, fonctions, droitsFinance })
     } catch (e) {
       console.error("NexIASchool : chargement du profil impossible", e)
       setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, erreur: e?.message || "erreur" })
@@ -113,10 +115,19 @@ export function SessionProvider({ children }) {
                    peutNoter: ["admin", "enseignant", "surveillant", "comptable"].includes(role),
                    // Excel (import / export des notes) : l'administration, les enseignants, et toute personne à qui une matière est confiée
                    peutExcel: role === "admin" || role === "enseignant" || (etat.mesMatieres || 0) > 0,
-                   estComptable: role === "comptable", peutFinance: role === "admin" || role === "comptable",
+                   estComptable: role === "comptable", droitsFinance: droitsFinanceDe(etat.droitsFinance, role),
+                   peutFinance: droitsFinanceDe(etat.droitsFinance, role).length > 0,
                    peutCourrier: ["admin", "surveillant", "comptable"].includes(role),
                    peutBulletins: ["admin", "surveillant", "comptable"].includes(role) }
   return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>
+}
+
+/** Droits financiers : ceux renvoyés par le serveur, sinon les droits par défaut du rôle (ancienne base). */
+function droitsFinanceDe(droits, role) {
+  if (Array.isArray(droits)) return droits
+  if (role === "admin") return ["caisse", "facturation", "depenses", "validation", "tresorerie", "paie", "rapports", "assistant"]
+  if (role === "comptable") return ["caisse", "facturation", "depenses", "tresorerie", "rapports", "assistant"]
+  return []
 }
 
 export const useSession = () => useContext(Contexte)

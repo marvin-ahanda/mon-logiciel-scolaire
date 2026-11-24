@@ -9,39 +9,47 @@ const entier = () => (entiers[locale()] ||= new Intl.NumberFormat(locale(), { ma
 export const fcfa = (n) => `${entier().format(Math.round(Number(n || 0))).replace(/[  ]/g, " ")} FCFA`
 export const jour = (d) => (d ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString(locale()) : "—")
 /** Modes de paiement (libellé français, traduit à l'affichage par modePaiement) */
-export const MODES = { especes: "Espèces", mobile_money: "Mobile money", virement: "Virement", cheque: "Chèque", autre: "Autre" }
+export const MODES = { especes: "Espèces", mtn_momo: "MTN Mobile Money", orange_money: "Orange Money", mobile_money: "Mobile money", virement: "Virement", cheque: "Chèque", carte: "Carte bancaire", autre: "Autre" }
 export const modePaiement = (m) => t(MODES[m] || m)
-const pdf = (v) => String(v ?? "").replace(/[   ]/g, " ")
-const NOIR = [33, 37, 41], GRIS = [108, 117, 125], BORDURE = [173, 181, 189]
+export const pdf = (v) => String(v ?? "").replace(/[   ]/g, " ")
+export const NOIR = [33, 37, 41], GRIS = [108, 117, 125], BORDURE = [173, 181, 189]
 
-async function charger() {
+export async function charger() {
   const [{ jsPDF }, module] = await Promise.all([import("jspdf"), import("jspdf-autotable")])
   return { jsPDF, autoTable: module.autoTable || module.default }
 }
 
 /** En-tête commun : établissement à gauche, logo au centre, titre à droite. Renvoie l'ordonnée suivante. */
-function entete(doc, { etablissement, logo, titre, sousTitre }) {
-  const L = doc.internal.pageSize.getWidth(), M = 12
+export function entete(doc, { etablissement, logo, titre, sousTitre }) {
+  const L = doc.internal.pageSize.getWidth(), M = 12, largeur = L / 2 - 30
+  const HT = 4.6, HP = 3.4                                   // hauteur d'une ligne en 11 pt et en 8 pt (mm)
+  // un nom ou un titre long passe sur plusieurs lignes : les lignes suivantes se décalent d'autant (pas de chevauchement)
   doc.setTextColor(...NOIR); doc.setFont("helvetica", "bold"); doc.setFontSize(11)
-  doc.text(doc.splitTextToSize(pdf(etablissement.nom), L / 2 - 30), M, M + 4)
+  const nom = doc.splitTextToSize(pdf(etablissement.nom), largeur)
+  doc.text(nom, M, M + 4)
   doc.setFont("helvetica", "normal"); doc.setFontSize(8)
-  doc.text(doc.splitTextToSize(pdf([etablissement.adresse, etablissement.ville, etablissement.telephone, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")), L / 2 - 30), M, M + 9)
+  const coord = doc.splitTextToSize(pdf([etablissement.adresse, etablissement.ville, etablissement.telephone, siteAffiche(etablissement.site_web)].filter(Boolean).join(" · ")), largeur)
+  const yCoord = M + 4 + nom.length * HT + 0.4
+  doc.text(coord, M, yCoord)
   if (logo) {
     const k = Math.min(18 / logo.largeur, 18 / logo.hauteur)
     doc.addImage(logo.donnees, logo.format, L / 2 - (logo.largeur * k) / 2, M - 1, logo.largeur * k, logo.hauteur * k, undefined, "FAST")
   }
   doc.setFont("helvetica", "bold"); doc.setFontSize(11)
-  doc.text(doc.splitTextToSize(pdf(titre), L / 2 - 30), L - M, M + 4, { align: "right" })
+  const lignesTitre = doc.splitTextToSize(pdf(titre), largeur)
+  doc.text(lignesTitre, L - M, M + 4, { align: "right" })
   doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GRIS)
-  if (sousTitre) doc.text(doc.splitTextToSize(pdf(sousTitre), L / 2 - 30), L - M, M + 9.5, { align: "right" })
+  const ySous = M + 4 + lignesTitre.length * HT + 0.9
+  const sous = sousTitre ? doc.splitTextToSize(pdf(sousTitre), largeur) : []
+  if (sous.length) doc.text(sous, L - M, ySous, { align: "right" })
   doc.setTextColor(...NOIR)
-  const y = M + 21
+  const y = Math.max(M + 21, yCoord + coord.length * HP + 2, ySous + sous.length * HP + 2)
   doc.setDrawColor(...NOIR); doc.setLineWidth(0.5); doc.line(M, y, L - M, y)
   return y + 4
 }
 
 /** Ouvre le PDF pour l'imprimer (le lecteur PDF n'ajoute ni adresse ni pagination) ou le télécharge. */
-function sortir(doc, nom, imprimer, fenetre) {
+export function sortir(doc, nom, imprimer, fenetre) {
   if (imprimer) {
     doc.autoPrint()
     const url = doc.output("bloburl")
