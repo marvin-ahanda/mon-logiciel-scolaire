@@ -1,6 +1,6 @@
 # Finances — pilotage financier (migration 0054)
 
-État au 24/11/2026 : développé et testé en local, **non déployé** (migration 0054 à appliquer en production et fonction `mcp` à redéployer).
+État au 25/11/2026 : **déployé en production** — migration 0054 appliquée (en 5 parties : 0054_finances_pilotage_1 à _5), fonction mcp version 12, site Cloudflare et GitHub Pages (commit ed1864a).
 
 ## 1. Fonctionnalités développées
 
@@ -71,7 +71,7 @@ Une relecture indépendante a relevé 2 points élevés et 6 moyens, tous corrig
 
 - Non corrigé (faible) : l'espace parents (0048, inchangé) liste aussi les paiements d'autres frais et les contre-écritures à côté de l'échéancier de pension ; le rang d'occurrence d'une ligne de relevé est fourni par le navigateur (une même ligne pourrait être réimportée en le modifiant).
 
-- À faire au déploiement : appliquer 0054 en production, redéployer `mcp`, créer les comptes de trésorerie, choisir les modes de paiement, attribuer les droits (caissiers, validation, paie).
+- À faire par chaque établissement : créer les comptes de trésorerie, choisir les modes de paiement, attribuer les droits (caissiers, validation, paie).
 - Aucune intégration bancaire ou mobile money n'est simulée : les paiements sont saisis avec leur référence ; le rapprochement part d'un relevé CSV exporté manuellement.
 - Paie : les taux de cotisation (CNPS…) et le barème de l'impôt ne sont pas fournis ; l'établissement doit les saisir, citer la source et les faire vérifier. Les bulletins indiquent qu'ils ne proviennent pas d'un logiciel de paie certifié.
 - Rapports : outils de gestion, pas des états comptables (pas de plan comptable OHADA ni de grand livre).
