@@ -20,7 +20,7 @@ const OUTILS = [
 ]
 
 export default function Developpeurs() {
-  useEffect(() => { document.title = t("Développeurs — NexIA School"); window.scrollTo(0, 0) }, [])
+  useEffect(() => { window.scrollTo(0, 0) }, [])
   return (
     <div className="lp">
       <EnteteSimple action="connexion" />
@@ -28,7 +28,7 @@ export default function Developpeurs() {
         <section className="lp-section lp-section-teinte">
           <div className="lp-conteneur" style={{ maxWidth: 900 }}>
             <p className="lp-surtitre">{t("Développeurs et agents IA")}</p>
-            <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 500, letterSpacing: "-.02em", lineHeight: 1.1, margin: "0 0 16px" }}>{t("Pilotez votre établissement depuis Claude ou votre agent IA")}</h1>
+            <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 500, letterSpacing: "-.02em", lineHeight: 1.1, margin: "0 0 16px" }}>{t("Pilotez votre établissement depuis votre assistant IA")}</h1>
             <p className="lp-intro">{t("NexIA School expose un serveur ")}<strong>{t("MCP")}</strong>{t(
               " (Model Context Protocol). Demandez par exemple : « Quels élèves de 6e A sont en difficulté ce trimestre ? », « Prépare le commentaire du conseil de classe », ou « Enregistre ces notes de la séquence 2 »."
             )}</p>

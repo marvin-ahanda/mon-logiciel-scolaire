@@ -6,7 +6,7 @@ import { langueCourante, locale, t } from "../i18n.jsx"
 import { ConditionsEN, ConfidentialiteEN } from "./LegalEN.jsx"
 
 function PageLegale({ titre, children }) {
-  useEffect(() => { document.title = `${titre} — NexIA School`; window.scrollTo(0, 0) }, [titre])
+  useEffect(() => { window.scrollTo(0, 0) }, [titre])
   const maj = new Date(`${EDITEUR.miseAJour}T12:00:00`).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })
   return (
     <div className="lp">

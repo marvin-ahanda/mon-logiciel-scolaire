@@ -75,7 +75,7 @@ export function InscriptionEnseignant() {
     </Carte>
   )
   return (
-    <Carte titre={t("Créer mon compte SmartEval (enseignant)")}>
+    <Carte titre={t("Créer mon compte enseignant SmartEval")}>
       <Alerte>{erreur}</Alerte>
       <form onSubmit={valider}>
         <div className="mb-3"><label className="form-label" htmlFor="se-email">{t("Adresse e-mail")}</label>

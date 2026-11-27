@@ -1,15 +1,29 @@
 // Bilinguisme français / anglais. Le texte français sert de clé : t("Élèves") -> « Students » en anglais.
 // La langue choisie (sur la page d'accueil ou dans l'application) est mémorisée sur l'appareil et s'applique partout.
 import { createContext, Fragment, useCallback, useContext, useEffect, useState } from "react"
+import { estPagePublique } from "./lib/seo-pages.js"
 
 const CLE = "nexiaschool.langue"
 export const LANGUES = [["fr", "Français", "FR"], ["en", "English", "EN"]]
 
+/**
+ * Langue au chargement : sur une page publique, seule l'adresse décide (français ; « /en/… » le jour où ces pages existeront),
+ * jamais la langue du navigateur ni un choix mémorisé — les moteurs et les visiteurs reçoivent la même page. Dans l'espace
+ * connecté : le choix mémorisé de l'utilisateur, sinon le français. La langue du navigateur n'est jamais utilisée.
+ */
+export function langueDeLaPage(chemin, estPublique, preference) {
+  if (/^\/en(\/|$)/.test(chemin)) return "en"
+  if (estPublique) return "fr"
+  return preference === "en" || preference === "fr" ? preference : "fr"
+}
+
 function langueInitiale() {
-  try { const l = localStorage.getItem(CLE); if (l === "fr" || l === "en") return l } catch { /* stockage indisponible */ }
-  const n = (typeof navigator !== "undefined" && (navigator.languages || [navigator.language])) || []
-  for (const x of n) { const c = String(x).slice(0, 2).toLowerCase(); if (c === "fr" || c === "en") return c }
-  return "fr"
+  if (typeof location === "undefined") return "fr"                        // pré-rendu (build) : toujours le français
+  const base = (import.meta.env?.BASE_URL || "/").replace(/\/$/, "")
+  const chemin = location.pathname.startsWith(base) ? location.pathname.slice(base.length) || "/" : location.pathname
+  let preference = null
+  try { preference = localStorage.getItem(CLE) } catch { /* stockage indisponible */ }
+  return langueDeLaPage(chemin, estPagePublique(chemin), preference)
 }
 
 let langue = langueInitiale()

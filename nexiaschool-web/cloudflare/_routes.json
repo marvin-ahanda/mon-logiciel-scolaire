@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/mcp", "/mcp/", "/.well-known/*", "/oauth/register", "/oauth/token"],
-  "exclude": []
+  "include": ["/*"],
+  "exclude": ["/assets/*", "/media/*", "/og/*", "/hors-ligne/*", "/*.png", "/*.ico", "/*.svg", "/*.txt", "/*.xml", "/*.webmanifest", "/*.js", "/*.css", "/*.woff2"]
 }

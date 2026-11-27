@@ -5212,3 +5212,13 @@ Object.assign(EN, {
   "Campagne fermée ou introuvable.": "Reporting period closed or not found.",
   "Un destinataire ne relève pas de votre circonscription.": "A recipient is outside your area.",
 })
+
+// Référencement : titres h1 des pages publiques (27/11/2026)
+Object.assign(EN, {
+  "Pilotez votre établissement depuis votre assistant IA": "Run your school from your AI assistant",
+  "Créer mon compte enseignant SmartEval": "Create my SmartEval teacher account",
+  "Logiciel de gestion scolaire :": "School management software:",
+  "moins de gestion, plus de réussite": "less admin, more student success",
+  "Tarifs du logiciel de gestion scolaire": "School management software pricing",
+  "SmartEval : évaluations en ligne pour les enseignants": "SmartEval: online assessments for teachers",
+})

@@ -5,6 +5,7 @@ import { Link } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { LIBELLES_FONCTIONS, montantEtablissement } from "../lib/offres.js"
 import { rpc } from "../supabase.js"
+import { OFFRES } from "../lib/seo-pages.js"
 import { ChoixLangue, locale, t } from "../i18n.jsx"
 
 const fcfa = (n) => `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(Number(n || 0)).replace(/[  ]/g, " ")} FCFA`
@@ -23,7 +24,8 @@ function Cadre({ children }) {
   )
 }
 
-const useOffres = () => useDonnees(() => rpc("offres_publiques"), [])
+// Copie de référence des offres (pré-rendu, premier affichage), remplacée par les valeurs du serveur dès leur arrivée
+const useOffres = () => { const [o, erreur] = useDonnees(() => rpc("offres_publiques"), []); return [o || OFFRES, erreur] }
 
 export function TarifsEtablissements() {
   const [o, erreur] = useOffres()
@@ -35,7 +37,7 @@ export function TarifsEtablissements() {
   const gratuites = e.decouverte.fonctions.map((f) => t(LIBELLES_FONCTIONS[f] || f))
   return (
     <Cadre>
-      <h1 className="display-6 fw-bold text-center mb-2">{t("Une seule offre complète, au tarif de votre effectif")}</h1>
+      <h1 className="display-6 fw-bold text-center mb-2">{t("Tarifs du logiciel de gestion scolaire")}</h1>
       <p className="lead text-center text-muted mb-5">{t("{v0} par élève et par an, toutes les fonctionnalités incluses. Minimum {v1} par an.", { v0: fcfa(e.prix_eleve), v1: fcfa(e.minimum_annuel) })}</p>
       <div className="row g-4 mb-5">
         <div className="col-lg-5"><div className="card h-100"><div className="card-body p-4">
@@ -87,7 +89,7 @@ export function TarifsSmartEval() {
     </div></div></div>)
   return (
     <Cadre>
-      <h1 className="display-6 fw-bold text-center mb-2">{t("SmartEval pour les enseignants")}</h1>
+      <h1 className="display-6 fw-bold text-center mb-2">{t("SmartEval : évaluations en ligne pour les enseignants")}</h1>
       <p className="lead text-center text-muted mb-5">{t("Créez vos évaluations digitalisées, partagez un lien, obtenez la correction automatique et l'analyse par votre propre IA — sans établissement abonné.")}</p>
       <div className="row g-4 mb-4">
         {carte(t("Découverte"), t("Gratuit"), [t("{v0} évaluation publiée", { v0: s.decouverte.evaluations }), t("{v0} réponses d'élèves", { v0: s.decouverte.soumissions }),

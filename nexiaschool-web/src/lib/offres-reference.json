@@ -1,0 +1,15 @@
+{
+  "_source": "Copie de offres_publiques() en production le 2026-11-27. Sert au pré-rendu et aux balises ; l'application relit les valeurs du serveur au chargement. À mettre à jour si les prix changent dans la console.",
+  "devise": "XAF",
+  "etablissement": {
+    "decouverte": { "fonctions": ["notes", "appel", "bulletins", "excel_base", "distinctions", "cartes", "parcours", "pv"], "max_eleves": 50, "duree_jours": 120, "max_personnel": 10 },
+    "duree_mois": 12, "prix_eleve": 500, "capacite_max": 20000, "minimum_annuel": 50000, "capacite_minimum": 100, "renouvellement_jours": 60
+  },
+  "smarteval": {
+    "pack": { "prix": 2000, "credits": 5 },
+    "groupe": { "membres_max": 20, "prix_annuel": 15000, "credits_membre": 10 },
+    "credits": 10,
+    "decouverte": { "duree_jours": 30, "evaluations": 1, "soumissions": 2 },
+    "duree_mois": 12, "prix_annuel": 5000, "soumissions_max": 150, "renouvellement_jours": 30
+  }
+}

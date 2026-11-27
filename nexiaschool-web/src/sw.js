@@ -17,7 +17,9 @@ const IMAGES = "nexiaschool-images"
 const ESSENTIELS = __ESSENTIELS__
 const SECONDAIRES = __SECONDAIRES__
 const BASE = "__BASE__"
-const COQUILLE = BASE                         // index.html de l'application monopage
+const COQUILLE = `${BASE}app-shell`            // coquille neutre de l'application monopage (app-shell.html, sans contenu pré-rendu)
+// Pages publiques pré-rendues (même liste que src/lib/seo-pages.js) : servies par le réseau d'abord, copie locale hors ligne
+const PUBLIQUES = new Set(["", "tarifs", "tarifs/smarteval", "commencer", "inscription", "smarteval/inscription", "developpeurs", "confidentialite", "conditions"])
 const PAGE_HORS_LIGNE = `${BASE}hors-ligne/`             // adresse sans « .html » : servie sans redirection partout
 const DELAI_DONNEES = 4000                     // au-delà, la copie locale s'affiche (si elle existe)
 const MAX_DONNEES = 600, MAX_IMAGES = 400
@@ -118,6 +120,17 @@ async function copiePuisMaj(e, cle) {
 }
 
 /** Pages : coquille de l'application depuis l'appareil ; sinon réseau ; sinon page « hors ligne ». */
+async function pagePublique(e) {
+  try {
+    const r = await fetch(e.request)
+    if (r.ok) { const c = r.clone(); e.waitUntil(caches.open(APP).then((cache) => cache.put(e.request, c)).catch(() => {})) }
+    return r
+  } catch {
+    return (await caches.match(e.request, { cacheName: APP })) || (await caches.match(COQUILLE, { cacheName: APP }))
+      || (await caches.match(PAGE_HORS_LIGNE, { cacheName: APP })) || new Response("Hors ligne", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })
+  }
+}
+
 async function page(e) {
   const coquille = await caches.match(COQUILLE, { cacheName: APP })
   if (coquille) {
@@ -150,7 +163,12 @@ self.addEventListener("fetch", (e) => {
     if (r.headers.has("range") || r.destination === "video" || /\.(mp4|webm)$/.test(url.pathname)) return
     // serveur MCP, OAuth et services Cloudflare : jamais mis en cache
     if (/^\/(mcp|\.well-known|oauth\/(register|token)|cdn-cgi|\.netlify)/.test(url.pathname.slice(BASE.length - 1))) return
-    if (r.mode === "navigate") { e.respondWith(page(e)); return }
+    if (r.mode === "navigate") {
+      const chemin = url.pathname.slice(BASE.length).replace(/\/+$/, "")
+      if (/\.[a-z0-9]+$/i.test(chemin)) return                               // fichier (robots.txt, sitemap.xml…) : jamais la coquille
+      e.respondWith(PUBLIQUES.has(chemin) ? pagePublique(e) : page(e))
+      return
+    }
     e.respondWith(cacheDabord(r))
     return
   }

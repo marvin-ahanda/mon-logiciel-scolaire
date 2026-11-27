@@ -1,11 +1,14 @@
-// Référencement : source unique des pages publiques indexables (titres, descriptions, contenu de pré-rendu, FAQ).
-// Module sans dépendance (ni React, ni import.meta.env) : lu à la fois par l'application (src/lib/seo.js), par le build
-// (scripts/seo-plugin.mjs : pages pré-rendues, sitemap.xml, robots.txt) et par les tests.
-// Aucune valeur commerciale (prix, effectifs) n'est écrite ici : elles viennent du serveur et changent.
+// Référencement : source unique des pages publiques indexables (titres, descriptions, h1, fil d'Ariane, données structurées,
+// robots.txt). Module sans dépendance (ni React, ni import.meta.env) : lu par l'application (src/lib/seo.js), par le
+// pré-rendu (scripts/prerender.mjs), par le relais Cloudflare (functions/_middleware.js : liste des pages publiques) et par les tests.
+// Les prix viennent de offres-reference.json (copie des offres du serveur), jamais écrits à la main ici.
+import OFFRES from "./offres-reference.json" with { type: "json" }
 
 export const SITE = "https://nexiaschool.com"
 export const NOM = "NexIA School"
-export const IMAGE = `${SITE}/logo-nexia-512.png`
+export const IMAGE = `${SITE}/og/nexia-school-1200x630.png`
+export const LOGO = `${SITE}/logo-nexia-512.png`
+export { OFFRES }
 
 /** Questions fréquentes de l'accueil (affichées par Landing.jsx et reprises dans les données structurées FAQPage). */
 export const FAQ_ACCUEIL = [
@@ -16,99 +19,67 @@ export const FAQ_ACCUEIL = [
   ["Puis-je augmenter le nombre d'élèves en cours d'année ?", "Oui, à tout moment : vous ne payez que la différence et la date d'échéance est conservée. La capacité peut aussi être réduite au renouvellement. Toutes les données de l'établissement sont conservées."],
 ]
 
-const FONCTIONNALITES = [
-  ["Notes, moyennes et classements", "Saisie des notes par séquence, moyennes, rangs, appréciations et statistiques par classe, avec import Excel."],
-  ["Bulletins scolaires", "Bulletins sur une seule page A4 avec en-tête officiel, professeur principal et QR code de vérification, en PDF ou à l'impression."],
-  ["Discipline et assiduité", "Appel du jour, absences, retards, infractions, sanctions et alertes selon des seuils que vous définissez."],
-  ["Frais de scolarité et finances", "Frais et échéances, facturation, encaissements (espèces, MTN Mobile Money, Orange Money, virement), reçus PDF avec QR code, relances, dépenses, trésorerie et rapports."],
-  ["Espace parents", "Les parents consultent les bulletins publiés, les absences, l'échéancier de frais et les courriers de l'école, et écrivent à l'administration."],
-  ["Emploi du temps, PV et cartes scolaires", "Emploi du temps de l'établissement, procès-verbaux de performances, cartes scolaires avec QR code, parcours et orientation."],
-  ["SmartEval pour les enseignants", "Évaluations digitalisées avec correction automatique, analyse par notion et profils d'élèves, y compris pour un enseignant sans établissement abonné."],
-  ["Hors ligne et sécurité", "Saisie possible sans connexion, données isolées par établissement et connexion à votre assistant IA en lecture seule pour les finances."],
-]
+const fcfa = (n) => `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} FCFA`
+const E = OFFRES.etablissement, S = OFFRES.smarteval
 
 /**
- * Pages publiques indexables. chemin → { titre (≤ 60 car. conseillé), description (≤ 155), h1, intro, points: [[titre, texte]], liens: [[chemin, libellé]],
- * priorite, frequence, maj (AAAA-MM-JJ : date de la dernière modification réelle du contenu) }.
- * Les pages de connexion, d'accès, de vérification de documents et tout l'espace connecté sont volontairement absents :
- * elles sont « noindex » (voir src/lib/seo.js et cloudflare/_headers).
+ * Pages publiques indexables. chemin → { titre (≤ 60 car.), description (≤ 155), h1 (doit être celui affiché par la page),
+ * ariane (libellé du fil d'Ariane), maj (AAAA-MM-JJ : date du dernier vrai changement de contenu) }.
  */
 export const PAGES = {
   "/": {
-    titre: "Logiciel de gestion scolaire en ligne | NexIA School",
-    description: "Notes, bulletins, discipline, frais de scolarité et espace parents : NexIA School simplifie la gestion de votre école. Essai gratuit, prêt en 2 minutes.",
-    h1: "Moins de gestion. Plus de réussite scolaire.",
-    intro: "NexIA School est un logiciel de gestion scolaire en ligne pour les établissements du Cameroun et d'Afrique francophone : notes et bulletins, discipline, frais de scolarité, espace parents, emploi du temps et évaluations numériques, depuis une seule plateforme, sans installation.",
-    points: FONCTIONNALITES,
-    faq: FAQ_ACCUEIL,
-    liens: [["/tarifs", "Tarifs pour les établissements"], ["/tarifs/smarteval", "SmartEval pour les enseignants"], ["/commencer", "Commencer gratuitement"], ["/developpeurs", "API et assistant IA"]],
-    priorite: "1.0", frequence: "weekly", maj: "2026-11-25",
+    titre: "Logiciel de gestion scolaire au Cameroun | NexIA School",
+    description: `Notes, bulletins A4 avec QR code, discipline, frais de scolarité et espace parents. Offre gratuite jusqu'à ${E.decouverte.max_eleves} élèves pour essayer en ligne.`,
+    h1: "Logiciel de gestion scolaire : moins de gestion, plus de réussite",
+    ariane: "Accueil", maj: "2026-11-27",
   },
   "/tarifs": {
-    titre: "Tarifs du logiciel de gestion scolaire | NexIA School",
-    description: "Une seule offre complète, au tarif de votre effectif : toutes les fonctionnalités incluses, avec une offre Découverte gratuite pour essayer NexIA School.",
-    h1: "Une seule offre complète, au tarif de votre effectif",
-    intro: "Toutes les fonctionnalités de NexIA School sont incluses dans l'offre Premium, facturée par élève et par an en francs CFA. Une offre Découverte gratuite permet d'essayer la plateforme avant de s'abonner. Le montant exact pour votre effectif se calcule sur la page.",
-    points: [["Découverte gratuite", "Pour essayer NexIA School avec un nombre limité d'élèves et de comptes du personnel."], ["Premium", "Toutes les fonctionnalités, présentes et futures, valables 12 mois."]],
-    liens: [["/", "Présentation de NexIA School"], ["/tarifs/smarteval", "Tarifs SmartEval pour les enseignants"], ["/inscription", "Commencer gratuitement"]],
-    priorite: "0.9", frequence: "monthly", maj: "2026-11-25",
+    titre: `Tarifs logiciel de gestion scolaire : ${E.prix_eleve} FCFA par élève`,
+    description: `Premium à ${fcfa(E.prix_eleve)} par élève et par an, minimum ${fcfa(E.minimum_annuel)}. Découverte gratuite pendant ${E.decouverte.duree_jours} jours, jusqu'à ${E.decouverte.max_eleves} élèves. Voyez les offres.`,
+    h1: "Tarifs du logiciel de gestion scolaire",
+    ariane: "Tarifs", maj: "2026-11-27",
   },
   "/tarifs/smarteval": {
-    titre: "SmartEval : évaluations en ligne pour enseignants | NexIA",
-    description: "Créez des évaluations numériques, partagez un lien, obtenez la correction automatique et l'analyse par votre IA. Offre gratuite pour essayer SmartEval.",
-    h1: "SmartEval pour les enseignants",
-    intro: "SmartEval permet à un enseignant, même sans établissement abonné, de créer des évaluations digitalisées, de partager un lien aux élèves, d'obtenir la correction automatique et d'analyser les résultats avec son propre assistant IA.",
-    points: [["Découverte gratuite", "Une première évaluation à essayer, une seule fois par adresse e-mail."], ["SmartEval Enseignant", "Des évaluations publiées par an, avec connexion à votre IA et anonymisation des élèves."], ["SmartEval Groupe", "Pour un département d'enseignants d'une même matière."]],
-    liens: [["/smarteval/inscription", "Créer mon compte enseignant"], ["/tarifs", "Tarifs pour les établissements"], ["/", "Présentation de NexIA School"]],
-    priorite: "0.8", frequence: "monthly", maj: "2026-11-25",
+    titre: "Évaluations en ligne pour enseignants | SmartEval",
+    description: `Créez une évaluation, partagez un lien, obtenez la correction automatique. Essai gratuit de ${S.decouverte.duree_jours} jours, puis ${fcfa(S.prix_annuel)} par an.`,
+    h1: "SmartEval : évaluations en ligne pour les enseignants",
+    ariane: "SmartEval", parent: "/tarifs", maj: "2026-11-27",
   },
   "/commencer": {
-    titre: "Créer l'espace de mon établissement | NexIA School",
-    description: "Créez gratuitement l'espace numérique de votre établissement scolaire en deux minutes, ou inscrivez-vous comme enseignant pour utiliser SmartEval.",
-    h1: "Commencer avec NexIA School",
-    intro: "Choisissez votre profil : établissement scolaire (créer l'espace de l'école, importer vos listes Excel et inviter le personnel) ou enseignant indépendant (utiliser SmartEval sans établissement).",
-    points: [], liens: [["/inscription", "Inscrire mon établissement"], ["/smarteval/inscription", "Je suis enseignant"], ["/tarifs", "Voir les tarifs"]],
-    priorite: "0.8", frequence: "monthly", maj: "2026-11-25",
+    titre: "Créer un compte NexIA School : école ou enseignant",
+    description: "Choisissez votre profil : établissement scolaire ou enseignant SmartEval. Créez votre compte en ligne et commencez gratuitement.",
+    h1: "Créer mon compte NexIA School",
+    ariane: "Commencer", maj: "2026-11-27",
   },
   "/inscription": {
-    titre: "Inscrire mon établissement gratuitement | NexIA School",
-    description: "Ouvrez l'espace de votre école sur NexIA School avec votre compte Google : gratuit pour essayer, sans installation, données isolées par établissement.",
+    titre: "Inscrire mon école en ligne gratuitement | NexIA School",
+    description: "Ouvrez l'espace de votre école avec un compte Google : sans installation, import Excel des élèves et des classes, données isolées.",
     h1: "Créer l'espace de mon établissement",
-    intro: "L'inscription crée l'espace de votre établissement : vous y importez vos classes, élèves et matières depuis Excel, puis vous invitez le personnel avec des codes d'accès personnels.",
-    points: [], liens: [["/tarifs", "Voir les tarifs"], ["/commencer", "Autres profils"], ["/", "Présentation de NexIA School"]],
-    priorite: "0.7", frequence: "monthly", maj: "2026-11-25",
+    ariane: "Inscription de l'établissement", maj: "2026-11-27",
   },
   "/smarteval/inscription": {
-    titre: "Créer mon compte enseignant SmartEval | NexIA School",
-    description: "Enseignant ? Créez votre compte SmartEval pour digitaliser vos évaluations, corriger automatiquement et analyser les résultats de vos élèves.",
-    h1: "Créer mon compte enseignant",
-    intro: "Le compte enseignant SmartEval est indépendant de tout établissement : vous créez vos évaluations, partagez un lien aux élèves et analysez leurs réponses.",
-    points: [], liens: [["/tarifs/smarteval", "Tarifs SmartEval"], ["/", "Présentation de NexIA School"]],
-    priorite: "0.7", frequence: "monthly", maj: "2026-11-25",
+    titre: `Compte enseignant SmartEval : essai gratuit ${S.decouverte.duree_jours} jours`,
+    description: `Créez votre compte enseignant SmartEval et publiez une première évaluation en ligne avec l'offre Découverte gratuite de ${S.decouverte.duree_jours} jours.`,
+    h1: "Créer mon compte enseignant SmartEval",
+    ariane: "Inscription enseignant", maj: "2026-11-27",
   },
   "/developpeurs": {
-    titre: "API et assistant IA (MCP) pour la gestion scolaire | NexIA",
-    description: "Connectez votre assistant IA (Claude, ChatGPT…) à NexIA School via MCP : résultats, bulletins et finances en lecture seule, droits vérifiés côté serveur.",
-    h1: "Développeurs et assistants IA",
-    intro: "NexIA School expose un serveur MCP pour connecter votre assistant IA à vos données scolaires, avec des clés d'accès personnelles, des droits vérifiés côté serveur et un journal des appels.",
-    points: [], liens: [["/", "Présentation de NexIA School"], ["/tarifs", "Tarifs"]],
-    priorite: "0.6", frequence: "monthly", maj: "2026-11-25",
+    titre: "API et assistant IA (MCP) scolaire | NexIA School",
+    description: "Connectez Claude, ChatGPT ou votre agent IA à NexIA School via MCP : résultats, bulletins et finances, droits vérifiés côté serveur.",
+    h1: "Pilotez votre établissement depuis votre assistant IA",
+    ariane: "Développeurs", maj: "2026-11-27",
   },
   "/confidentialite": {
     titre: "Politique de confidentialité | NexIA School",
-    description: "Comment NexIA School protège les données des établissements, des élèves, des parents et du personnel : collecte, usage, conservation et droits.",
+    description: "Comment NexIA School protège les données des établissements, des élèves, des parents et du personnel : usage, conservation et droits.",
     h1: "Politique de confidentialité",
-    intro: "Cette page explique quelles données NexIA School traite, pourquoi, combien de temps elles sont conservées et comment exercer vos droits.",
-    points: [], liens: [["/conditions", "Conditions d'utilisation"], ["/", "Accueil"]],
-    priorite: "0.3", frequence: "yearly", maj: "2026-11-25",
+    ariane: "Confidentialité", maj: "2026-11-25",
   },
   "/conditions": {
     titre: "Conditions d'utilisation | NexIA School",
-    description: "Conditions générales d'utilisation de la plateforme NexIA School : accès, abonnements, responsabilités et règles d'usage.",
+    description: "Conditions d'utilisation de NexIA School, la plateforme en ligne de gestion scolaire et d'évaluation. À lire avant de créer un compte.",
     h1: "Conditions d'utilisation",
-    intro: "Ces conditions encadrent l'utilisation de NexIA School par les établissements, les enseignants, les parents et le personnel.",
-    points: [], liens: [["/confidentialite", "Politique de confidentialité"], ["/", "Accueil"]],
-    priorite: "0.3", frequence: "yearly", maj: "2026-11-25",
+    ariane: "Conditions", maj: "2026-11-25",
   },
 }
 
@@ -118,27 +89,95 @@ export const urlCanonique = (chemin) => SITE + (chemin === "/" ? "/" : chemin)
 /** Chemin normalisé (sans slash final, « / » pour la racine). */
 export const normaliser = (chemin) => (String(chemin || "/").split(/[?#]/)[0].replace(/\/+$/, "") || "/")
 
+export const estPagePublique = (chemin) => Object.prototype.hasOwnProperty.call(PAGES, normaliser(chemin))
+
+const ORG = { "@id": `${SITE}/#organisation` }
+const offre = (name, price, description, url) => ({ "@type": "Offer", name, price: String(price), priceCurrency: OFFRES.devise, description, url })
+
+function filAriane(chemin) {
+  if (chemin === "/") return null
+  const p = PAGES[chemin]
+  const el = [{ name: "Accueil", item: `${SITE}/` }]
+  if (p.parent) el.push({ name: PAGES[p.parent].ariane, item: urlCanonique(p.parent) })
+  el.push({ name: p.ariane, item: urlCanonique(chemin) })
+  return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: el.map((e, i) => ({ "@type": "ListItem", position: i + 1, ...e })) }
+}
+
 /** Données structurées (JSON-LD) d'une page : uniquement ce qui est visible sur la page. */
 export function donneesStructurees(chemin) {
-  const p = PAGES[chemin]
-  if (!p) return []
-  const bloc = []
-  if (chemin === "/") {
-    bloc.push(
-      { "@context": "https://schema.org", "@type": "Organization", "@id": `${SITE}/#organisation`, name: NOM, legalName: "NexIA", url: `${SITE}/`, logo: IMAGE,
-        email: "contact@nexiaschool.com", areaServed: "Afrique francophone", sameAs: ["https://www.linkedin.com/company/nexiaschool/"] },
-      { "@context": "https://schema.org", "@type": "WebSite", "@id": `${SITE}/#site`, url: `${SITE}/`, name: NOM, inLanguage: ["fr", "en"], publisher: { "@id": `${SITE}/#organisation` } },
-      { "@context": "https://schema.org", "@type": "SoftwareApplication", name: NOM, url: `${SITE}/`, applicationCategory: "EducationalApplication",
-        operatingSystem: "Web (navigateur, ordinateur, tablette et téléphone)", description: p.description, inLanguage: ["fr", "en"], image: IMAGE,
-        offers: { "@type": "Offer", name: "Découverte gratuite", price: "0", priceCurrency: "XAF", url: `${SITE}/tarifs` },
-        publisher: { "@id": `${SITE}/#organisation` } },
-      { "@context": "https://schema.org", "@type": "FAQPage",
-        mainEntity: p.faq.map(([q, r]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: r } })) },
-    )
-  } else {
-    bloc.push({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Accueil", item: `${SITE}/` },
-      { "@type": "ListItem", position: 2, name: p.h1, item: urlCanonique(chemin) }] })
-  }
-  return bloc
+  if (!PAGES[chemin]) return []
+  const blocs = [filAriane(chemin)]
+  if (chemin === "/") blocs.push(
+    { "@context": "https://schema.org", "@type": "Organization", "@id": `${SITE}/#organisation`, name: NOM, legalName: "NexIA",
+      url: `${SITE}/`, logo: LOGO, email: "contact@nexiaschool.com", areaServed: "Afrique francophone",
+      contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "contact@nexiaschool.com", availableLanguage: ["fr", "en"] },
+      sameAs: ["https://www.linkedin.com/company/nexiaschool/"] },
+    { "@context": "https://schema.org", "@type": "WebSite", "@id": `${SITE}/#site`, url: `${SITE}/`, name: NOM, inLanguage: "fr", publisher: ORG },
+    { "@context": "https://schema.org", "@type": "FAQPage",
+      mainEntity: FAQ_ACCUEIL.map(([q, r]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: r } })) })
+  if (chemin === "/tarifs") blocs.push(
+    { "@context": "https://schema.org", "@type": "SoftwareApplication", "@id": `${SITE}/#logiciel`, name: NOM, url: `${SITE}/`,
+      applicationCategory: ["EducationalApplication", "BusinessApplication"], operatingSystem: "Web", image: LOGO,
+      description: "Logiciel de gestion scolaire en ligne : notes, bulletins, discipline, frais de scolarité et espace parents.", publisher: ORG,
+      offers: [
+        offre("Découverte", 0, `Gratuit pendant ${E.decouverte.duree_jours} jours, jusqu'à ${E.decouverte.max_eleves} élèves et ${E.decouverte.max_personnel} comptes du personnel.`, `${SITE}/tarifs`),
+        offre("Premium", E.minimum_annuel, `${fcfa(E.prix_eleve)} par élève et par an, minimum ${fcfa(E.minimum_annuel)} par an.`, `${SITE}/tarifs`)] })
+  if (chemin === "/tarifs/smarteval") blocs.push(
+    { "@context": "https://schema.org", "@type": "Product", name: "SmartEval", image: LOGO, url: `${SITE}/tarifs/smarteval`,
+      description: "Évaluations en ligne pour enseignants avec correction automatique et analyse par l'IA de l'enseignant.",
+      brand: { "@type": "Brand", name: NOM },
+      offers: [
+        offre("Découverte", 0, `${S.decouverte.evaluations} évaluation publiée, ${S.decouverte.soumissions} réponses d'élèves, valable ${S.decouverte.duree_jours} jours.`, `${SITE}/tarifs/smarteval`),
+        offre("Enseignant", S.prix_annuel, `Par an : ${S.credits} évaluations publiées, ${S.soumissions_max} réponses par évaluation.`, `${SITE}/tarifs/smarteval`),
+        offre("Pack", S.pack.prix, `${S.pack.credits} évaluations.`, `${SITE}/tarifs/smarteval`),
+        offre("Groupe", S.groupe.prix_annuel, `Par an : jusqu'à ${S.groupe.membres_max} enseignants d'une même matière, ${S.groupe.credits_membre} évaluations chacun.`, `${SITE}/tarifs/smarteval`)] })
+  return blocs.filter(Boolean)
+}
+
+/**
+ * robots.txt : espaces connectés et liens à jeton jamais explorés. « $ » ancre la règle (sinon « /notes » bloquerait aussi
+ * « /notesXYZ ») ; les pages de connexion et /abonnement restent explorables pour que leur « noindex » soit lu.
+ */
+export const REGLES_ROBOTS = ["/verifier/", "/recu/", "/carte/", "/distinction/", "/e/", "/enseignant/", "/institution/", "/console$", "/console/", "/oauth/",
+  "/parent$", "/bienvenue", "/notes$", "/notes/", "/finance$", "/finance/", "/eleves$", "/eleves/", "/parametres", "/personnel$", "/personnel/",
+  "/discipline$", "/discipline/", "/courrier$", "/courrier/", "/courriers-institutionnels", "/excel$", "/excel/", "/statistiques", "/fiches-statistiques",
+  "/developpeur$", "/developpeur/", "/emploi-du-temps$", "/emploi-du-temps/", "/automatisations", "/mes-bulletins-paie", "/mcp"]
+
+export function robots() {
+  return "# NexIA School : pages publiques explorables ; espaces connectés et liens à jeton exclus.\n"
+    + "# /abonnement et les pages de connexion restent explorables pour que leur consigne noindex soit lue.\n"
+    + `User-agent: *\nAllow: /\n${REGLES_ROBOTS.map((r) => `Disallow: ${r}`).join("\n")}\n\nSitemap: ${SITE}/sitemap.xml\n`
+}
+
+export function sitemap() {
+  const lignes = Object.entries(PAGES).map(([c, p]) => `  <url><loc>${urlCanonique(c)}</loc><lastmod>${p.maj}</lastmod></url>`)
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${lignes.join("\n")}\n</urlset>\n`
+}
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+
+/** Balises <head> d'une page publique (indexer = false hors nexiaschool.com, copie GitHub Pages). */
+export function tete(chemin, { indexer = true } = {}) {
+  const p = PAGES[chemin], url = urlCanonique(chemin)
+  return [
+    `<title>${esc(p.titre)}</title>`,
+    `<meta name="description" content="${esc(p.description)}" />`,
+    `<meta name="robots" content="${indexer ? "index, follow, max-image-preview:large, max-snippet:-1" : "noindex, nofollow"}" />`,
+    `<link rel="canonical" href="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="${NOM}" />`,
+    `<meta property="og:locale" content="fr_FR" />`,
+    `<meta property="og:title" content="${esc(p.titre)}" />`,
+    `<meta property="og:description" content="${esc(p.description)}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:image" content="${IMAGE}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:image:alt" content="NexIA School, logiciel de gestion scolaire" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${esc(p.titre)}" />`,
+    `<meta name="twitter:description" content="${esc(p.description)}" />`,
+    `<meta name="twitter:image" content="${IMAGE}" />`,
+    ...donneesStructurees(chemin).map((o) => `<script type="application/ld+json">${JSON.stringify(o).replace(/</g, "\\u003c")}</script>`),
+  ].join("\n    ")
 }

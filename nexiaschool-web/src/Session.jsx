@@ -3,6 +3,7 @@ import { COLONNES_ETABLISSEMENT, COLONNES_PERSONNEL } from "./lib/colonnes.js"
 import { adresseLogo } from "./lib/logo.js"
 import { droitEffectif, offreEffective } from "./lib/offres.js"
 import { rpc, sessionLocale, supabase, verifier } from "./supabase.js"
+import { estPagePublique } from "./lib/seo-pages.js"
 
 const Contexte = createContext(null)
 
@@ -51,8 +52,21 @@ async function lireFonctions(etablissementId) {
   }
 }
 
+/**
+ * Page publique pré-rendue, visiteur sans session sur l'appareil et sans retour d'authentification dans l'adresse :
+ * la page s'affiche tout de suite (même rendu qu'au build), la vérification de session suit en arrière-plan.
+ * Partout ailleurs, on attend la session comme avant (aucun changement pour l'espace connecté).
+ */
+function affichageImmediat() {
+  if (typeof location === "undefined") return true                           // pré-rendu : visiteur anonyme
+  if (/[?&#](code|error|access_token)=/.test(location.search + location.hash)) return false
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "")
+  const chemin = location.pathname.startsWith(base) ? location.pathname.slice(base.length) || "/" : location.pathname
+  return estPagePublique(chemin) && !sessionLocale()
+}
+
 export function SessionProvider({ children }) {
-  const [etat, setEtat] = useState({ pret: false, session: null, profil: null, etablissement: null, exercice: null })
+  const [etat, setEtat] = useState(() => ({ pret: affichageImmediat(), session: null, profil: null, etablissement: null, exercice: null }))
 
   const charger = useCallback(async (session) => {
     if (!session) return setEtat({ pret: true, session: null, profil: null, etablissement: null, exercice: null })

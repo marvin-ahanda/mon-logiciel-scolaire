@@ -6,10 +6,10 @@
   "description": "NexIASchool — gestion des notes scolaires (React + Supabase, hébergé sur Netlify)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-ssr && node scripts/prerender.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:cloudflare": "vite build && node scripts/cloudflare.mjs",
+    "build:cloudflare": "npm run build && node scripts/cloudflare.mjs",
     "deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy dist --project-name nexiaschool --branch main",
     "deploy:maintien": "wrangler deploy --config workers/maintien/wrangler.toml",
     "dev:cloudflare": "npm run build:cloudflare && wrangler pages dev dist --port 8788"

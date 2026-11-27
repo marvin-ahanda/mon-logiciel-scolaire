@@ -132,10 +132,11 @@ function Racine() {
 /** Titre, description, canonical et consignes d'indexation de chaque adresse (voir src/lib/seo.js). */
 function Referencement() { useSeo(); return null }
 
-export default function App() {
+/** Routeur : BrowserRouter dans le navigateur ; StaticRouter (adresse fournie) pour le pré-rendu des pages publiques. */
+export default function App({ Routeur = BrowserRouter, adresse }) {
   return (
     <SessionProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+      <Routeur basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"} {...(adresse ? { location: adresse } : {})}>
         <Referencement />
         <LimiteChargement><Suspense fallback={<Chargement />}>
         <Routes>
@@ -217,7 +218,7 @@ export default function App() {
           <Route path="*" element={<PageIntrouvable />} />
         </Routes>
         </Suspense></LimiteChargement>
-      </BrowserRouter>
+      </Routeur>
     </SessionProvider>
   )
 }

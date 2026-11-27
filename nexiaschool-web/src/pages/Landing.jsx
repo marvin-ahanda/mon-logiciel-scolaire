@@ -6,7 +6,7 @@ import { Link } from "react-router-dom"
 import "@fontsource-variable/inter"
 import { ChoixLangue, t } from "../i18n.jsx"
 import { EDITEUR } from "../lib/editeur.js"
-import { FAQ_ACCUEIL } from "../lib/seo-pages.js"
+import { FAQ_ACCUEIL, OFFRES } from "../lib/seo-pages.js"
 import { connexionGoogle, rpc } from "../supabase.js"
 import "../accueil.css"
 
@@ -152,9 +152,9 @@ export default function Landing() {
   const [actif, setActif] = useState("#fonctionnalites")
   const racine = useRef(null)
   useApparition(racine)
-  const [offres, setOffres] = useState(null)       // configuration commerciale publique (établissements et SmartEval)
+  // configuration commerciale publique : copie de référence au pré-rendu, puis valeurs du serveur
+  const [offres, setOffres] = useState(OFFRES)
   useEffect(() => { rpc("offres_publiques").then(setOffres).catch(() => {}) }, [])
-  useEffect(() => { document.title = t("NexIA School — Moins de gestion. Plus de réussite scolaire.") }, [])
   useEffect(() => {                       // menu : la section visible est mise en avant (comme l'onglet blanc du modèle)
     const obs = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActif("#" + e.target.id)), { rootMargin: "-45% 0px -50% 0px" })
     LIENS.forEach(([h]) => { const s = document.querySelector(h); if (s) obs.observe(s) })
@@ -183,7 +183,7 @@ export default function Landing() {
           </header>
 
           <div className="ac-hero-centre">
-            <h1 id="ac-titre"><span>{t("Moins de gestion.")}</span> <span>{t("Plus de réussite scolaire.")}</span></h1>
+            <h1 id="ac-titre"><span>{t("Logiciel de gestion scolaire :")}</span> <span>{t("moins de gestion, plus de réussite")}</span></h1>
             <p className="ac-hero-texte">{t("Centralisez la gestion de votre établissement, digitalisez les évaluations et exploitez l'intelligence artificielle pour mieux comprendre les performances de vos élèves. Tout cela depuis une seule plateforme.")}</p>
             <div className="ac-hero-actions">
               <Commencer />
