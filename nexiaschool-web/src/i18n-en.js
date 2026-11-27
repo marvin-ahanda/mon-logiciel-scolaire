@@ -5222,3 +5222,23 @@ Object.assign(EN, {
   "Tarifs du logiciel de gestion scolaire": "School management software pricing",
   "SmartEval : évaluations en ligne pour les enseignants": "SmartEval: online assessments for teachers",
 })
+
+// Accès des délégations (DDES / DRES) depuis « Se connecter » et « Commencer »
+Object.assign(EN, {
+  "Vous n'êtes pas dans un établissement ?": "Not part of a school?",
+  "Enseignant sans établissement : espace SmartEval": "Teacher without a school: SmartEval space",
+  "Délégation départementale ou régionale (DDES / DRES)": "Divisional or regional delegation (DDES / DRES)",
+  "Je représente une délégation (DDES / DRES)": "I represent an education office (DDES / DRES)",
+  "Délégations départementales et régionales des enseignements secondaires : recevez les fiches statistiques des établissements de votre circonscription, consolidez-les et échangez des courriers. Compte gratuit, ouvert après vérification de votre désignation.": "Divisional and regional delegations of secondary education: receive the statistical returns of the schools in your area, consolidate them and exchange letters. Free account, opened once your appointment is verified.",
+  "Créer le compte de ma délégation": "Create my office's account",
+  "Déjà inscrit : se connecter": "Already registered: sign in",
+  "Vous représentez une délégation (DDES / DRES) ?": "Do you represent an education office (DDES / DRES)?",
+  "Demander le compte de ma délégation": "Request my office's account",
+  "Créez votre compte (Google, ou adresse e-mail et mot de passe).": "Create your account (Google, or email address and password).",
+  "Indiquez votre délégation et joignez votre acte de désignation.": "Enter your office and attach your appointment document.",
+  "Votre espace s'ouvre dès la validation par l'administrateur de NexIA School.": "Your space opens as soon as the NexIA School administrator approves it.",
+  "Créer mon compte avec Google": "Create my account with Google",
+  "ou avec une adresse e-mail": "or with an email address",
+  "Délégations départementales (DDES) et régionales (DRES) des enseignements secondaires.": "Divisional (DDES) and regional (DRES) delegations of secondary education.",
+  "Première connexion ?": "First time here?",
+})

@@ -9,7 +9,7 @@ import { statutDemande } from "../../lib/institution.js"
 import { useSession } from "../../Session.jsx"
 import { rpc, supabase, messageErreur } from "../../supabase.js"
 import { t } from "../../i18n.jsx"
-import { Carte } from "../Acces.jsx"
+import { BoutonGoogle, Carte } from "../Acces.jsx"
 import { ChoixLocalisation, deposerPiece } from "./Composants.jsx"
 
 const adresse = (chemin) => `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}${chemin}`
@@ -40,7 +40,13 @@ export function InscriptionDelegue() {
   )
   return (
     <Carte titre={t("Compte de délégation (DDES / DRES)")}>
-      <p className="small text-muted">{t(AVERTISSEMENT)}</p>
+      <ol className="small text-muted ps-3">
+        <li>{t("Créez votre compte (Google, ou adresse e-mail et mot de passe).")}</li>
+        <li>{t("Indiquez votre délégation et joignez votre acte de désignation.")}</li>
+        <li>{t("Votre espace s'ouvre dès la validation par l'administrateur de NexIA School.")}</li>
+      </ol>
+      <BoutonGoogle chemin="/institution" texte={t("Créer mon compte avec Google")} />
+      <div className="text-center small text-muted my-3">{t("ou avec une adresse e-mail")}</div>
       <Alerte>{erreur}</Alerte>
       <form onSubmit={valider}>
         <div className="mb-3"><label className="form-label" htmlFor="dl-email">{t("Adresse e-mail professionnelle")}</label>
@@ -55,6 +61,7 @@ export function InscriptionDelegue() {
         <button className="btn btn-primary w-100" disabled={envoi}>{envoi ? t("Création…") : t("Créer mon compte")}</button>
       </form>
       <p className="small mt-3 mb-0">{t("Déjà un compte ?")} <Link to="/institution/connexion">{t("Se connecter")}</Link></p>
+      <p className="small text-muted mt-3 mb-0">{t(AVERTISSEMENT)}</p>
     </Carte>
   )
 }
@@ -79,6 +86,9 @@ export function ConnexionDelegue() {
   }
   return (
     <Carte titre={t("Connexion — espace des délégations")}>
+      <p className="small text-muted">{t("Délégations départementales (DDES) et régionales (DRES) des enseignements secondaires.")}</p>
+      <BoutonGoogle chemin="/institution" texte={t("Se connecter avec Google")} />
+      <div className="text-center small text-muted my-3">{t("ou avec une adresse e-mail")}</div>
       <Alerte>{erreur}</Alerte><Alerte type="info">{info}</Alerte>
       <form onSubmit={valider}>
         <div className="mb-3"><label className="form-label" htmlFor="dc-email">{t("Adresse e-mail")}</label>
@@ -88,7 +98,9 @@ export function ConnexionDelegue() {
         <button type="button" className="btn btn-link btn-sm p-0 mb-3" onClick={oublie}>{t("Mot de passe oublié ?")}</button>
         <button className="btn btn-primary w-100" disabled={envoi}>{envoi ? t("Connexion…") : t("Se connecter")}</button>
       </form>
-      <p className="small mt-3 mb-0">{t("Pas encore de compte ?")} <Link to="/institution/inscription">{t("Demander un compte de délégation")}</Link></p>
+      <hr />
+      <p className="small mb-2">{t("Première connexion ?")}</p>
+      <Link className="btn btn-outline-primary w-100" to="/institution/inscription">{t("Créer le compte de ma délégation")}</Link>
     </Carte>
   )
 }
@@ -97,8 +109,9 @@ export function ConnexionDelegue() {
 export function DemandeDelegue() {
   const { session, institution, recharger } = useSession()
   const d = institution?.demande
+  const meta = session?.user?.user_metadata || {}                     // compte Google : nom et prénom déjà connus
   const [f, setF] = useState(() => ({ niveau: d?.niveau || "departement", region_id: d?.region_id || "", departement_id: d?.departement_id || "",
-    nom: d?.nom || "", prenom: d?.prenom || "", telephone: d?.telephone || "", fonction: d?.fonction || "" }))
+    nom: d?.nom || meta.family_name || "", prenom: d?.prenom || meta.given_name || "", telephone: d?.telephone || "", fonction: d?.fonction || "" }))
   const [fichier, setFichier] = useState(null), [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false)
   const modifiable = !d || d.statut === "brouillon"
 

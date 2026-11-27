@@ -16,23 +16,30 @@ const MOT_DE_PASSE_MIN = 8
 /** « Créer un compte » : établissement (fondateur, Google) ou enseignant indépendant (SmartEval). */
 export function ChoixInscription() {
   return (
-    <div className="container py-4 py-md-5" style={{ maxWidth: 920 }}>
+    <div className="container py-4 py-md-5" style={{ maxWidth: 1200 }}>
       <h1 className="h3 text-center mb-1">{t("Créer mon compte NexIA School")}</h1>
       <p className="text-center text-muted mb-4">{t("Choisissez le compte qui vous correspond.")}</p>
       <div className="row g-4">
-        <div className="col-md-6"><div className="card h-100 shadow-sm choix-compte" data-choix="etablissement"><div className="card-body p-4 d-flex flex-column">
+        <div className="col-md-6 col-lg-4"><div className="card h-100 shadow-sm choix-compte" data-choix="etablissement"><div className="card-body p-4 d-flex flex-column">
           <div className="fs-2" aria-hidden="true">🏫</div>
           <h2 className="h5">{t("Je gère un établissement scolaire")}</h2>
           <p className="text-muted small flex-grow-1">{t("Notes, bulletins, discipline, finances, parents, SmartEval pour tout le personnel… Commencez gratuitement avec l'offre Découverte, puis passez à Premium au tarif de votre effectif.")}</p>
           <Link className="btn btn-primary" to="/inscription">{t("Créer l'espace de mon établissement")}</Link>
           <Link className="small mt-2 text-center" to="/tarifs">{t("Voir les tarifs des établissements")}</Link>
         </div></div></div>
-        <div className="col-md-6"><div className="card h-100 shadow-sm choix-compte" data-choix="enseignant"><div className="card-body p-4 d-flex flex-column">
+        <div className="col-md-6 col-lg-4"><div className="card h-100 shadow-sm choix-compte" data-choix="enseignant"><div className="card-body p-4 d-flex flex-column">
           <div className="fs-2" aria-hidden="true">🧑‍🏫</div>
           <h2 className="h5">{t("Je suis enseignant (sans établissement abonné)")}</h2>
           <p className="text-muted small flex-grow-1">{t("SmartEval : créez vos évaluations digitalisées, partagez un lien à vos élèves, obtenez la correction automatique et l'analyse par votre propre IA. Inscription avec n'importe quelle adresse e-mail.")}</p>
           <Link className="btn btn-primary" to="/smarteval/inscription">{t("Créer mon compte SmartEval")}</Link>
           <Link className="small mt-2 text-center" to="/tarifs/smarteval">{t("Voir les offres SmartEval")}</Link>
+        </div></div></div>
+        <div className="col-md-6 col-lg-4"><div className="card h-100 shadow-sm choix-compte" data-choix="delegation"><div className="card-body p-4 d-flex flex-column">
+          <div className="fs-2" aria-hidden="true">🏛️</div>
+          <h2 className="h5">{t("Je représente une délégation (DDES / DRES)")}</h2>
+          <p className="text-muted small flex-grow-1">{t("Délégations départementales et régionales des enseignements secondaires : recevez les fiches statistiques des établissements de votre circonscription, consolidez-les et échangez des courriers. Compte gratuit, ouvert après vérification de votre désignation.")}</p>
+          <Link className="btn btn-primary" to="/institution/inscription">{t("Créer le compte de ma délégation")}</Link>
+          <Link className="small mt-2 text-center" to="/institution/connexion">{t("Déjà inscrit : se connecter")}</Link>
         </div></div></div>
       </div>
       <p className="text-center small text-muted mt-4">{t("Déjà inscrit ?")} <Link to="/etablissement">{t("Espace d'un établissement")}</Link> · <Link to="/smarteval/connexion">{t("Espace SmartEval")}</Link> · <Link to="/institution/connexion">{t("Espace des délégations (DDES / DRES)")}</Link></p>
@@ -220,6 +227,7 @@ export function Bienvenue() {
         <p className="small text-muted mb-2">{t("Vous êtes fondateur d'un établissement ?")}</p>
         <Link className="btn btn-outline-primary w-100" to="/inscription">{t("Créer plutôt l'espace de mon établissement")}</Link>
       </>}
+      <p className="small text-muted mt-3 mb-0">{t("Vous représentez une délégation (DDES / DRES) ?")} <Link to="/institution">{t("Demander le compte de ma délégation")}</Link></p>
     </Carte>
   )
 }

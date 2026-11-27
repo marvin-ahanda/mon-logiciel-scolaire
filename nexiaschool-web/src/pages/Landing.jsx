@@ -341,6 +341,7 @@ export default function Landing() {
             <Link to="/tarifs">{t("Tarifs")}</Link>
             <Link to="/tarifs/smarteval">{t("SmartEval pour les enseignants")}</Link>
             <Link to="/smarteval/connexion">{t("Espace SmartEval")}</Link>
+            <Link to="/institution/connexion">{t("Espace des délégations (DDES / DRES)")}</Link>
           </nav>
           <nav aria-label={t("Réseaux")} className="ac-reseaux">
             <a href={EDITEUR.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><Icone nom="whatsapp" /></a>

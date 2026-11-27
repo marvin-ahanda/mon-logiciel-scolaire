@@ -46,8 +46,8 @@ export const PAGES = {
     ariane: "SmartEval", parent: "/tarifs", maj: "2026-11-27",
   },
   "/commencer": {
-    titre: "Créer un compte NexIA School : école ou enseignant",
-    description: "Choisissez votre profil : établissement scolaire ou enseignant SmartEval. Créez votre compte en ligne et commencez gratuitement.",
+    titre: "Créer un compte NexIA School : école, enseignant, délégation",
+    description: "Choisissez votre profil : établissement scolaire, enseignant SmartEval ou délégation DDES / DRES. Créez votre compte en ligne gratuitement.",
     h1: "Créer mon compte NexIA School",
     ariane: "Commencer", maj: "2026-11-27",
   },
