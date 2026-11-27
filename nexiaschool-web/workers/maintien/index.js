@@ -44,13 +44,22 @@ async function automatisations(env) {
   return r.status
 }
 
+/** Alertes du pilotage institutionnel (ouverture, échéances, retards) : notifications internes, idempotentes. */
+async function alertesInstitution(env) {
+  const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/inst_alertes_quotidiennes`, {
+    method: "POST", headers: { apikey: env.SUPABASE_CLE_PUBLIQUE, "Content-Type": "application/json" }, body: "{}",
+  })
+  console.log("alertes institutionnelles :", r.status, await r.text())
+  return r.status
+}
+
 export default {
   // déclenchement planifié chaque heure (voir [triggers] dans wrangler.toml). relances_quotidiennes distribue chaque heure les
   // courriers programmés et n'envoie les relances qu'une fois par jour (pas avant 6 h à Douala) ; rappels d'abonnement à 06:17.
   async scheduled(evenement, env, contexte) {
     const heureUtc = new Date(evenement.scheduledTime || Date.now()).getUTCHours()
     const taches = [ping(env), automatisations(env), relances(env)]
-    if (heureUtc === 5) taches.push(rappels(env))
+    if (heureUtc === 5) taches.push(rappels(env), alertesInstitution(env))
     contexte.waitUntil(Promise.allSettled(taches))
   },
   // appel manuel : renvoie seulement l'état du dernier ping (aucune donnée)

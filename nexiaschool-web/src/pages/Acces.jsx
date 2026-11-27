@@ -10,6 +10,7 @@ import { consommerRetour } from "../lib/retour.js"
 import { connexionGoogle, rpc, supabase } from "../supabase.js"
 import { useSession } from "../Session.jsx"
 import { ChoixLangue, t, traduireErreur } from "../i18n.jsx"
+import { ChoixLocalisation } from "./institution/Composants.jsx"
 
 export function Carte({ titre, children }) {
   return (
@@ -105,6 +106,7 @@ export function Inscription() {
                                admin_nom: meta.family_name || "", admin_prenom: meta.given_name || "", ...valeursEntete() })
   const [erreur, setErreur] = useState(""), [envoi, setEnvoi] = useState(false), [resultat, setResultat] = useState(null)
   const [logo, setLogo] = useState(null)
+  const [localisation, setLocalisation] = useState({ region_id: "", departement_id: "" })
   const champ = (k) => ({ value: f[k], onChange: (e) => setF({ ...f, [k]: e.target.value }) })
 
   useEffect(() => {
@@ -118,6 +120,11 @@ export function Inscription() {
     try {
       const r = await rpc("creer_etablissement_google", { p_nom: f.nom, p_ville: f.ville, p_adresse: f.adresse, p_telephone: f.telephone,
         p_devise: f.devise, p_nom_chef: f.nom_chef, p_admin_nom: f.admin_nom, p_admin_prenom: f.admin_prenom, p_site_web: f.site_web })
+      if (localisation.departement_id) {
+        // rattachement déclaré, à vérifier par la délégation départementale (ou l'administrateur de NexIA School)
+        try { await rpc("etablissement_localisation", { p_departement: localisation.departement_id }) }
+        catch { r.avertissement = t("La localisation administrative n'a pas pu être enregistrée : renseignez-la dans Délégation → Mes fiches statistiques.") }
+      }
       const entete = Object.fromEntries(CHAMPS_ENTETE.map((k) => [k, f[k].trim()]).filter(([, v]) => v))
       if (Object.keys(entete).length) {
         const { error } = await supabase.from("etablissements").update(entete).eq("id", r.id)
@@ -193,6 +200,9 @@ export function Inscription() {
                   "C'est ce nom que le personnel saisira pour entrer dans l'espace (accents et majuscules ignorés)."
                 )}</div></div>
               <div className="col-md-6"><label className="form-label" htmlFor="v">{t("Ville")}</label><input className="form-control" id="v" maxLength={100} {...champ("ville")} /></div>
+              <div className="col-12"><fieldset className="border rounded p-2"><legend className="float-none w-auto px-1 fs-6 mb-0">{t("Localisation administrative")}</legend>
+                <ChoixLocalisation valeur={localisation} onChange={setLocalisation} requis={false} idPrefixe="creation" />
+                <div className="form-text">{t("Région et département de l'établissement : nécessaires pour transmettre les fiches statistiques à la délégation départementale. Le rattachement sera vérifié.")}</div></fieldset></div>
               <div className="col-md-6"><label className="form-label" htmlFor="t">{t("Téléphone")}</label><input className="form-control" id="t" maxLength={50} {...champ("telephone")} /></div>
               <div className="col-md-6"><label className="form-label" htmlFor="a">{t("Adresse / boîte postale")}</label><input className="form-control" id="a" maxLength={200} {...champ("adresse")} /></div>
               <div className="col-md-6"><label className="form-label" htmlFor="c">{t("Chef d'établissement")}</label><input className="form-control" id="c" maxLength={150} {...champ("nom_chef")} /></div>

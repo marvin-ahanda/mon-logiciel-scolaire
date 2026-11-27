@@ -1,6 +1,6 @@
 // Console du propriétaire de la plateforme : vue d'ensemble, établissements, utilisateurs, journal.
 // Toutes les données viennent des fonctions « console_* » de la base, qui vérifient le propriétaire et journalisent.
-import { useMemo, useState } from "react"
+import { lazy, Suspense, useMemo, useState } from "react"
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../composants/Communs.jsx"
 import { LIBELLES_ROLES } from "../composants/MiseEnPage.jsx"
@@ -10,6 +10,8 @@ import { siteAffiche } from "../lib/logo.js"
 import { useSession } from "../Session.jsx"
 import { rpc, supabase } from "../supabase.js"
 import { FONCTIONS, LIBELLES_FONCTIONS, NOMS_OFFRES } from "../lib/offres.js"
+
+const InstitutionsConsole = lazy(() => import("./console/InstitutionsConsole.jsx"))
 
 const LIMITE_STOCKAGE = 1024 ** 3, LIMITE_BASE = 500 * 1024 ** 2     // plan Free de Supabase
 const entier = new Intl.NumberFormat("fr-FR")
@@ -542,6 +544,7 @@ export default function Console() {
           <li className="nav-item"><NavLink className={onglet} to="/console/etablissements">Établissements</NavLink></li>
           <li className="nav-item"><NavLink className={onglet} to="/console/utilisateurs">Utilisateurs</NavLink></li>
           <li className="nav-item"><NavLink className={onglet} to="/console/journal">Journal</NavLink></li>
+          <li className="nav-item"><NavLink className={onglet} to="/console/institutions">Institutions</NavLink></li>
           <li className="nav-item"><NavLink className={onglet} to="/console/configuration">Tarifs et offres</NavLink></li>
         </ul>
         <Routes>
@@ -550,6 +553,7 @@ export default function Console() {
           <Route path="etablissements/:id" element={<FicheEtablissement />} />
           <Route path="utilisateurs" element={<Utilisateurs />} />
           <Route path="journal" element={<Journal />} />
+          <Route path="institutions/*" element={<Suspense fallback={<Chargement />}><InstitutionsConsole /></Suspense>} />
           <Route path="configuration" element={<ConfigCommerciale />} />
           <Route path="*" element={<Navigate to="/console" replace />} />
         </Routes>

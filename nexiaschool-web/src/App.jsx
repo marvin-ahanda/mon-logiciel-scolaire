@@ -70,6 +70,11 @@ const NouveauMotDePasse = page(() => import("./pages/enseignant/AccesEnseignant.
 const Bienvenue = page(() => import("./pages/enseignant/AccesEnseignant.jsx"), "Bienvenue")
 const ConnexionGroupe = page(() => import("./pages/enseignant/AccesEnseignant.jsx"), "ConnexionGroupe")
 const EspaceEnseignant = page(() => import("./pages/enseignant/EspaceEnseignant.jsx"))
+const EspaceInstitution = page(() => import("./pages/institution/Espace.jsx"))
+const InscriptionDelegue = page(() => import("./pages/institution/Acces.jsx"), "InscriptionDelegue")
+const ConnexionDelegue = page(() => import("./pages/institution/Acces.jsx"), "ConnexionDelegue")
+const FichesStatistiques = page(() => import("./pages/institution/Etablissement.jsx"))
+const CourriersInstitutionnels = page(() => import("./pages/institution/Etablissement.jsx"), "CourriersInstitutionnels")
 const Console = lazy(() => import("./pages/Console.jsx"))      // chargée seulement par le propriétaire
 const ConsultationEdt = lazy(() => import("./pages/edt/Consultation.jsx"))   // emplois du temps publiés
 
@@ -95,10 +100,11 @@ function Suspendu() {
 
 function Protege({ admin = false, droit }) {
   const session_ = useSession()
-  const { pret, session, profil, estAdmin, erreur, sansCompte, suspendu, enseignant } = session_
+  const { pret, session, profil, estAdmin, erreur, sansCompte, suspendu, enseignant, institution } = session_
   if (!pret) return <Chargement />
   if (suspendu) return <Suspendu />
   if (enseignant?.compte) return <Navigate to="/enseignant" replace />
+  if (institution) return <Navigate to="/institution" replace />
   if (sansCompte) return <Navigate to="/bienvenue" replace />
   if (erreur) return (
     <div className="container py-5"><div className="alert alert-danger">{t(
@@ -112,10 +118,11 @@ function Protege({ admin = false, droit }) {
 
 /** « / » : page d'accueil publique pour les visiteurs, tableau de bord pour le personnel connecté. */
 function Racine() {
-  const { pret, session, profil, sansCompte, suspendu, enseignant } = useSession()
+  const { pret, session, profil, sansCompte, suspendu, enseignant, institution } = useSession()
   if (!pret) return <Chargement />
   if (suspendu) return <Suspendu />
   if (enseignant?.compte) return <Navigate to="/enseignant" replace />
+  if (institution) return <Navigate to="/institution" replace />
   if (sansCompte) return <Navigate to="/bienvenue" replace />
   if (session && profil) return <MiseEnPage />
   return <Landing />
@@ -151,6 +158,9 @@ export default function App() {
           <Route path="/smarteval/mot-de-passe" element={<NouveauMotDePasse />} />
           <Route path="/smarteval/groupe" element={<ConnexionGroupe />} />
           <Route path="/enseignant/*" element={<EspaceEnseignant />} />
+          <Route path="/institution/inscription" element={<InscriptionDelegue />} />
+          <Route path="/institution/connexion" element={<ConnexionDelegue />} />
+          <Route path="/institution/*" element={<EspaceInstitution />} />
           <Route path="/console/*" element={<Suspense fallback={<Chargement />}><Console /></Suspense>} />
           <Route path="/" element={<Racine />}>
             <Route index element={<Accueil />} />
@@ -196,6 +206,8 @@ export default function App() {
             <Route path="/personnel" element={<Personnel />} />
             <Route path="/abonnement" element={<Abonnement />} />
             <Route path="/statistiques/*" element={<Statistiques />} />
+            <Route path="/fiches-statistiques/*" element={<FichesStatistiques />} />
+            <Route path="/courriers-institutionnels" element={<CourriersInstitutionnels />} />
           </Route>
           <Route path="*" element={<PageIntrouvable />} />
         </Routes>

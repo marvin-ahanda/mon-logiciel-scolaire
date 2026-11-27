@@ -129,6 +129,7 @@ export default function MiseEnPage() {
               {!estAdmin && rubrique("/automatisations", t("Automatisations"))}
               {rubrique("/smarteval", <>SmartEval <span className="badge se-badge-ia">IA</span></>)}
               {estAdmin && rubrique("/statistiques", t("Statistiques"))}
+              {estAdmin && <Menu titre={t("Délégation")} liens={[["/fiches-statistiques", t("Mes fiches statistiques")], ["/fiches-statistiques/historique", t("Historique des publications")], ["/courriers-institutionnels", t("Courriers institutionnels")], ["/fiches-statistiques/notifications", t("Notifications")]]} />}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/parametres">{t("Paramètres")}</NavLink></li>}
               {estAdmin && <li className="nav-item"><NavLink className={lien} to="/personnel">{t("Personnel")}</NavLink></li>}
               {rubrique("/developpeur", t("IA et API"))}

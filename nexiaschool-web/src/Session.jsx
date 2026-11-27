@@ -30,6 +30,13 @@ async function lireEnseignant() {
   return data
 }
 
+/** Espace d'une délégation (membre validé ou demande en cours) ; null si le compte n'en a pas. */
+async function lireInstitution() {
+  const { data, error } = await supabase.rpc("inst_mon_espace")
+  if (error || !data || (!data.membre && !data.demande)) return null
+  return data
+}
+
 /** Droits effectifs de l'établissement, fonction par fonction (offre + réglages de la plateforme), gardés sur l'appareil. */
 async function lireFonctions(etablissementId) {
   const cle = `nexiaschool.fonctions.${etablissementId}`
@@ -65,6 +72,9 @@ export function SessionProvider({ children }) {
         // enseignant indépendant (SmartEval) : compte sans établissement
         const enseignant = await lireEnseignant()
         if (enseignant?.compte) return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, enseignant, proprietaire })
+        // délégation départementale ou régionale (compte validé, ou demande de compte en cours)
+        const institution = await lireInstitution()
+        if (institution) return setEtat({ pret: true, session, profil: null, etablissement: null, exercice: null, institution, proprietaire })
         const email = session.user.email || ""
         const verifiee = google || (!!session.user.email_confirmed_at && !!email && !email.endsWith(".invalid"))
         // adresse vérifiée sans espace : création de l'espace de l'établissement (Google) ou du compte SmartEval

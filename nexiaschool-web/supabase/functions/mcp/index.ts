@@ -534,9 +534,32 @@ export async function executerEnseignant(outil, a, cle) {
   }
 }
 
+// --- Délégations départementales et régionales (clé « nxd_… ») : lecture seule, limitée à leur circonscription ----------
+export const OUTILS_INSTITUTION = [
+  { name: "contexte", title: "Ma délégation", description: "Délégation, niveau, catégories de données autorisées et campagnes disponibles. À appeler en premier.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  { name: "tableau_de_bord", title: "Transmission des fiches", description: "Statut de transmission par établissement (délégation départementale) ou par département (délégation régionale) : publiées, en retard, en correction, examinées.",
+    inputSchema: { type: "object", properties: { periode: { type: "string", enum: ["t1", "t2", "t3", "annuel"], description: "Période (par défaut : la dernière campagne ouverte)" }, annee_scolaire: { type: "string", description: "Année scolaire, ex. 2026-2027" }, campagne_id: { type: "string", description: "Identifiant de campagne (voir contexte)" } } }, annotations: { readOnlyHint: true } },
+  { name: "consolidation", title: "Indicateurs consolidés", description: "Taux pondérés (somme des réalisés / somme des prévus) : couverture des programmes, heures, assiduité ; nombre de fiches comptées et manquantes (jamais comptées comme zéro).",
+    inputSchema: { type: "object", properties: { periode: { type: "string", enum: ["t1", "t2", "t3", "annuel"], description: "Période (par défaut : la dernière campagne ouverte)" }, annee_scolaire: { type: "string", description: "Année scolaire, ex. 2026-2027" }, campagne_id: { type: "string", description: "Identifiant de campagne (voir contexte)" } } }, annotations: { readOnlyHint: true } },
+  { name: "detail_fiche", title: "Détail d'une fiche reçue", description: "Lignes d'une fiche reçue (si la catégorie est autorisée ; noms des enseignants seulement si autorisés). Jamais de nom d'élève.",
+    inputSchema: { type: "object", properties: { nom: { type: "string", description: "Nom (ou partie du nom) de l'établissement ou de la délégation" }, periode: { type: "string", enum: ["t1", "t2", "t3", "annuel"], description: "Période (par défaut : la dernière campagne ouverte)" }, annee_scolaire: { type: "string", description: "Année scolaire, ex. 2026-2027" }, campagne_id: { type: "string", description: "Identifiant de campagne (voir contexte)" } }, required: ["nom"] }, annotations: { readOnlyHint: true } },
+  { name: "courriers", title: "Suivi des courriers", description: "Courriers envoyés : référence, objet, destinataires, lus, réponses (si la catégorie est autorisée).",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+]
+
+const INSTRUCTIONS_INSTITUTION = "Serveur NexIA School d'une délégation des enseignements secondaires, en LECTURE SEULE : vous ne pouvez ni publier, ni modifier, ni valider, ni envoyer. " +
+  "Commencez par contexte. Dans chaque réponse, citez la période, le périmètre et le nombre de fiches utilisées (champs periode, perimetre, nb_fiches_utilisees). " +
+  "Les données manquantes ne valent pas zéro. NexIA School est un service indépendant, non mandaté par le MINESEC : ne présentez pas ces chiffres comme des statistiques officielles."
+
+export async function executerInstitution(outil, a, cle) {
+  if (!OUTILS_INSTITUTION.some((o) => o.name === outil)) throw new ErreurApi(`Outil inconnu : ${outil}`)
+  return await rpc("api_institution", { p_cle: cle, p_outil: outil, p_args: a || {} })
+}
+
 async function traiterMessage(m, cle) {
-  const parent = cle.startsWith("nxa_"), enseignant = cle.startsWith("nxe_")
-  const outils = parent ? OUTILS_PARENT : enseignant ? OUTILS_ENSEIGNANT : OUTILS
+  const parent = cle.startsWith("nxa_"), enseignant = cle.startsWith("nxe_"), institution = cle.startsWith("nxd_")
+  const outils = parent ? OUTILS_PARENT : enseignant ? OUTILS_ENSEIGNANT : institution ? OUTILS_INSTITUTION : OUTILS
   const reponse = (resultat) => ({ jsonrpc: "2.0", id: m.id, result: resultat })
   const erreur = (code, message) => ({ jsonrpc: "2.0", id: m.id, error: { code, message } })
   if (m.id === undefined || m.id === null) return null                       // notification : pas de réponse
@@ -544,18 +567,19 @@ async function traiterMessage(m, cle) {
     case "initialize": {
       if (parent) await rpc("api_parent", { p_cle: cle, p_outil: "contexte", p_args: {} })   // vérifie la clé dès la connexion
       else if (enseignant) await executerEnseignant("contexte", {}, cle)
+      else if (institution) await executerInstitution("contexte", {}, cle)
       else await rpc("api_contexte", { p_cle: cle })
       const demandee = m.params?.protocolVersion
       return reponse({ protocolVersion: VERSIONS.includes(demandee) ? demandee : VERSIONS[1],
         capabilities: { tools: { listChanged: false }, prompts: { listChanged: false } },
-        serverInfo: { name: "nexiaschool", title: parent ? "NexIA School — espace parents" : enseignant ? "NexIA SmartEval — enseignant" : "NexIA School", version: "1.1.0", websiteUrl: BASE },
-        instructions: parent ? INSTRUCTIONS_PARENT : enseignant ? INSTRUCTIONS_ENSEIGNANT : INSTRUCTIONS })
+        serverInfo: { name: "nexiaschool", title: parent ? "NexIA School — espace parents" : enseignant ? "NexIA SmartEval — enseignant" : institution ? "NexIA School — délégation (lecture seule)" : "NexIA School", version: "1.1.0", websiteUrl: BASE },
+        instructions: parent ? INSTRUCTIONS_PARENT : enseignant ? INSTRUCTIONS_ENSEIGNANT : institution ? INSTRUCTIONS_INSTITUTION : INSTRUCTIONS })
     }
     case "ping": return reponse({})
     case "tools/list": return reponse({ tools: outils })
-    case "prompts/list": return reponse({ prompts: parent ? [] : INVITES })
+    case "prompts/list": return reponse({ prompts: parent || institution ? [] : INVITES })
     case "prompts/get": {
-      if (parent) return erreur(-32602, `Invite inconnue : ${m.params?.name}`)
+      if (parent || institution) return erreur(-32602, `Invite inconnue : ${m.params?.name}`)
       if (m.params?.name !== "analyse_smarteval") return erreur(-32602, `Invite inconnue : ${m.params?.name}`)
       const ev = String(m.params?.arguments?.evaluation || "").slice(0, 200)
       return reponse({ description: INVITES[0].description, messages: [{ role: "user", content: { type: "text",
@@ -566,7 +590,8 @@ async function traiterMessage(m, cle) {
       if (!outils.some((o) => o.name === nomOutil)) return erreur(-32602, `Outil inconnu : ${nomOutil}`)
       try {
         const resultat = parent ? await executerParent(nomOutil, m.params?.arguments || {}, cle)
-          : enseignant ? await executerEnseignant(nomOutil, m.params?.arguments || {}, cle) : await executer(nomOutil, m.params?.arguments || {}, cle)
+          : enseignant ? await executerEnseignant(nomOutil, m.params?.arguments || {}, cle)
+          : institution ? await executerInstitution(nomOutil, m.params?.arguments || {}, cle) : await executer(nomOutil, m.params?.arguments || {}, cle)
         return reponse({ content: [{ type: "text", text: JSON.stringify(resultat, null, 2) }] })
       } catch (e) {
         if (e.code === "28000") throw e                                         // jeton expiré : 401 pour que le client le renouvelle
@@ -580,11 +605,11 @@ async function traiterMessage(m, cle) {
 async function mcp(req) {
   const auth = req.headers.get("authorization") || ""
   const cle = (auth.match(/^Bearer\s+(\S+)$/i)?.[1] || req.headers.get("x-api-key") || "").trim()
-  if (!/^nx[soae]_[0-9a-f]{48}$/.test(cle)) return nonAutorise("Authentification requise : clé API NexIA School ou autorisation OAuth.")
+  if (!/^nx[soaed]_[0-9a-f]{48}$/.test(cle)) return nonAutorise("Authentification requise : clé API NexIA School ou autorisation OAuth.")
   let corps
   try { corps = await req.json() } catch { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON invalide" } }, 400) }
   const messages = Array.isArray(corps) ? corps : [corps]
-  const parent = cle.startsWith("nxa_") || cle.startsWith("nxe_")
+  const parent = cle.startsWith("nxa_") || cle.startsWith("nxe_") || cle.startsWith("nxd_")
   // assistants des parents et des enseignants indépendants : lots limités à 10 messages, traités l'un après l'autre (limite d'appels respectée)
   if (parent && messages.length > 10) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "10 messages au plus par lot." } }, 400)
   try {

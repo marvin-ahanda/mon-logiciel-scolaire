@@ -35,7 +35,7 @@ export function ChoixInscription() {
           <Link className="small mt-2 text-center" to="/tarifs/smarteval">{t("Voir les offres SmartEval")}</Link>
         </div></div></div>
       </div>
-      <p className="text-center small text-muted mt-4">{t("Déjà inscrit ?")} <Link to="/etablissement">{t("Espace d'un établissement")}</Link> · <Link to="/smarteval/connexion">{t("Espace SmartEval")}</Link></p>
+      <p className="text-center small text-muted mt-4">{t("Déjà inscrit ?")} <Link to="/etablissement">{t("Espace d'un établissement")}</Link> · <Link to="/smarteval/connexion">{t("Espace SmartEval")}</Link> · <Link to="/institution/connexion">{t("Espace des délégations (DDES / DRES)")}</Link></p>
     </div>
   )
 }
@@ -166,7 +166,7 @@ export function NouveauMotDePasse() {
 
 /** Adresse vérifiée, sans espace : création du compte SmartEval (ou de l'espace d'un établissement avec Google). */
 export function Bienvenue() {
-  const { pret, session, profil, enseignant, sansCompte, sansEtablissement, recharger } = useSession()
+  const { pret, session, profil, enseignant, institution, sansCompte, sansEtablissement, recharger } = useSession()
   const naviguer = useNavigate()
   const meta = session?.user?.user_metadata || {}
   const [f, setF] = useState({ nom: meta.family_name || "", prenom: meta.given_name || "" })
@@ -174,8 +174,9 @@ export function Bienvenue() {
   useEffect(() => {
     if (!pret) return
     if (profil) naviguer("/", { replace: true })
+    else if (institution) naviguer("/institution", { replace: true })
     else if (enseignant?.compte && !refus) naviguer(consommerRetour() || "/enseignant", { replace: true })
-  }, [pret, profil, enseignant, refus, naviguer])
+  }, [pret, profil, enseignant, institution, refus, naviguer])
 
   async function creer(e) {
     e.preventDefault(); setErreur(""); setEnvoi(true)
