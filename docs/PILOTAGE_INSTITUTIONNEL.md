@@ -1,6 +1,6 @@
 # Pilotage institutionnel — remontée des fiches de synthèse statistiques (migration 0055)
 
-État au 27/11/2026 : **développé et testé en local, non déployé** (migration 0055 non appliquée en production, fonction `mcp` non redéployée, site non publié).
+État au 27/11/2026 : **déployé en production** — migration 0055 appliquée (en 4 parties : 0055_pilotage_institutionnel_1 à _4), fonction mcp version 13, site et travailleur `maintien` publiés (commit 9ce8e9f). Référentiel, formules et campagnes restent à valider dans la console (§ 19).
 
 NexIA School n'est présentée nulle part comme mandatée ou agréée par le MINESEC : mention sur les pages d'inscription, dans l'espace des délégations, dans les instructions MCP et en pied de chaque PDF.
 
@@ -143,7 +143,7 @@ Restent, faibles :
 
 ## 19. Configuration manuelle
 
-1. Appliquer la migration 0055 en production, redéployer la fonction `mcp`, redéployer le travailleur `maintien` et publier le site.
+1. ~~Appliquer la migration, redéployer `mcp` et `maintien`, publier le site~~ : fait le 27/11/2026.
 2. Console → Institutions → Référentiel : vérifier noms et codes des régions et départements, puis les valider.
 3. Console → Campagnes et formules : créer les campagnes (année, période, ouverture, échéance, alertes) pour les établissements, puis pour les synthèses départementales et régionales ; décider du réglage « leçons digitalisées » ; cocher « formules validées » seulement après validation officielle.
 4. Valider les demandes de comptes des délégations (vérification du justificatif).
