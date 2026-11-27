@@ -7,6 +7,7 @@ import { ACCEPTES, SUPPORTS_MAX, envoyerSupport, icone, retirerSupports, tailleL
 import { analyserEvaluation, attenduTexte, reponseTexte } from "../lib/smarteval.js"
 import { DUREE_MAX, STATUTS, TYPES, UNITES, demandeIA, enteteEtablissement, finDuree, lienEvaluation, nouvelId, nouvelleQuestion } from "../lib/smartevalOutils.js"
 import { dateHeure, note, pourcentage } from "../lib/format.js"
+import { CHRONO_DEFAUT, ReglageChrono, SuiviTentatives, controlerChrono, enregistrerChrono } from "../composants/ChronoSmartEval.jsx"
 import { useSession } from "../Session.jsx"
 import { rpc } from "../supabase.js"
 import { t } from "../i18n.jsx"
@@ -256,10 +257,10 @@ export function EditeurEvaluation() {
       if (ev.jeton) { naviguer(`/smarteval/${ev.id}`, { replace: true }); return }
       setSupportsEnregistres(ev.supports || [])
       setF({ titre: ev.titre, consignes: ev.consignes, competence: ev.competence, matiere_id: ev.matiere_id, classes: ev.classes.slice(0, 1).map((c) => c.id),
-             supports: ev.supports || [], anonyme_ia: !!ev.anonyme_ia, questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
+             supports: ev.supports || [], anonyme_ia: !!ev.anonyme_ia, chrono: { secondes: ev.chrono_secondes ?? null, auto: ev.chrono_auto !== false }, questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
     } else {
       const c = classesDe(ctx)[0], m = matieresDe(ctx, c?.id)[0]
-      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], supports: [], anonyme_ia: false, questions: [nouvelleQuestion()] })
+      setF({ titre: "", consignes: "", competence: "", matiere_id: m?.matiere_id || "", classes: c ? [c.id] : [], supports: [], anonyme_ia: false, chrono: CHRONO_DEFAUT, questions: [nouvelleQuestion()] })
     }
   }, [donnees, f, naviguer])
   useEffect(() => { enteteEtablissement(etablissement, exercice, logoUrl).then(setEntete) }, [etablissement, exercice, logoUrl])
@@ -276,15 +277,16 @@ export function EditeurEvaluation() {
   const deplacer = (k, sens) => { const qs = [...f.questions]; [qs[k], qs[k + sens]] = [qs[k + sens], qs[k]]; setF({ ...f, questions: qs }) }
 
   async function terminer() {
-    const e = controler(f)
+    const e = controler(f) || controlerChrono(f.chrono)
     setErreur(e); if (e) { window.scrollTo({ top: 0, behavior: "smooth" }); return }
     setOccupe(true)
     try {
       const questions = f.questions.map((q) => ({ ...q, options: q.options.map((o) => o.trim()).filter(Boolean), acceptees: q.acceptees.filter(Boolean),
         points: q.type === "echelle" ? 0 : Number(q.points) || 0 }))
-      const { anonyme_ia, ...donneesEv } = f
+      const { anonyme_ia, chrono, ...donneesEv } = f
       const nouvelId_ = (await rpc("smarteval_enregistrer", { p: { id: evId, ...donneesEv, questions } })).id
       await rpc("smarteval_anonymiser", { p_id: nouvelId_, p_actif: !!anonyme_ia })
+      await enregistrerChrono(nouvelId_, chrono)
       const gardes = new Set(f.supports.map((d) => d.chemin))                       // documents retirés : supprimés du stockage
       retirerSupports(supportsEnregistres.filter((d) => !gardes.has(d.chemin)).map((d) => d.chemin)).catch(() => {})
       setSupportsEnregistres(f.supports)
@@ -400,6 +402,8 @@ export function EditeurEvaluation() {
           </div></div>
         </div>
       </div>
+
+      <ReglageChrono valeur={f.chrono} onChange={(chrono) => setF((x) => ({ ...x, chrono }))} idBase="se-chrono" />
 
       <div className="se-carte se-identite-verrouillee">
         <div className="se-intitule mb-2">🔒 {t("Identification de l'élève")}</div>
@@ -575,6 +579,7 @@ export function ResultatsEvaluation({ independant = false, base = "/smarteval" }
               <td className="small text-danger">{e.notions_a_revoir.map((n) => t(n)).join(", ") || "—"}</td><td className="small text-success">{e.notions_maitrisees.map((n) => t(n)).join(", ") || "—"}</td></tr>)}</tbody>
           </table></div></div>}
 
+        <SuiviTentatives ev={ev} independant={independant} rafraichir={ev.soumissions.length} />
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
           <h2 className="h5 mb-0">{t("Copies des élèves ({v0})", { v0: s.soumissions })}</h2>
           {s.soumissions > 0 && <div className="d-flex flex-wrap gap-2">

@@ -53,12 +53,21 @@ async function alertesInstitution(env) {
   return r.status
 }
 
+/** SmartEval : compositions chronométrées dont le temps est écoulé (élève déconnecté) : copie soumise par le serveur. */
+async function compositionsExpirees(env) {
+  const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/smarteval_expirer`, {
+    method: "POST", headers: { apikey: env.SUPABASE_CLE_PUBLIQUE, "Content-Type": "application/json" }, body: "{}",
+  })
+  console.log("compositions expirées :", r.status, await r.text())
+  return r.status
+}
+
 export default {
   // déclenchement planifié chaque heure (voir [triggers] dans wrangler.toml). relances_quotidiennes distribue chaque heure les
   // courriers programmés et n'envoie les relances qu'une fois par jour (pas avant 6 h à Douala) ; rappels d'abonnement à 06:17.
   async scheduled(evenement, env, contexte) {
     const heureUtc = new Date(evenement.scheduledTime || Date.now()).getUTCHours()
-    const taches = [ping(env), automatisations(env), relances(env)]
+    const taches = [ping(env), automatisations(env), relances(env), compositionsExpirees(env)]
     if (heureUtc === 5) taches.push(rappels(env), alertesInstitution(env))
     contexte.waitUntil(Promise.allSettled(taches))
   },

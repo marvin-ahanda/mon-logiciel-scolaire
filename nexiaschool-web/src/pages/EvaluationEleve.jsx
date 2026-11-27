@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { Chargement } from "../composants/Communs.jsx"
+import CompositionChronometree from "../composants/CompositionChronometree.jsx"
 import FormulaireEvaluation from "../composants/FormulaireEvaluation.jsx"
 import { dateHeure } from "../lib/format.js"
 import { rpc } from "../supabase.js"
@@ -38,6 +39,7 @@ export default function EvaluationEleve() {
     <Cadre><div className="se-carte se-close"><h1 className="h5">{ev.titre}</h1>
       <p className="mb-0">{ev.statut === "close" ? t("Cette évaluation est close depuis le {v0} : les réponses ne sont plus acceptées.", { v0: dateHeure(ev.ferme_le) })
                                                  : t("Cette évaluation n'est pas encore ouverte.")}</p></div></Cadre>)
+  if (ev.chrono_secondes) return <Cadre><CompositionChronometree jeton={jeton} evaluation={ev} /></Cadre>
   return (
     <Cadre>
       <FormulaireEvaluation evaluation={ev} mode="eleve" brouillon={`smarteval-brouillon:${jeton}`}

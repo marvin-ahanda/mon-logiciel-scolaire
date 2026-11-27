@@ -426,3 +426,14 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-bs-theme="light"]) { --fin-entree: #4ade80; --fin-sortie: #fb923c; } }
 [data-bs-theme="dark"] { --fin-entree: #4ade80; --fin-sortie: #fb923c; }
 @media (prefers-reduced-motion: reduce) { .barres-finance .barre, .onglet-finance { transition: none; } }
+
+/* SmartEval : composition chronométrée */
+.se-chrono-barre { position: sticky; top: 0; z-index: 1020; background: #fff; border: 1px solid #dadce0; border-left: 6px solid #0b46e5; border-radius: 10px; padding: 10px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+.se-chrono-temps { font-size: 1.9rem; font-weight: 700; line-height: 1.1; letter-spacing: .04em; }
+.se-chrono-attention { border-left-color: #f29900; background: #fff8e6; }
+.se-chrono-urgent, .se-chrono-fini { border-left-color: #d93025; background: #fdecea; }
+.se-chrono-urgent .se-chrono-temps, .se-chrono-fini .se-chrono-temps { color: #b3261e; }
+.se-chrono-alerte { position: sticky; top: 84px; z-index: 1019; }
+.se-chrono-avertissement { border-left: 4px solid #f29900; }
+.se-chrono-commencer { font-weight: 700; letter-spacing: .03em; }
+@media (prefers-reduced-motion: no-preference) { .se-chrono-urgent .se-chrono-temps { transition: color .3s ease-out; } }

@@ -7,6 +7,7 @@ import { Alerte, Chargement, useDonnees } from "../../composants/Communs.jsx"
 import FormulaireEvaluation from "../../composants/FormulaireEvaluation.jsx"
 import { DUREE_MAX, UNITES, finDuree, lienEvaluation, nouvelId, nouvelleQuestion } from "../../lib/smartevalOutils.js"
 import { dateHeure, note } from "../../lib/format.js"
+import { CHRONO_DEFAUT, ReglageChrono, controlerChrono, enregistrerChrono } from "../../composants/ChronoSmartEval.jsx"
 import { useSession } from "../../Session.jsx"
 import { rpc } from "../../supabase.js"
 import { t } from "../../i18n.jsx"
@@ -95,9 +96,9 @@ export function EditeurIndependant() {
     if (ev) {
       if (ev.jeton) { naviguer(`${BASE}/${ev.id}`, { replace: true }); return }
       setF({ titre: ev.titre, consignes: ev.consignes || "", competence: ev.competence, matiere: ev.matiere || matiereImposee, classe: ev.classe,
-             groupes: (ev.groupes || []).join(", "), anonyme_ia: !!ev.anonyme_ia, demande_matricule: !!ev.demande_matricule,
+             groupes: (ev.groupes || []).join(", "), anonyme_ia: !!ev.anonyme_ia, demande_matricule: !!ev.demande_matricule, chrono: { secondes: ev.chrono_secondes ?? null, auto: ev.chrono_auto !== false },
              questions: ev.questions.map((q) => ({ ...nouvelleQuestion(q.type), ...q, echelle: q.echelle || nouvelleQuestion().echelle })) })
-    } else setF({ titre: "", consignes: "", competence: "", matiere: matiereImposee, classe: "", groupes: "", anonyme_ia: false, demande_matricule: false,
+    } else setF({ titre: "", consignes: "", competence: "", matiere: matiereImposee, classe: "", groupes: "", anonyme_ia: false, demande_matricule: false, chrono: CHRONO_DEFAUT,
                   questions: [nouvelleQuestion()] })
   }, [ev, f, id, matiereImposee, naviguer])
 
@@ -110,7 +111,7 @@ export function EditeurIndependant() {
   const entete = { nom: nomEnseignant, devise: "", adresse: "", ville: "", telephone: "", site_web: "", annee: "", logo: "" }
 
   async function terminer() {
-    const e = controler(f, matiereImposee)
+    const e = controler(f, matiereImposee) || controlerChrono(f.chrono)
     setErreur(e); if (e) { window.scrollTo({ top: 0, behavior: "smooth" }); return }
     setOccupe(true)
     try {
@@ -118,6 +119,7 @@ export function EditeurIndependant() {
         points: q.type === "echelle" ? 0 : Number(q.points) || 0 }))
       const r = await rpc("se_enregistrer", { p: { id: evId, titre: f.titre, consignes: f.consignes, competence: f.competence, matiere: matiereImposee || f.matiere,
         classe: f.classe, groupes, anonyme_ia: f.anonyme_ia, demande_matricule: f.demande_matricule || f.anonyme_ia, questions } })
+      await enregistrerChrono(r.id, f.chrono)
       setEvId(r.id); setEtape("apercu"); window.scrollTo({ top: 0 })
       if (!id) window.history.replaceState(null, "", `${import.meta.env.BASE_URL}enseignant/smarteval/${r.id}/modifier`)
     } catch (x) { setErreur(x.message); window.scrollTo({ top: 0, behavior: "smooth" }) } finally { setOccupe(false) }
@@ -221,6 +223,7 @@ export function EditeurIndependant() {
           </div>
         </div>
       </div>
+      <ReglageChrono valeur={f.chrono} onChange={(chrono) => setF((x) => ({ ...x, chrono }))} idBase="si-chrono" />
       {f.questions.map((q, k) => (
         <EditeurQuestion key={q.id} q={q} numero={k + 1} total={f.questions.length} onChange={(x) => majQ(k, x)}
           onSupprimer={() => setF({ ...f, questions: f.questions.filter((_, i) => i !== k) })}

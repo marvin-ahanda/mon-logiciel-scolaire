@@ -7,7 +7,7 @@ import { t } from "../i18n.jsx"
 import { icone, lienSupport, tailleLisible } from "../lib/supports.js"
 
 /** Documents supports de l'évaluation, à télécharger par l'élève avant de répondre. */
-function DocumentsAtelecharger({ supports }) {
+export function DocumentsAtelecharger({ supports }) {
   const [enCours, setEnCours] = useState(""), [erreur, setErreur] = useState("")
   if (!supports?.length) return null
   const telecharger = async (d) => {
@@ -44,9 +44,9 @@ export function EnteteEvaluation({ entete = {}, sequence }) {
   )
 }
 
-const vide = (v) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)
+export const vide = (v) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)
 
-function Question({ q, numero, valeur, onChange, erreur, desactive }) {
+export function Question({ q, numero, valeur, onChange, erreur, desactive }) {
   const nom = `q-${q.id}`
   const choisir = (v) => onChange(v)
   return (
