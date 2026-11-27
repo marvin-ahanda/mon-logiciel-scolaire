@@ -3,6 +3,7 @@ import { copyFileSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
+import { seo } from "./scripts/seo-plugin.mjs"
 
 // Service worker (src/sw.js) : version et liste des fichiers de l'application insérées à la compilation,
 // pour que toute l'application (y compris les modules chargés à la demande) soit disponible hors ligne.
@@ -46,6 +47,6 @@ function serviceWorker() {
 
 export default defineConfig({
   base: BASE,
-  plugins: [react(), serviceWorker()],
+  plugins: [react(), serviceWorker(), seo(BASE)],
   build: { sourcemap: false, chunkSizeWarningLimit: 900 },
 })

@@ -6,6 +6,7 @@ import { Link } from "react-router-dom"
 import "@fontsource-variable/inter"
 import { ChoixLangue, t } from "../i18n.jsx"
 import { EDITEUR } from "../lib/editeur.js"
+import { FAQ_ACCUEIL } from "../lib/seo-pages.js"
 import { connexionGoogle, rpc } from "../supabase.js"
 import "../accueil.css"
 
@@ -96,13 +97,7 @@ const TEMOIGNAGES = [
     "Carine NGO BASSONG", "Professeure de mathématiques", "Douala"],
 ]
 
-const FAQ = [
-  ["Faut-il installer un logiciel ?", "Non. NexIA School fonctionne dans le navigateur, sur ordinateur, tablette ou téléphone. Vous pouvez aussi l'ajouter à l'écran d'accueil du téléphone pour l'ouvrir comme une application."],
-  ["Et si la connexion Internet est mauvaise ou coupée ?", "L'application est conçue pour les connexions lentes : les données déjà consultées s'affichent sans attendre. Hors ligne, notes, appel, élèves et infractions se saisissent normalement et sont envoyés automatiquement au retour du réseau."],
-  ["Dois-je ressaisir toutes mes données ?", "Non. Importez vos listes Excel (élèves, classes, matières, personnel, coefficients, notes), séparément ou en un seul classeur. Les cases incomplètes sont signalées sans bloquer l'import."],
-  ["Les données d'un établissement sont-elles visibles par un autre ?", "Non. Chaque établissement dispose de son propre espace : la base de données refuse toute lecture ou écriture en dehors de son établissement, quel que soit l'utilisateur."],
-  ["Puis-je augmenter le nombre d'élèves en cours d'année ?", "Oui, à tout moment : vous ne payez que la différence et la date d'échéance est conservée. La capacité peut aussi être réduite au renouvellement. Toutes les données de l'établissement sont conservées."],
-]
+const FAQ = FAQ_ACCUEIL                    // source unique (reprise dans les données structurées du référencement)
 
 const LIENS = [["#fonctionnalites", "Fonctionnalités"], ["#demo", "Démonstration"], ["#etapes", "Démarrer"], ["#smarteval", "SmartEval enseignants"],
   ["#tarifs", "Tarifs"], ["#faq", "FAQ"]]

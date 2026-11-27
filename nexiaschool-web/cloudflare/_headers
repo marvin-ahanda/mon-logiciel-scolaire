@@ -24,3 +24,43 @@
   Content-Type: application/manifest+json
 /*.png
   Cache-Control: public, max-age=604800
+
+# Référencement : espaces privés et liens à jeton jamais indexés (en plus de robots.txt et de la balise noindex de l'application)
+/verifier/*
+  X-Robots-Tag: noindex, nofollow
+/recu/*
+  X-Robots-Tag: noindex, nofollow
+/carte/*
+  X-Robots-Tag: noindex, nofollow
+/distinction/*
+  X-Robots-Tag: noindex, nofollow
+/e/*
+  X-Robots-Tag: noindex, nofollow
+/parent
+  X-Robots-Tag: noindex, nofollow
+/parent/*
+  X-Robots-Tag: noindex, nofollow
+/enseignant/*
+  X-Robots-Tag: noindex, nofollow
+/console/*
+  X-Robots-Tag: noindex, nofollow
+/oauth/*
+  X-Robots-Tag: noindex, nofollow
+/bienvenue
+  X-Robots-Tag: noindex, nofollow
+/connexion
+  X-Robots-Tag: noindex, nofollow
+/etablissement
+  X-Robots-Tag: noindex, nofollow
+/acces
+  X-Robots-Tag: noindex, nofollow
+/smarteval/connexion
+  X-Robots-Tag: noindex, nofollow
+/smarteval/mot-de-passe
+  X-Robots-Tag: noindex, nofollow
+/smarteval/groupe
+  X-Robots-Tag: noindex, nofollow
+
+# L'ancienne adresse nexiaschool.pages.dev ne doit pas être indexée : la référence est nexiaschool.com
+https://nexiaschool.pages.dev/*
+  X-Robots-Tag: noindex

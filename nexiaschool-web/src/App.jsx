@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react"
+import { useSeo } from "./lib/seo.js"
 import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom"
 import { Chargement, LimiteChargement } from "./composants/Communs.jsx"
 import MiseEnPage from "./composants/MiseEnPage.jsx"
@@ -128,10 +129,14 @@ function Racine() {
   return <Landing />
 }
 
+/** Titre, description, canonical et consignes d'indexation de chaque adresse (voir src/lib/seo.js). */
+function Referencement() { useSeo(); return null }
+
 export default function App() {
   return (
     <SessionProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
+        <Referencement />
         <LimiteChargement><Suspense fallback={<Chargement />}>
         <Routes>
           <Route path="/etablissement" element={<Etablissement />} />
