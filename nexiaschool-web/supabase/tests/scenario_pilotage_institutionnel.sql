@@ -234,7 +234,7 @@ select public.console_inst_campagne(json_build_object('niveau', 'etablissement',
 select set_config('app.camp_t1', :'camp_t1', false) \g /dev/null
 do $$ begin perform public.console_inst_campagne(jsonb_build_object('niveau', 'etablissement', 'exercice', '2026-2027', 'periode', 't2',
     'ouverture', public._aujourdhui(), 'echeance', public._aujourdhui() - 3)); raise exception 'ÉCHEC : échéance avant ouverture';
-exception when check_violation then raise notice 'ok : C1 calendrier cohérent exigé'; end $$;
+exception when check_violation or sqlstate 'P0001' then if sqlerrm like 'ÉCHEC%' then raise; end if; raise notice 'ok : C1 calendrier cohérent exigé'; end $$;
 select pg_temp.etre(:'E1') \g /dev/null
 select public.inst_fiche_preparer(:'camp_t1') as fiche1 \gset
 select set_config('app.fiche1', :'fiche1', false) \g /dev/null
@@ -513,8 +513,8 @@ select public.inst_alertes_quotidiennes() as n1 \gset
 select public.inst_alertes_quotidiennes() as n2 \gset
 reset role;
 select pg_temp.verifier(:n1 >= 2 and :n2 = 0
-  and (select count(*) from public.inst_notifications where objet_id = :'camp_t2' and etablissement_id in (:'etab1', :'etab2')) = 2
-  and not exists (select 1 from public.inst_notifications where objet_id = :'camp_t2' and etablissement_id in (:'etab3', :'etab4')),
+  and (select count(*) from public.inst_notifications where objet_id = :'camp_t2' and type = 'alerte' and etablissement_id in (:'etab1', :'etab2')) = 2
+  and not exists (select 1 from public.inst_notifications where objet_id = :'camp_t2' and type = 'alerte' and etablissement_id in (:'etab3', :'etab4')),
   'I4 : alertes d''ouverture aux seuls établissements rattachés et routables, sans doublon');
 -- bilan annuel : cumul des trimestres publiés et périodes manquantes signalées
 set role authenticated;

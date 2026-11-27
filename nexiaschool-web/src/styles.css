@@ -260,6 +260,8 @@ body:has(.modal.d-block) .bulles-alertes { display: none; }
 .bilan-sequence { border-left: 4px solid #0b46e5; }
 .bulle-courrier { background: #198754; }
 .bulle-courrier:hover { background: #146c43; }
+.bulle-institution { background: #6f42c1; }
+.bulle-institution:hover { background: #59359a; }
 .lettre { background: #fff; color: #212529; max-width: 210mm; margin: 0 auto; padding: 18mm 18mm 16mm; box-shadow: 0 1px 8px rgba(0, 0, 0, .15);
   border-radius: 4px; font-family: "Times New Roman", Georgia, serif; font-size: 1.02rem; line-height: 1.55; }
 .lettre-haut { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; }

@@ -384,4 +384,5 @@ reset role;
 \ir scenario_pilotage_finance.sql
 \ir scenario_pilotage_institutionnel.sql
 \ir scenario_smarteval_chrono.sql
+\ir scenario_campagnes_delegations.sql
 \echo SCÉNARIO TERMINÉ

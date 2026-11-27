@@ -49,7 +49,8 @@ Console « Institutions → Demandes » : justificatif (lien signé), e-mail vé
 
 - Établissement (menu « Délégation ») : Mes fiches statistiques (localisation administrative, campagnes, nouvelle fiche), éditeur de fiche, Historique des publications, Courriers institutionnels (reçus ; envoyés et réponses), Notifications. Formulaire de création d'établissement : section « Localisation administrative » (région puis département filtré).
 - DDES : Tableau de bord départemental, Établissements de mon département (vérification des rattachements), Fiches statistiques reçues, Établissements en retard (relance), Analyse et consolidation, Ma synthèse départementale, Courriers, IA & API, Notifications, Paramètres de mon espace (collaborateurs, journal).
-- DRES : Tableau de bord régional, Délégations départementales, Synthèses départementales reçues, Départements en retard, Analyse et consolidation régionale, Ma synthèse régionale, Courriers, Accès exceptionnels, IA & API, Notifications, Paramètres.
+- DRES : Tableau de bord régional, Délégations départementales, Synthèses départementales reçues, Départements en retard, Analyse et consolidation régionale, Ma synthèse régionale, Courriers, Campagnes et formules, Accès exceptionnels (accordés et révoqués par la DRES), IA & API, Notifications, Paramètres.
+- DDES : en plus de ses rubriques, « Campagnes et formules » (calendrier des fiches de ses établissements).
 - Console : Demandes, Délégations, Référentiel territorial, Rattachements, Campagnes et formules, Accès exceptionnels, Journal d'audit.
 
 ## 10. Structure des fiches
@@ -78,7 +79,7 @@ Source unique : la fonction serveur `_inst_indicateurs` (aperçu, publication, c
 
 ## 12. Routage
 
-Publication d'une fiche d'établissement : rattachement renseigné et vérifié → délégation départementale du département existante, active et pourvue d'un titulaire (sinon refus, la fiche reste enregistrée) → version immuable créée avec son destinataire → statut publiée / republiée (retard signalé) → notification de la seule délégation destinataire. Synthèse départementale : consolidation figée au moment de la publication, transmise à la seule délégation régionale de la région. Une délégation régionale ne voit les fiches brutes que par un accès exceptionnel accordé par le propriétaire (90 jours au plus, révocable, chaque consultation journalisée).
+Publication d'une fiche d'établissement : rattachement renseigné et vérifié → délégation départementale du département existante, active et pourvue d'un titulaire (sinon refus, la fiche reste enregistrée) → version immuable créée avec son destinataire → statut publiée / republiée (retard signalé) → notification de la seule délégation destinataire. Synthèse départementale : consolidation figée au moment de la publication, transmise à la seule délégation régionale de la région. Une délégation régionale ne voit les fiches brutes que par un accès exceptionnel qu'elle s'accorde elle-même (titulaire, dans sa région, 90 jours au plus, motif obligatoire, révocable, DDES concernée prévenue, chaque consultation journalisée) ou que le propriétaire lui accorde depuis la Console.
 
 ## 13. Tableaux de bord
 
@@ -145,7 +146,7 @@ Restent, faibles :
 
 1. ~~Appliquer la migration, redéployer `mcp` et `maintien`, publier le site~~ : fait le 27/11/2026.
 2. Console → Institutions → Référentiel : vérifier noms et codes des régions et départements, puis les valider.
-3. Console → Campagnes et formules : créer les campagnes (année, période, ouverture, échéance, alertes) pour les établissements, puis pour les synthèses départementales et régionales ; décider du réglage « leçons digitalisées » ; cocher « formules validées » seulement après validation officielle.
+3. Campagnes (migration 0057) : chaque délégation fixe son calendrier dans « Campagnes et formules » — la DDES pour les fiches des établissements de son département, la DRES pour les synthèses départementales de sa région (titulaire seulement ; établissements ou DDES prévenus à la création et à chaque changement de dates). Une campagne créée dans la Console est nationale et ne s'applique que là où la délégation n'a pas fixé la sienne pour la même année et la même période (une campagne nationale déjà commencée dans un département y reste la référence). Les formules restent communes et se règlent dans la Console. Console → Campagnes et formules : créer au besoin des campagnes nationales (année, période, ouverture, échéance, alertes) pour les établissements, puis pour les synthèses départementales et régionales ; décider du réglage « leçons digitalisées » ; cocher « formules validées » seulement après validation officielle.
 4. Valider les demandes de comptes des délégations (vérification du justificatif).
 5. MFA : à activer dans Supabase Auth si souhaité (non imposée par ce module).
 6. Les établissements existants doivent déclarer leur localisation (bandeau dans « Mes fiches statistiques ») ; la délégation ou le propriétaire la vérifie.

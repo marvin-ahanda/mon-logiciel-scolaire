@@ -81,7 +81,7 @@ function MesFiches({ historique = false }) {
       <h1 className="h4">{historique ? t("Historique des publications") : t("Mes fiches de synthèse statistiques")}</h1>
       {!historique && <Localisation loc={donnees.localisation} recharger={recharger} />}
       <Alerte>{erreurAction}</Alerte>
-      {!campagnes.length && <p className="text-muted">{historique ? t("Aucune fiche publiée.") : t("Aucune campagne ouverte pour le moment : les périodes et échéances sont fixées par l'administrateur de NexIA School.")}</p>}
+      {!campagnes.length && <p className="text-muted">{historique ? t("Aucune fiche publiée.") : t("Aucune campagne ouverte pour le moment : les périodes et échéances sont fixées par votre délégation départementale. Vous serez prévenu dès qu'une campagne est créée.")}</p>}
       {campagnes.length > 0 && <div className="table-responsive"><table className="table align-middle">
         <thead><tr><th>{t("Année scolaire")}</th><th>{t("Période")}</th><th>{t("Ouverture")}</th><th>{t("Échéance")}</th><th>{t("Statut")}</th><th>{t("Version")}</th><th /></tr></thead>
         <tbody>{campagnes.map((c) => (

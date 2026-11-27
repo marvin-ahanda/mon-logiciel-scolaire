@@ -5,8 +5,9 @@ import { useState } from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
 import { Alerte, Chargement, useDonnees } from "../../composants/Communs.jsx"
 import { date, dateHeure } from "../../lib/format.js"
-import { CATEGORIES_IA, PERIODES, STATUTS_DEMANDE } from "../../lib/institution.js"
+import { CATEGORIES_IA, STATUTS_DEMANDE } from "../../lib/institution.js"
 import { rpc, supabase, verifier } from "../../supabase.js"
+import { FormulaireCampagne, TableauCampagnes, anneeCourante, controlerCampagne } from "../institution/Calendrier.jsx"
 
 function useAction() {
   const [message, setMessage] = useState(null)
@@ -176,15 +177,25 @@ function Rattachements() {
 function Campagnes() {
   const [d, erreur, recharger] = useDonnees(() => rpc("console_inst_parametres", { p: null }), [])
   const [message, executer] = useAction()
-  const vide = { niveau: "etablissement", exercice: "", periode: "t1", ouverture: "", echeance: "", prolongation: "", ouvert: true, alertes: "7, 3, 1, 0, -1" }
-  const [f, setF] = useState(vide)
+  const vide = { niveau: "etablissement", exercice: anneeCourante(), periode: "t1", ouverture: "", echeance: "", prolongation: "", ouvert: true, alertes: "7, 3, 1, 0, -1" }
+  const [f, setF] = useState(vide), [erreurSaisie, setErreurSaisie] = useState("")
   if (erreur) return <Alerte>{erreur}</Alerte>
   if (!d) return <Chargement />
   const p = d.parametres
-  const enregistrer = () => executer(() => rpc("console_inst_campagne", { p: { ...f, alertes_jours: f.alertes.split(",").map((x) => x.trim()).filter(Boolean) } }).then(() => { setF(vide); recharger() }))
+  const enregistrer = () => {
+    const e = controlerCampagne(f)
+    setErreurSaisie(e)
+    if (e) return
+    executer(() => rpc("console_inst_campagne", { p: { ...f, exercice: f.exercice.trim(), alertes_jours: f.alertes.split(",").map((x) => x.trim()).filter(Boolean) } })
+      .then(() => { setF(vide); recharger() }), "Campagne enregistrée ; les destinataires sont prévenus si elle est nouvelle ou si ses dates ont changé.")
+  }
+  const niveaux = { etablissement: "Fiches des établissements", departement: "Synthèses départementales", region: "Synthèses régionales" }
   return (
     <>
       {message}
+      <div className="alert alert-info small">Les délégations fixent désormais elles-mêmes leur calendrier (menu « Campagnes et formules » de leur espace) :
+        la DDES pour les fiches de ses établissements, la DRES pour les synthèses de ses délégations départementales. Une campagne créée ici est
+        nationale : elle s'applique là où la délégation n'a pas fixé sa propre campagne pour la même année et la même période.</div>
       <div className="card mb-3"><div className="card-body small">
         <h2 className="h6">Formules (centralisées, documentées dans docs/PILOTAGE_INSTITUTIONNEL.md)</h2>
         <p className="mb-1">Couverture = (leçons faites en présentiel{p.inclure_digitalise ? " + leçons digitalisées faites" : ""}) / leçons prévues ; heures = heures faites / heures dues ; assiduité = (heures dues − absences) / heures dues. Agrégation : somme des numérateurs / somme des dénominateurs.</p>
@@ -192,25 +203,18 @@ function Campagnes() {
         <label><input type="checkbox" className="form-check-input me-1" checked={p.formules_validees} onChange={(e) => executer(() => rpc("console_inst_parametres", { p: { formules_validees: e.target.checked } }).then(recharger))} />formules validées par l'autorité compétente (retire la mention « à valider »)</label>
       </div></div>
       <div className="card mb-3"><div className="card-body small">
-        <h2 className="h6">{f.id ? "Modifier la campagne" : "Nouvelle campagne"}</h2>
-        <div className="row g-2">
-          <div className="col-md-3"><label className="form-label">Niveau</label><select className="form-select form-select-sm" disabled={!!f.id} value={f.niveau} onChange={(e) => setF({ ...f, niveau: e.target.value })}>
-            <option value="etablissement">Fiches des établissements</option><option value="departement">Synthèses départementales</option><option value="region">Synthèses régionales</option></select></div>
-          <div className="col-md-2"><label className="form-label">Année scolaire</label><input className="form-control form-control-sm" placeholder="2026-2027" disabled={!!f.id} value={f.exercice} onChange={(e) => setF({ ...f, exercice: e.target.value })} /></div>
-          <div className="col-md-2"><label className="form-label">Période</label><select className="form-select form-select-sm" disabled={!!f.id} value={f.periode} onChange={(e) => setF({ ...f, periode: e.target.value })}>
-            {Object.entries(PERIODES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-          <div className="col-md-2"><label className="form-label">Ouverture</label><input type="date" className="form-control form-control-sm" value={f.ouverture} onChange={(e) => setF({ ...f, ouverture: e.target.value })} /></div>
-          <div className="col-md-2"><label className="form-label">Échéance</label><input type="date" className="form-control form-control-sm" value={f.echeance} onChange={(e) => setF({ ...f, echeance: e.target.value })} /></div>
-          <div className="col-md-2"><label className="form-label">Prolongation</label><input type="date" className="form-control form-control-sm" value={f.prolongation || ""} onChange={(e) => setF({ ...f, prolongation: e.target.value })} /></div>
-          <div className="col-md-3"><label className="form-label">Alertes (jours avant l'échéance ; 0 = jour J, −1 = lendemain)</label><input className="form-control form-control-sm" value={f.alertes} onChange={(e) => setF({ ...f, alertes: e.target.value })} /></div>
-          <div className="col-md-2 d-flex align-items-end"><label><input type="checkbox" className="form-check-input me-1" checked={f.ouvert} onChange={(e) => setF({ ...f, ouvert: e.target.checked })} />ouverte</label></div>
-        </div>
-        <div className="mt-2 d-flex gap-2"><button className="btn btn-sm btn-primary" onClick={enregistrer}>Enregistrer</button>{f.id && <button className="btn btn-sm btn-outline-secondary" onClick={() => setF(vide)}>Annuler</button>}</div>
+        <h2 className="h6">{f.id ? "Modifier la campagne" : "Nouvelle campagne nationale"}</h2>
+        {erreurSaisie && <div className="alert alert-danger py-2">{erreurSaisie}</div>}
+        <FormulaireCampagne valeur={f} setValeur={(x) => { setErreurSaisie(""); setF(x) }} onEnregistrer={enregistrer} onAnnuler={() => { setErreurSaisie(""); setF(vide) }}
+          niveauChoix={<div className="col-sm-4 col-lg-3"><label className="form-label small" htmlFor="camp-niveau">Niveau</label>
+            <select id="camp-niveau" className="form-select form-select-sm" disabled={!!f.id} value={f.niveau} onChange={(e) => setF({ ...f, niveau: e.target.value })}>
+              {Object.entries(niveaux).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>} />
       </div></div>
-      <table className="table table-sm small"><thead><tr><th>Niveau</th><th>Année</th><th>Période</th><th>Ouverture</th><th>Échéance</th><th>Prolongation</th><th>État</th><th>Alertes</th><th /></tr></thead>
-        <tbody>{d.campagnes.map((c) => <tr key={c.id}><td>{c.niveau}</td><td>{c.exercice}</td><td>{PERIODES[c.periode]}</td><td>{date(c.ouverture)}</td><td>{date(c.echeance)}</td><td>{c.prolongation ? date(c.prolongation) : "—"}</td>
-          <td>{c.etat}</td><td>{c.alertes_jours.join(", ")}</td>
-          <td><button className="btn btn-sm btn-link" onClick={() => setF({ ...c, alertes: c.alertes_jours.join(", "), prolongation: c.prolongation || "" })}>modifier</button></td></tr>)}</tbody></table>
+      {Object.entries(niveaux).map(([k, l]) => (
+        <div key={k}><h2 className="h6">{l}</h2>
+          <TableauCampagnes avecPortee campagnes={d.campagnes.filter((c) => c.niveau === k)}
+            onModifier={(c) => { setErreurSaisie(""); setF({ id: c.id, niveau: c.niveau, exercice: c.exercice, periode: c.periode, ouverture: c.ouverture, echeance: c.echeance,
+              prolongation: c.prolongation || "", ouvert: c.ouvert, alertes: c.alertes_jours.join(", ") }); window.scrollTo({ top: 0, behavior: "smooth" }) }} /></div>))}
     </>
   )
 }

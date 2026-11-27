@@ -9,6 +9,7 @@ import AlerteDiscipline from "./AlerteDiscipline.jsx"
 import AlerteNotes from "./AlerteNotes.jsx"
 import AlerteSmartEval from "./AlerteSmartEval.jsx"
 import AlerteCourrier from "./AlerteCourrier.jsx"
+import AlerteInstitution from "./AlerteInstitution.jsx"
 import { Chargement, LimiteChargement } from "./Communs.jsx"
 import EtatConnexion, { PastilleConnexion, useEtatConnexion } from "./EtatConnexion.jsx"
 import { enAttente } from "../lib/horsLigne.js"
@@ -158,6 +159,7 @@ export default function MiseEnPage() {
           <AlerteSmartEval />
           {peutCourrier && <AlerteCourrier />}
           {estAdmin && <AlerteNotes />}
+          {estAdmin && <AlerteInstitution />}
           {peutDiscipline && <AlerteDiscipline />}
           {peutFinance && <AlerteFinance />}
         </div>)}

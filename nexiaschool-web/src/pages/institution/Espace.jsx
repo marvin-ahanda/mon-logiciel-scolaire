@@ -13,6 +13,7 @@ import { ChoixLangue, t } from "../../i18n.jsx"
 import { DemandeDelegue } from "./Acces.jsx"
 import { BadgeStatut, HistoriqueFiche, ListeAnomalies, Notifications, Piece, SelecteurCampagne, TableIndicateurs, VueFiche, deposerPiece, nombre, taux, useCampagnes } from "./Composants.jsx"
 import { LectureCourrier } from "./Etablissement.jsx"
+import { AccesExceptionnels, CampagnesDelegation } from "./Calendrier.jsx"
 
 const peut = (membre, p) => membre?.permissions?.includes(p)
 
@@ -34,11 +35,11 @@ function Cadre({ espace, recharger }) {
   const liens = regional ? [
     ["", "Tableau de bord régional"], ["delegations", "Délégations départementales"], ["fiches", "Synthèses départementales reçues"],
     ["retards", "Départements en retard"], ["consolidation", "Analyse et consolidation régionale"], ["synthese", "Ma synthèse régionale"],
-    ["courriers", "Courriers"], ["fiches-brutes", "Accès exceptionnels"], ["ia", "IA & API"], ["notifications", "Notifications"], ["parametres", "Paramètres de mon espace"],
+    ["courriers", "Courriers"], ["campagnes", "Campagnes et formules"], ["fiches-brutes", "Accès exceptionnels"], ["ia", "IA & API"], ["notifications", "Notifications"], ["parametres", "Paramètres de mon espace"],
   ] : [
     ["", "Tableau de bord départemental"], ["etablissements", "Établissements de mon département"], ["fiches", "Fiches statistiques reçues"],
     ["retards", "Établissements en retard"], ["consolidation", "Analyse et consolidation"], ["synthese", "Ma synthèse départementale"],
-    ["courriers", "Courriers"], ["ia", "IA & API"], ["notifications", "Notifications"], ["parametres", "Paramètres de mon espace"],
+    ["courriers", "Courriers"], ["campagnes", "Campagnes et formules"], ["ia", "IA & API"], ["notifications", "Notifications"], ["parametres", "Paramètres de mon espace"],
   ]
   return (
     <>
@@ -72,7 +73,8 @@ function Cadre({ espace, recharger }) {
             <Route path="synthese" element={<Syntheses membre={membre} />} />
             <Route path="synthese/:id" element={<EditeurSynthese membre={membre} />} />
             <Route path="courriers" element={<Courriers membre={membre} delegation={delegation} />} />
-            <Route path="fiches-brutes" element={<FichesBrutes />} />
+            <Route path="campagnes" element={<CampagnesDelegation />} />
+            <Route path="fiches-brutes" element={regional ? <AccesExceptionnels /> : <Navigate to="/institution" replace />} />
             <Route path="ia" element={<IaApi />} />
             <Route path="notifications" element={<Notifications onLu={recharger} />} />
             <Route path="parametres" element={<ParametresEspace espace={espace} recharger={recharger} />} />
@@ -473,23 +475,6 @@ function RedactionCourrier({ delegation, brouillon, onEnvoye, compact = false })
         <button className="btn btn-sm btn-outline-secondary" onClick={() => courrierPdf({ ...f, type_libelle: (types || []).find((x) => x.code === f.type)?.libelle, expediteur: { nom: delegation.nom } })}>{t("Aperçu PDF")}</button>
         <button className="btn btn-sm btn-primary" disabled={envoi || !f.objet.trim() || (!tous && !dest.length)} onClick={() => action(true)}>{t("Envoyer")}</button></div>
     </div></div>
-  )
-}
-
-function FichesBrutes() {
-  const [liste, erreur] = useDonnees(() => rpc("inst_fiches_derogation"), [])
-  if (erreur) return <Alerte>{erreur}</Alerte>
-  if (!liste) return <Chargement />
-  return (
-    <>
-      <h1 className="h4">{t("Accès exceptionnels aux fiches des établissements")}</h1>
-      <p className="small text-muted">{t("Accordés par l'administrateur de NexIA School, limités dans le temps ; chaque consultation est journalisée.")}</p>
-      {!liste.length && <p className="text-muted">{t("Aucun accès exceptionnel en cours.")}</p>}
-      {liste.map((g) => <div className="card mb-2" key={g.derogation}><div className="card-body">
-        <div className="small text-muted">{t("Jusqu'au {v0} · motif : {v1}", { v0: dateHeure(g.fin), v1: g.motif })}</div>
-        <ul className="mb-0">{g.fiches.map((f) => <li key={f.id}><Link to={`/institution/fiches/${f.id}`}>{f.etablissement} — {periode(f.periode)} {f.exercice}</Link></li>)}</ul>
-      </div></div>)}
-    </>
   )
 }
 

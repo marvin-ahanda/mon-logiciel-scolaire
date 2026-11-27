@@ -53,7 +53,7 @@ export function useCampagnes(niveau) {
 }
 
 export function SelecteurCampagne({ campagnes, id, setId }) {
-  if (!campagnes.length) return <div className="alert alert-light border small mb-3">{t("Aucune campagne n'est encore configurée par l'administrateur de NexIA School.")}</div>
+  if (!campagnes.length) return <div className="alert alert-light border small mb-3">{t("Aucune campagne n'est encore configurée. Le titulaire de la délégation la crée dans « Campagnes et formules ».")} <Link to="/institution/campagnes">{t("Ouvrir « Campagnes et formules »")}</Link></div>
   return (
     <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
       <label className="small text-muted" htmlFor="sel-campagne">{t("Période")}</label>
@@ -147,7 +147,7 @@ export function HistoriqueFiche({ fiche }) {
 /** Notifications internes de l'espace (établissement ou délégation). */
 export function Notifications({ onLu }) {
   const [liste, erreur, recharger] = useDonnees(() => rpc("inst_notifications_lire"), [])
-  async function toutLire() { await rpc("inst_notification_lue", { p_id: null }); recharger(); onLu?.() }
+  async function toutLire() { await rpc("inst_notification_lue", { p_id: null }); recharger(); onLu?.(); window.dispatchEvent(new Event("institution:maj")) }
   if (erreur) return <Alerte>{erreur}</Alerte>
   if (!liste) return <Chargement />
   return (
